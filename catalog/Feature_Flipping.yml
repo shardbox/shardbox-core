@@ -1,0 +1,5 @@
+---
+name: Feature Flipping
+shards:
+- github: metaware/flipper
+  description: Feature flipping/flags/rollouts. Supports multiple backends

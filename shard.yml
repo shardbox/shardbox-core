@@ -1,0 +1,26 @@
+name: shardsdb
+version: 0.1.0
+
+authors:
+  - Johannes Müller <straightshoota@gmail.com>
+
+targets:
+  worker:
+    main: src/worker.cr
+
+crystal: 0.27.0
+
+license: MIT
+
+dependencies:
+  shards:
+    github: crystal-lang/shards
+    version: ~> 0.8.1
+  db:
+    github: crystal-lang/crystal-db
+  pg:
+    github: will/crystal-pg
+  taskmaster:
+    github: straight-shoota/taskmaster
+  mosquito:
+    github: robacarp/mosquito

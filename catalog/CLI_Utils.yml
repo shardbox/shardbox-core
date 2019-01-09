@@ -1,0 +1,11 @@
+---
+name: CLI Utils
+shards:
+- github: j8r/cride
+  description: A light CLI text editor/IDE
+- github: TPei/progress_bar.cr
+  description: A simple and customizable progress bar
+- github: benoist/terminal_table.cr
+  description: Simple ASCII table generator
+- github: Nephos/todo
+  description: Todo list working in command line
