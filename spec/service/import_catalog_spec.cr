@@ -20,17 +20,17 @@ describe Service::ImportCatalog do
     with_tempdir("import_catalog") do |path|
       catalog_path = File.join(path, "catalog")
       FileUtils.mkdir_p(catalog_path)
-      File.write(File.join(catalog_path, "foo.yml"), <<-YAML)
-        name: Foo
-        shards:
-        - github: foo/foo
-        - git: https://example.com/foo/bar.git
-        YAML
       File.write(File.join(catalog_path, "bar.yml"), <<-YAML)
         name: Bar
         shards:
         - github: foo/foo
         - git: https://example.com/foo/foo.git
+        YAML
+      File.write(File.join(catalog_path, "foo.yml"), <<-YAML)
+        name: Foo
+        shards:
+        - github: foo/foo
+        - git: https://example.com/foo/bar.git
         YAML
 
       transaction do |db|
@@ -39,8 +39,8 @@ describe Service::ImportCatalog do
 
       enqueued_jobs.should eq [
         {"Service::ImportShard", %({"repo_ref":{"resolver":"github","url":"foo/foo"}})},
-        {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"https://example.com/foo/foo.git"}})},
         {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"https://example.com/foo/bar.git"}})},
+        {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"https://example.com/foo/foo.git"}})},
       ]
     end
   end
