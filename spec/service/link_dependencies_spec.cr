@@ -1,6 +1,7 @@
 require "spec"
 require "../../src/service/link_dependencies"
 require "../support/db"
+require "../support/jobs"
 require "../../src/dependency"
 
 describe Service::LinkDependencies do
