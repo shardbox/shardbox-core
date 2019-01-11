@@ -1,5 +1,3 @@
-require "git"
-
 class Shards::GitResolver
   private def mirror_repository
     run_in_current_folder "git clone --mirror --quiet -- #{Helpers::Path.escape(git_url)} #{local_path}"
