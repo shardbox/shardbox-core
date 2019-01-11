@@ -1,1 +1,13 @@
 language: crystal
+
+addons:
+  postgresql: "9.5"
+
+env:
+  SHARDSDB_TEST_DATABASE: "postgres://postgres:@localhost/shardsdb_test"
+
+services:
+- postgresql
+
+before_script:
+- make test_db
