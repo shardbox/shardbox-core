@@ -57,4 +57,4 @@ Run `make test` to execute the spec suite.
 
 ## Contributors
 
-- [Johannes Müller](https://github.com/your-github-user) - creator and maintainer
+- [Johannes Müller](https://github.com/straight-shoota) - creator and maintainer
