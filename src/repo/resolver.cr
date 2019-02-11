@@ -27,7 +27,7 @@ class Repo
       @resolver.revision_info(version)
     end
 
-    def self.resolver_instance(repo_ref, update_cache = true)
+    def self.resolver_instance(repo_ref)
       dependency = Shards::Dependency.new(repo_ref.name)
 
       url = URI.parse(repo_ref.url)
@@ -40,7 +40,7 @@ class Repo
 
       dependency[repo_ref.resolver] = url.to_s
 
-      Shards.find_resolver(dependency, update_cache: update_cache).as(Shards::GitResolver)
+      Shards.find_resolver(dependency).as(Shards::GitResolver)
     end
   end
 end

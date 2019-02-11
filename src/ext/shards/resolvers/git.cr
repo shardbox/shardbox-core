@@ -1,16 +1,4 @@
 class Shards::GitResolver
-  private def mirror_repository
-    run_in_current_folder "git clone --mirror --quiet -- #{Helpers::Path.escape(git_url)} #{local_path}"
-  rescue error : Error
-    raise Error.new("Failed to clone #{git_url}: #{error.message}")
-  end
-
-  private def fetch_repository
-    run "git fetch --all --quiet"
-  rescue error : Error
-    raise Error.new("Failed to update #{git_url}: #{error.message}")
-  end
-
   # def commit_hash(version : String? = nil)
   #   capture("git log -n 1 --pretty=%H #{git_refs(version)}").strip
   # end
@@ -86,28 +74,5 @@ class Shards::GitResolver
       FORMAT
 
     capture("git for-each-ref refs/tags/v#{version} --shell --format='#{format}'")
-  end
-
-  private def git_refs(version)
-    case version
-    when RELEASE_VERSION
-      if version && version.starts_with?('v')
-        version
-      else
-        vversion = "v#{version}"
-        begin
-          if version_at(vversion)
-            return vversion
-          end
-        rescue Error
-        end
-
-        version
-      end
-    when "*"
-      "HEAD"
-    else
-      version || "HEAD"
-    end
   end
 end

@@ -8,14 +8,14 @@ targets:
   worker:
     main: src/worker.cr
 
-crystal: 0.27.0
+crystal: 0.27.2
 
 license: MIT
 
 dependencies:
   shards:
     github: crystal-lang/shards
-    version: ~> 0.8.1
+    branch: master
   db:
     github: crystal-lang/crystal-db
   pg:

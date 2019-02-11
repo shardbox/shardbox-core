@@ -22,9 +22,9 @@ shards:
 
   shards:
     github: crystal-lang/shards
-    version: 0.8.1
+    commit: 27815669584b653e0118cf0072c4249fd1c8b461
 
   taskmaster:
     github: straight-shoota/taskmaster
-    commit: 339d148c80debd5222792fc3e45709820a26209a
+    commit: 3b96e63708af6d10fa666f51bf141357bd570d07
 
