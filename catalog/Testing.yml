@@ -22,5 +22,7 @@ shards:
 - github: crystal-community/timecop.cr
   description: Library for mocking with `Time.now`. Inspired by the [timecop ruby
     gem](https://github.com/travisjeffery/timecop)
+- github: bwilczek/webdriver_pump
+  description: Page Object library. Inspired by Ruby's [WatirPump](https://github.com/bwilczek/watir_pump)
 - github: manastech/webmock.cr
   description: Library for stubbing `HTTP::Client` requests

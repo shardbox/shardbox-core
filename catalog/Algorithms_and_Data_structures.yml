@@ -5,6 +5,9 @@ shards:
   description: AhoCorasick algorithm
 - github: spider-gazelle/bisect
   description: Inserting values into a sorted array
+- github: elorest/bitfields
+  description: Pure Crystal implementation of BitFields. Handles encoding/decoding
+    of bytes.
 - github: philnash/crotp
   description: HOTP and TOTP implementation for two factor authentication
 - github: MakeNowJust/crystal-diff
@@ -21,6 +24,8 @@ shards:
   description: A tree structure that is built using a delimiter
 - github: tcrouch/edits.cr
   description: Collection of edit distance algorithms
+- github: mettuaditya/graphlb
+  description: Collection of graph datastructure and algorithms
 - github: TobiasGSmollett/hash_ring
   description: An Implementation of Consistent Hash Ring
 - github: Sija/ksuid.cr

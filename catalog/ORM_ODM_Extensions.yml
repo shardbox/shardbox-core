@@ -3,8 +3,6 @@ name: ORM/ODM Extensions
 shards:
 - github: anykeyh/clear
   description: ORM specialized to PostgreSQL only but with advanced features
-- github: vladfaust/core
-  description: Pure, transparent and efficient ORM
 - github: Crecto/crecto
   description: Database wrapper, based on Ecto
 - github: amberframework/granite
@@ -14,6 +12,8 @@ shards:
     builder and migration system
 - github: soveran/ohm-crystal
   description: Object-hash mapping library for Redis
+- github: onyxframework/sql
+  description: DB-agnostic SQL ORM with beautiful DSL and type-safe Query builder
 - github: luckyframework/record
   description: Type safe querying, saving and updating
 - github: maiha/redis-tsv.cr

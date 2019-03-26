@@ -19,5 +19,5 @@ shards:
   description: MessagePack library
 - github: wontruefree/socks
   description: SOCKS proxy
-- github: Nephos/transfer_more
+- git: https://git.sceptique.eu/Sceptique/transfer_more
   description: Clone of transfer.sh to uploads files

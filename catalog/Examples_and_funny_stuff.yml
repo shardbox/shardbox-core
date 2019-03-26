@@ -3,6 +3,8 @@ name: Examples and funny stuff
 shards:
 - github: nbw/battlesnake_crystal
   description: Tron snake for [battlesnake](https://www.battlesnake.io/) competition
+- github: gdonald/blackjack-cr
+  description: Console Blackjack
 - github: petoem/breakout.cr
   description: Breakout game written using crsfml
 - github: codenoid/chuck-norris-holy-quotes

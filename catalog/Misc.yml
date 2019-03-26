@@ -41,6 +41,8 @@ shards:
   description: Tool to generate PDF manuals from documentation sites
 - github: danielwestendorf/message_verifier.cr
   description: Verify and generate Rails `ActiveSupport::MessageVerifier` signed tokens
+- github: isaced/pangu.cr
+  description: Paranoid text spacing in Crystal
 - github: l3kn/raytracer
   description: CPU Raytracer with examples
 - github: Sija/retriable.cr

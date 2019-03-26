@@ -3,5 +3,7 @@ name: Serverless Computing
 shards:
 - github: TPei/crystal_openfaas
   description: Template to enable crystal as first class citizens in OpenFaaS
+- git: https://faastruby.io
+  description: Serverless Software Development Platform for Ruby and Crystal.
 - github: sam0x17/gcf.cr
   description: Managed execution of Crystal in Google Cloud Functions

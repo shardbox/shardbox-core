@@ -16,6 +16,9 @@ shards:
   description: Set security-related HTTP headers
 - github: vladfaust/http-multiserver.cr
   description: Mounting multiple servers via routes (a.k.a. URL mapping)
+- github: vladfaust/http-params-serializable
+  description: HTTP params (de)serialization, applicable to URL queries and URL-encoded
+    forms
 - github: rogeriozambon/http-protection
   description: Protection against typical web attacks
 - github: ysbaddaden/http2
