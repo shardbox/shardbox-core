@@ -1,12 +1,14 @@
 struct Repo::Ref
   include JSON::Serializable
 
+  PROVIDER_RESOLVERS = {"github", "gitlab", "bitbucket"}
+
   getter resolver : String
   getter url : String
 
   def initialize(@resolver : String, @url : String)
     raise "Unknown resolver #{@resolver}" unless RESOLVERS.includes?(@resolver)
-    if {"github", "gitlab", "bitbucket"}.includes?(@resolver)
+    if PROVIDER_RESOLVERS.includes?(@resolver)
       raise "Invalid url for resolver #{@resolver}: #{@url.inspect}" unless @url =~ /^[A-Za-z0-9_\-.]{1,100}\/[A-Za-z0-9_\-.]{1,100}$/
     end
   end
@@ -32,6 +34,15 @@ struct Repo::Ref
     end
 
     new("git", uri.to_s)
+  end
+
+  def to_uri : URI
+    if PROVIDER_RESOLVERS.includes?(@resolver)
+      # FIXME: Leading slash should not be needed
+      URI.new("https", "#{resolver}.com", path: "/#{url}")
+    else
+      URI.parse(url)
+    end
   end
 
   private def self.extract_org_repo_url(uri)

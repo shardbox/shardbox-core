@@ -4,19 +4,22 @@ class Shard
   getter description : String?
   getter! id : Int64
 
-  # getter repos : Array(Repo::Ref)
-  # getter canonical_repo : Repo::Ref?
-
   def initialize(@name : String, @qualifier : String = "", @description : String? = nil, @id : Int64? = nil)
   end
 
-  # @canonical_repo : Repo::Ref? = nil, @repos : Array(Repo::Ref) = [] of Repo::Ref,
+  def_equals_and_hash name, qualifier, description
 
-  # def self.new(name : String, repo : Repo::Ref, description : String? = nil, qualifier : String = "")
-  #   new(name, repo, [repo], description, qualifier)
-  # end
+  def display_name
+    if qualifier.empty?
+      name
+    else
+      "#{name}~#{qualifier}"
+    end
+  end
 
-  def_equals_and_hash name, qualifier, description # , repos
+  def slug
+    display_name.downcase
+  end
 
   def to_s(io : IO)
     io << "#<Shard @name="
@@ -27,9 +30,6 @@ class Shard
     io << ", "
     io << "@description="
     @description.try &.dump(io)
-    io << ", "
-    # io << "@repos="
-    # @repos.to_s(io)
-    # io << ">"
+    io << ">"
   end
 end

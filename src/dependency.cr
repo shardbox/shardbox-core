@@ -48,5 +48,13 @@ class Dependency
     !repo_ref.nil?
   end
 
+  def version_reference
+    {"commit", "tag", "version", "branch"}.each do |key|
+      if value = spec[key]?
+        return {key, value}
+      end
+    end
+  end
+
   def_equals_and_hash name, spec, scope
 end

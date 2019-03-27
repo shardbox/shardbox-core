@@ -30,4 +30,12 @@ describe Repo::Ref do
     Repo::Ref.new("https://example.com/foo/bar/").name.should eq "bar"
     Repo::Ref.new("github", "foo/bar").name.should eq "bar"
   end
+
+  it "#to_uri" do
+    Repo::Ref.new("file:repo.git").to_uri.should eq URI.parse("file:repo.git")
+    Repo::Ref.new("file:repo").to_uri.should eq URI.parse("file:repo")
+    Repo::Ref.new("https://example.com/foo/bar.git").to_uri.should eq URI.parse("https://example.com/foo/bar.git")
+    Repo::Ref.new("https://example.com/foo/bar.git/").to_uri.should eq URI.parse("https://example.com/foo/bar.git/")
+    Repo::Ref.new("github", "foo/bar").to_uri.should eq URI.parse("https://github.com/foo/bar")
+  end
 end
