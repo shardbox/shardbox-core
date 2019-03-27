@@ -18,6 +18,15 @@ def enqueue_job(job)
   puts "Run `#{PROGRAM_NAME}` to execute job queue."
 end
 
+def show_help(io)
+  io.puts "shards-toolbox worker"
+  io.puts "commands:"
+  io.puts "  run:                       Run jobs from queue (default)"
+  io.puts "  import_catalog:            Creates a job to import catalog data from ./catalog"
+  io.puts "  sync_repos ([hours]):      Creates a job to sync repos not updated in last [hours]"
+  io.puts "  link_missing_dependencies: Creates a job to link missing dependencies"
+end
+
 case command = ARGV.shift?
 when "import_catalog"
   enqueue_job(Service::ImportCatalog.new("catalog"))
@@ -30,8 +39,12 @@ when "sync_repos"
   enqueue_job(Service::SyncRepos.new(age))
 when "link_missing_dependencies"
   enqueue_job(Service::LinkMissingDependencies.new)
-when Nil
+when "run", Nil
   Mosquito::Runner.start
+when "help"
+  show_help(STDOUT)
 else
-  abort "unknown command #{command.inspect}"
+  STDERR.puts "unknown command #{command.inspect}"
+  show_help(STDERR)
+  exit 1
 end
