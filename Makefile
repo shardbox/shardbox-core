@@ -1,6 +1,7 @@
 DATABASE_NAME ?= $(shell echo $(SHARDSDB_DATABASE) | grep -o -P '[^/]+$$')
 TEST_DATABASE_NAME ?= $(shell echo $(SHARDSDB_TEST_DATABASE) | grep -o -P '[^/]+$$')
 PG_USER ?= postgres
+BIN ?= bin
 
 .PHONY: SHARDSDB_DATABASE
 SHARDSDB_DATABASE:
@@ -24,6 +25,14 @@ db: SHARDSDB_DATABASE
 .PHONY: db/dump_schema
 db/dump_schema: SHARDSDB_DATABASE
 	pg_dump -U $(PG_USER) -s $(DATABASE_NAME) > db/schema.sql
+
+.PHONY: $(BIN)/worker
+$(BIN)/worker: src/worker.cr
+	crystal build src/worker.cr -o $(@)
+
+.PHONY: $(BIN)/app
+$(BIN)/app: src/app.cr
+	crystal build src/app.cr -o $(@)
 
 .PHONY: test
 test: test_db
