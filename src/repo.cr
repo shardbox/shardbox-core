@@ -14,7 +14,7 @@ class Repo
   end
 
   # Returns a reference to the shard hosted in this repo.
-  getter shard_id : Int32
+  getter shard_id : Int64
 
   # Returns the identifier of this repo, consisting of resolver and url.
   getter ref : Ref
@@ -24,10 +24,10 @@ class Repo
 
   def_equals_and_hash ref, role
 
-  def initialize(@shard_id : Int32, @ref : Ref, @role : String = "canonical")
+  def initialize(@shard_id : Int64, @ref : Ref, @role : String = "canonical")
   end
 
-  def self.new(shard_id : Int32, resolver : String, url : String, role : String = "canonical")
+  def self.new(shard_id : Int64, resolver : String, url : String, role : String = "canonical")
     new(shard_id, Ref.new(resolver, url), role)
   end
 end

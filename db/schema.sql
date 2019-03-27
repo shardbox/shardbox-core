@@ -118,8 +118,8 @@ SET default_with_oids = false;
 --
 
 CREATE TABLE public.dependencies (
-    release_id integer NOT NULL,
-    shard_id integer,
+    release_id bigint NOT NULL,
+    shard_id bigint,
     name public.citext NOT NULL,
     spec jsonb NOT NULL,
     scope public.dependency_scope NOT NULL,
@@ -136,8 +136,8 @@ ALTER TABLE public.dependencies OWNER TO postgres;
 --
 
 CREATE TABLE public.releases (
-    id integer NOT NULL,
-    shard_id integer NOT NULL,
+    id bigint NOT NULL,
+    shard_id bigint NOT NULL,
     version character varying NOT NULL,
     revision_info jsonb NOT NULL,
     spec jsonb NOT NULL,
@@ -180,8 +180,8 @@ ALTER SEQUENCE public.releases_id_seq OWNED BY public.releases.id;
 --
 
 CREATE TABLE public.repos (
-    id integer NOT NULL,
-    shard_id integer NOT NULL,
+    id bigint NOT NULL,
+    shard_id bigint NOT NULL,
     resolver public.repo_resolver NOT NULL,
     url public.citext NOT NULL,
     role public.repo_role DEFAULT 'canonical'::public.repo_role NOT NULL,
@@ -220,7 +220,7 @@ ALTER SEQUENCE public.repos_id_seq OWNED BY public.repos.id;
 --
 
 CREATE TABLE public.shards (
-    id integer NOT NULL,
+    id bigint NOT NULL,
     name public.citext NOT NULL,
     qualifier public.citext DEFAULT ''::public.citext NOT NULL,
     description text,

@@ -20,7 +20,7 @@ struct Service::SyncRepos
   end
 
   def sync_repos(db)
-    shards = db.connection.query_all <<-SQL, @older_than, as: Int32
+    shards = db.connection.query_all <<-SQL, @older_than, as: Int64
       SELECT
         shards.id
       FROM

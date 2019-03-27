@@ -9,7 +9,7 @@ require "./order_releases"
 struct Service::SyncRepo
   include Taskmaster::Job
 
-  def initialize(@shard_id : Int32)
+  def initialize(@shard_id : Int64)
   end
 
   def perform

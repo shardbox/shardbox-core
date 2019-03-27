@@ -2,11 +2,12 @@ class Shard
   getter name : String
   getter qualifier : String
   getter description : String?
+  getter! id : Int64
 
   # getter repos : Array(Repo::Ref)
   # getter canonical_repo : Repo::Ref?
 
-  def initialize(@name : String, @qualifier : String = "", @description : String? = nil)
+  def initialize(@name : String, @qualifier : String = "", @description : String? = nil, @id : Int64? = nil)
   end
 
   # @canonical_repo : Repo::Ref? = nil, @repos : Array(Repo::Ref) = [] of Repo::Ref,

@@ -19,10 +19,10 @@ module Factory
           ($1, $2, $3, $4, $5, $6, $7, #{position_sql})
         RETURNING id
         SQL
-      shard_id, version, released_at.at_beginning_of_second, spec, revision_info, latest, yanked_at.try(&.at_beginning_of_second), as: {Int32}
+      shard_id, version, released_at.at_beginning_of_second, spec, revision_info, latest, yanked_at.try(&.at_beginning_of_second), as: {Int64}
   end
 
-  def self.create_dependency(db, release_id : Int32, name : String, spec : JSON::Any, shard_id : Int32? = nil, scope = Dependency::Scope::RUNTIME, resolvable = true)
+  def self.create_dependency(db, release_id : Int64, name : String, spec : JSON::Any, shard_id : Int64? = nil, scope = Dependency::Scope::RUNTIME, resolvable = true)
     db.connection.exec <<-SQL, release_id, name, spec.to_json, shard_id, scope, resolvable
         INSERT INTO dependencies
           (release_id, name, spec, shard_id, scope, resolvable)

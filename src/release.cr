@@ -21,18 +21,36 @@ class Release
   property revision_info : RevisionInfo
   property released_at : Time
   property? yanked_at : Time?
-  property dependencies : Array(Dependency)
   getter spec : Hash(String, JSON::Any)
   getter? latest : Bool
+  getter! id : Int64
+
+  def self.new(
+    version : String,
+    revision_info : RevisionInfo,
+    spec : Hash(String, JSON::Any) = {} of String => JSON::Any,
+    yanked_at : Time? = nil,
+    latest : Bool = false
+  )
+    new(
+      version: version,
+      released_at: revision_info.commit.time,
+      revision_info: revision_info,
+      spec: spec,
+      yanked_at: yanked_at,
+      latest: latest
+    )
+  end
 
   def initialize(
-    @version : String, @revision_info : RevisionInfo,
+    @version : String,
+    @released_at : Time,
+    @revision_info : RevisionInfo,
     @spec : Hash(String, JSON::Any) = {} of String => JSON::Any,
-    @dependencies : Array(Dependency) = [] of Dependency,
     @yanked_at : Time? = nil,
-    @latest : Bool = false
+    @latest : Bool = false,
+    @id : Int64? = nil
   )
-    @released_at = revision_info.commit.time
   end
 
   def license : String?
@@ -47,5 +65,5 @@ class Release
     spec["crystal"]?.try &.as_s
   end
 
-  def_equals_and_hash version, revision, released_at, dependencies, spec
+  def_equals_and_hash version, revision_info, released_at, spec
 end

@@ -6,7 +6,7 @@ require "../util/software_version"
 class Service::OrderReleases
   include Taskmaster::Job
 
-  def initialize(@shard_id : Int32)
+  def initialize(@shard_id : Int64)
   end
 
   def perform
@@ -22,7 +22,7 @@ class Service::OrderReleases
     getter version
     getter? yanked
 
-    def initialize(@id : Int32, version : String, @yanked : Bool)
+    def initialize(@id : Int64, version : String, @yanked : Bool)
       @version = SoftwareVersion.new(version)
     end
 
@@ -68,7 +68,7 @@ class Service::OrderReleases
 
     releases = [] of ReleaseInfo
     db.connection.query_all sql, @shard_id do |result_set|
-      releases << ReleaseInfo.new(*result_set.read(Int32, String, Bool))
+      releases << ReleaseInfo.new(*result_set.read(Int64, String, Bool))
     end
     releases
   end

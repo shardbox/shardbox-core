@@ -8,7 +8,7 @@ require "../dependency"
 class Service::SyncRelease
   include Taskmaster::Job
 
-  def initialize(@shard_id : Int32, @version : String)
+  def initialize(@shard_id : Int64, @version : String)
   end
 
   def perform
@@ -39,8 +39,8 @@ class Service::SyncRelease
     sync_dependencies(db, release_id, spec)
   end
 
-  def upsert_release(db, shard_id : Int32, release : Release)
-    release_id = db.connection.query_one?(<<-SQL, shard_id, release.version, as: Int32)
+  def upsert_release(db, shard_id : Int64, release : Release)
+    release_id = db.connection.query_one?(<<-SQL, shard_id, release.version, as: Int64)
       SELECT id FROM releases WHERE shard_id = $1 AND version = $2
       SQL
 
@@ -65,7 +65,7 @@ class Service::SyncRelease
         RETURNING id
         SQL
 
-      release_id = db.connection.scalar(sql, shard_id, release.version, release.released_at, release.revision_info.to_json, release.spec.to_json).as(Int32)
+      release_id = db.connection.scalar(sql, shard_id, release.version, release.released_at, release.revision_info.to_json, release.spec.to_json).as(Int64)
     end
 
     release_id

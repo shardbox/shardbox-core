@@ -6,7 +6,7 @@ require "taskmaster"
 class Service::LinkDependencies
   include Taskmaster::Job
 
-  def initialize(@release_id : Int32)
+  def initialize(@release_id : Int64)
   end
 
   def perform
@@ -16,7 +16,7 @@ class Service::LinkDependencies
   end
 
   def link_dependencies(db)
-    results = db.connection.query_all <<-SQL, @release_id, as: {Int32, String, JSON::Any, String}
+    results = db.connection.query_all <<-SQL, @release_id, as: {Int64, String, JSON::Any, String}
       SELECT
         release_id, name::text, spec, scope::text
       FROM dependencies
@@ -44,7 +44,7 @@ class Service::LinkDependencies
         next
       end
 
-      shard_id = db.connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url.to_s, as: Int32?
+      shard_id = db.connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url.to_s, as: Int64?
         SELECT
           shard_id
         FROM

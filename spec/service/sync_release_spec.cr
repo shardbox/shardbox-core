@@ -23,7 +23,7 @@ describe Service::SyncRelease do
 
       service.sync_release(db, Repo::Resolver.new(mock_resolver))
 
-      results = db.connection.query_all <<-SQL, as: {Int32, String, Time, JSON::Any, JSON::Any, Int32?, Bool?, Time?}
+      results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int64?, Bool?, Time?}
         SELECT
           shard_id, version, released_at, spec, revision_info, position, latest, yanked_at
         FROM releases
@@ -55,7 +55,7 @@ describe Service::SyncRelease do
 
       service.sync_release(db, Repo::Resolver.new(mock_resolver))
 
-      results = db.connection.query_all <<-SQL, as: {Int32, String, Time, JSON::Any, JSON::Any, Int32?, Bool?, Time?}
+      results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int32?, Bool?, Time?}
         SELECT
           shard_id, version, released_at, spec, revision_info, position, latest, yanked_at
         FROM releases
@@ -90,7 +90,7 @@ describe Service::SyncRelease do
 
       service.sync_dependencies(db, release_id, dependencies)
 
-      results = db.connection.query_all <<-SQL, as: {Int32?, String, JSON::Any, String}
+      results = db.connection.query_all <<-SQL, as: {Int64?, String, JSON::Any, String}
         SELECT
           shard_id, name::text, spec, scope::text
         FROM dependencies
@@ -109,7 +109,7 @@ describe Service::SyncRelease do
 
       service.sync_dependencies(db, release_id, new_dependencies)
 
-      results = db.connection.query_all <<-SQL, as: {Int32?, String, JSON::Any, String}
+      results = db.connection.query_all <<-SQL, as: {Int64?, String, JSON::Any, String}
         SELECT
           shard_id, name::text, spec, scope::text
         FROM dependencies

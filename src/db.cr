@@ -33,7 +33,7 @@ class ShardsDB
   getter connection
 
   def find_shard_id?(name : String)
-    connection.query_one? <<-SQL, name, as: {Int32}
+    connection.query_one? <<-SQL, name, as: {Int64}
       SELECT id
       FROM shards
       WHERE
@@ -42,7 +42,7 @@ class ShardsDB
       SQL
   end
 
-  def find_canonical_repo(shard_id : Int32)
+  def find_canonical_repo(shard_id : Int64)
     resolver, url = connection.query_one <<-SQL, shard_id, as: {String, String}
       SELECT resolver::text, url::text
       FROM repos
@@ -54,7 +54,7 @@ class ShardsDB
   end
 
   def create_shard(shard : Shard)
-    shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, as: {Int32}
+    shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, as: {Int64}
       INSERT INTO shards
         (name, qualifier, description)
       VALUES
@@ -64,7 +64,7 @@ class ShardsDB
   end
 
   def create_repo(repo : Repo)
-    connection.query_one? <<-SQL, repo.shard_id, repo.ref.resolver, repo.ref.url, repo.role, as: Int32
+    connection.query_one? <<-SQL, repo.shard_id, repo.ref.resolver, repo.ref.url, repo.role, as: Int64
       INSERT INTO repos
         (shard_id, resolver, url, role)
       VALUES
@@ -83,7 +83,7 @@ class ShardsDB
     !result.nil?
   end
 
-  def self.create_release(shard_id : Int32, release : Release, position = nil)
+  def self.create_release(shard_id : Int64, release : Release, position = nil)
     position_sql = position ? position.to_s : "(SELECT MAX(position) FROM releases WHERE shard_id = $1)"
     sql = <<-SQL
       INSERT INTO releases
@@ -96,10 +96,10 @@ class ShardsDB
       shard_id, release.version, release.released_at.at_beginning_of_second,
       release.spec, release.revision_info, release.latest? || nil,
       yanked_at.try(&.at_beginning_of_second),
-      as: {Int32}
+      as: {Int64}
   end
 
-  def upsert_dependency(release_id : Int32, dependency : Dependency, shard_id = nil)
+  def upsert_dependency(release_id : Int64, dependency : Dependency, shard_id = nil)
     connection.exec <<-SQL, release_id, shard_id, dependency.name, dependency.spec.to_json, dependency.scope, dependency.resolvable?
       INSERT INTO dependencies
         (release_id, shard_id, name, spec, scope, resolvable)

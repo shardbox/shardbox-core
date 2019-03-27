@@ -18,7 +18,7 @@ describe Service::LinkDependencies do
 
       service.link_dependencies(db)
 
-      results = db.connection.query_all <<-SQL, as: {Int32?, String, Bool}
+      results = db.connection.query_all <<-SQL, as: {Int64?, String, Bool}
         SELECT
           shard_id, name::text, resolvable
         FROM dependencies

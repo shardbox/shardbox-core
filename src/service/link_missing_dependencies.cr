@@ -13,7 +13,7 @@ class Service::LinkMissingDependencies
   end
 
   def link_missing_dependencies(db)
-    releases = db.connection.query_all <<-SQL, as: Int32
+    releases = db.connection.query_all <<-SQL, as: Int64
       SELECT DISTINCT
         release_id
       FROM
