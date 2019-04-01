@@ -1,4 +1,5 @@
 require "mosquito"
+require "raven"
 
 class Taskmaster::Mosquito
   include Taskmaster::Adapter
@@ -40,6 +41,11 @@ class MosquitoJob < Mosquito::QueuedJob
 
     log "performing #{name} #{args}"
 
-    job.perform
+    begin
+      job.perform
+    rescue exc
+      Raven.capture(exc, extra: {job: name, args: job.to_json})
+      raise exc
+    end
   end
 end

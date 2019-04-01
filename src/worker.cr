@@ -27,6 +27,10 @@ def show_help(io)
   io.puts "  link_missing_dependencies: Creates a job to link missing dependencies"
 end
 
+Raven.configure do |config|
+  config.connect_timeout = 5.seconds
+end
+
 case command = ARGV.shift?
 when "import_catalog"
   enqueue_job(Service::ImportCatalog.new("catalog"))

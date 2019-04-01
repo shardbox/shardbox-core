@@ -24,3 +24,5 @@ dependencies:
     github: straight-shoota/taskmaster
   mosquito:
     github: robacarp/mosquito
+  raven:
+    github: Sija/raven.cr
