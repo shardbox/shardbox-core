@@ -3,6 +3,7 @@ require "../db"
 require "../ext/yaml/any"
 require "../repo/resolver"
 require "../dependency"
+require "raven"
 
 # This service synchronizes the information about a release in the database.
 class Service::SyncRelease
@@ -16,6 +17,8 @@ class Service::SyncRelease
       repo = db.find_canonical_repo(@shard_id)
       resolver = Repo::Resolver.new(repo.ref)
 
+      Raven.tags_context repo: repo.ref.to_s, version: @version
+
       sync_release(db, resolver)
     end
   end
@@ -28,6 +31,15 @@ class Service::SyncRelease
       # Just stick with the tag version for now, because the spec version is not
       # really useable anyway.
       # raise "spec reports different version than tag: #{spec.version} - #{@version}"
+      Raven.send_event Raven::Event.new(
+          level: :warning,
+          message: "Mismatching version tag from shards.yml, using tag version.",
+          tags: {
+            repo: resolver.repo_ref.to_s,
+            tag_version: @version,
+            spec_version: spec.version,
+          }
+        )
     end
 
     revision_info = resolver.revision_info(@version)

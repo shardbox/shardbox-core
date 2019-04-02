@@ -60,10 +60,14 @@ struct Repo::Ref
   end
 
   def to_s(io : IO)
-    io << "#<Repo::Ref "
     io << resolver
     io << ":"
     @url.dump_unquoted(io)
+  end
+
+  def inspect(io : IO)
+    io << "#<Repo::Ref "
+    to_s(io)
     io << ">"
   end
 end

@@ -42,9 +42,11 @@ class MosquitoJob < Mosquito::QueuedJob
     log "performing #{name} #{args}"
 
     begin
+      Raven::Context.clear!
+      Raven.tags_context({"job:name" => name, "job:args" => job.to_json})
       job.perform
     rescue exc
-      Raven.capture(exc, extra: {job: name, args: job.to_json})
+      Raven.capture(exc)
       raise exc
     end
   end

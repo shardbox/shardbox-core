@@ -4,6 +4,7 @@ require "../repo"
 require "../repo/resolver"
 require "./sync_repo"
 require "../shard"
+require "raven"
 
 struct Service::ImportShard
   include Taskmaster::Job
@@ -18,6 +19,8 @@ struct Service::ImportShard
   end
 
   def import_shard(db)
+    Raven.tags_context repo: @repo_ref.to_s
+
     import_shard(db, Repo::Resolver.new(@repo_ref))
   end
 

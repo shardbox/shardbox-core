@@ -4,6 +4,7 @@ require "../ext/yaml/any"
 require "../repo/resolver"
 require "./sync_release"
 require "./order_releases"
+require "raven"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepo
@@ -17,6 +18,8 @@ struct Service::SyncRepo
       repo = db.find_canonical_repo(@shard_id)
       resolver = Repo::Resolver.new(repo.ref)
 
+      Raven.tags_context repo: repo.ref.to_s
+
       sync_repo(db, resolver)
     end
   end
@@ -28,6 +31,14 @@ struct Service::SyncRepo
       if !SoftwareVersion.valid?(version)
         # TODO: What should happen when a version tag is invalid?
         # Ignoring for now.
+        Raven.send_event Raven::Event.new(
+            level: :warning,
+            message: "Invalid version, ignoring release.",
+            tags: {
+              repo: resolver.repo_ref.to_s,
+              tag_version: version
+            }
+          )
         next
       end
 

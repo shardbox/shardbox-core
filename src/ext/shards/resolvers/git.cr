@@ -30,10 +30,17 @@ class Shards::GitResolver
   # # end
 
   def revision_info(version)
-    tag = Release::Tag.from_json(tag_json(version)) rescue nil
-    commit = Release::Commit.from_json(commit_json(version))
+    tag = try_parse(tag_json(version)) { |json| Release::Tag.from_json(json) }
+    commit = try_parse(commit_json(version)) { |json| Release::Commit.from_json(json) }
 
     Release::RevisionInfo.new tag, commit
+  end
+
+  private def try_parse(json)
+    yield json
+  rescue exc : JSON::ParseException
+    Raven.extra_context json: json
+    raise exc
   end
 
   private def commit_json(version)
