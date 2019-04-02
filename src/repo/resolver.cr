@@ -27,6 +27,12 @@ class Repo
       @resolver.revision_info(version)
     end
 
+    def fetch_metadata : Hash(String, JSON::Any)?
+      if (resolver = @resolver).responds_to?(:fetch_metadata)
+        resolver.fetch_metadata
+      end
+    end
+
     def self.resolver_instance(repo_ref)
       dependency = Shards::Dependency.new(repo_ref.name)
 

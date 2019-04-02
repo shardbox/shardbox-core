@@ -38,7 +38,7 @@ struct Service::SyncRepo
 
     Service::OrderReleases.new(@shard_id).order_releases(db)
 
-    update_repo_synced_at(db)
+    sync_metadata(db, resolver)
   end
 
   def yank_releases_with_missing_versions(db, versions)
@@ -52,12 +52,16 @@ struct Service::SyncRepo
       SQL
   end
 
-  def update_repo_synced_at(db)
-    db.connection.exec <<-SQL, @shard_id
+  def sync_metadata(db, resolver)
+    metadata = resolver.fetch_metadata
+    metadata ||= JSON::Any.new(Hash(String, JSON::Any).new)
+
+    db.connection.exec <<-SQL, @shard_id, metadata.to_json
       UPDATE
         repos
       SET
-        synced_at = NOW()
+        synced_at = NOW(),
+        metadata = $2::jsonb
       WHERE
         shard_id = $1 AND role = 'canonical'
       SQL

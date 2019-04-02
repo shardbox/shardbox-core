@@ -44,14 +44,14 @@ class ShardsDB
   end
 
   def find_canonical_repo(shard_id : Int64)
-    resolver, url = connection.query_one <<-SQL, shard_id, as: {String, String}
-      SELECT resolver::text, url::text
+    resolver, url, metadata = connection.query_one <<-SQL, shard_id, as: {String, String, JSON::Any}
+      SELECT resolver::text, url::text, metadata::jsonb
       FROM repos
       WHERE
         shard_id = $1 AND role = 'canonical'
       SQL
 
-    Repo.new(shard_id, resolver, url, "canonical")
+    Repo.new(shard_id, resolver, url, "canonical", metadata)
   end
 
   def create_shard(shard : Shard)

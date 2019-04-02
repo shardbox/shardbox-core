@@ -185,6 +185,7 @@ CREATE TABLE public.repos (
     resolver public.repo_resolver NOT NULL,
     url public.citext NOT NULL,
     role public.repo_role DEFAULT 'canonical'::public.repo_role NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     synced_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,

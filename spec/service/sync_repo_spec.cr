@@ -33,4 +33,27 @@ describe Service::SyncRepo do
       results.should eq [{"0.1.1", nil, false}, {"0.1.3", true, false}, {"0.1.0", nil, true}, {"0.1.2", nil, true}]
     end
   end
+
+  it "#sync_metadata" do
+    transaction do |db|
+      shard_id = Factory.create_shard(db)
+      db.connection.exec <<-SQL, shard_id
+        INSERT INTO repos (shard_id, resolver, url, synced_at)
+        VALUES ($1, 'git', 'foo', NOW() - interval '1h')
+        SQL
+
+      service = Service::SyncRepo.new(shard_id)
+
+      mock_resolver = MockResolver.new(metadata: {"foo" => JSON::Any.new("bar")})
+      resolver = Repo::Resolver.new(mock_resolver)
+      service.sync_metadata(db, resolver)
+
+      results = db.connection.query_all <<-SQL, as: {JSON::Any, Bool}
+        SELECT metadata, synced_at > NOW() - interval '1s'
+        FROM repos
+        SQL
+
+      results.should eq [{JSON.parse(%({"foo": "bar"})), true}]
+    end
+  end
 end

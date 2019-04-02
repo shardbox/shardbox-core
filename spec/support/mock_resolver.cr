@@ -6,7 +6,7 @@ end
 class MockResolver
   alias MockEntry = {spec: String, revision_info: Release::RevisionInfo}
 
-  def initialize(@versions : Hash(String, MockEntry) = {} of String => MockEntry)
+  def initialize(@versions : Hash(String, MockEntry) = {} of String => MockEntry, @metadata : Hash(String, JSON::Any) = {} of String => JSON::Any)
   end
 
   def register(version : String, revision_info : Release::RevisionInfo, spec : String)
@@ -30,5 +30,9 @@ class MockResolver
   def revision_info(version : String? = nil)
     version ||= @versions.keys.last
     @versions[version][:revision_info]
+  end
+
+  def fetch_metadata
+    @metadata
   end
 end

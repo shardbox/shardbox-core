@@ -22,13 +22,15 @@ class Repo
   # Returns the role of this repo for the shard (defaults to `canonical`).
   getter role : String
 
+  getter metadata : Hash(String, JSON::Any)
+
   def_equals_and_hash ref, role
 
-  def initialize(@shard_id : Int64, @ref : Ref, @role : String = "canonical")
+  def initialize(@shard_id : Int64, @ref : Ref, @role : String = "canonical", @metadata = {} of String => JSON::Any)
   end
 
-  def self.new(shard_id : Int64, resolver : String, url : String, role : String = "canonical")
-    new(shard_id, Ref.new(resolver, url), role)
+  def self.new(shard_id : Int64, resolver : String, url : String, role : String = "canonical", metadata = {} of String => JSON::Any)
+    new(shard_id, Ref.new(resolver, url), role, metadata)
   end
 end
 
