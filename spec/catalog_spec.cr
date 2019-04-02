@@ -1,7 +1,7 @@
 require "spec"
-require "../src/category"
+require "../src/catalog"
 
-describe Category do
+describe Catalog::Category do
   it ".from_yaml" do
     io = IO::Memory.new <<-YAML
       name: Foo
@@ -13,13 +13,13 @@ describe Category do
       - git: https://github.com/bar/foo.git
         description: Triple the foo
       YAML
-    category = Category.from_yaml(io)
+    category = Catalog::Category.from_yaml(io)
     category.name.should eq "Foo"
     category.description.should eq "Foo category"
     category.shards.should eq [
-      Category::Entry.new(Repo::Ref.new("github", "foo/foo")),
-      Category::Entry.new(Repo::Ref.new("git", "https://example.com/foo.git"), "Another foo"),
-      Category::Entry.new(Repo::Ref.new("github", "bar/foo"), "Triple the foo"),
+      Catalog::Entry.new(Repo::Ref.new("github", "foo/foo")),
+      Catalog::Entry.new(Repo::Ref.new("git", "https://example.com/foo.git"), "Another foo"),
+      Catalog::Entry.new(Repo::Ref.new("github", "bar/foo"), "Triple the foo"),
     ]
   end
 end

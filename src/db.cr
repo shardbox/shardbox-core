@@ -2,6 +2,7 @@ require "db"
 require "pg"
 require "./shard"
 require "./release"
+require "./category"
 
 class ShardsDB
   class Error < Exception

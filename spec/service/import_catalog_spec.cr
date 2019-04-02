@@ -44,4 +44,30 @@ describe Service::ImportCatalog do
       ]
     end
   end
+
+  it "creates categories" do
+    with_tempdir("import_catalog") do |path|
+      catalog_path = File.join(path, "catalog")
+      FileUtils.mkdir_p(catalog_path)
+      File.write(File.join(catalog_path, "bar.yml"), <<-YAML)
+        name: Bar
+        description: bardesc
+        shards:
+        - github: foo/foo
+        - git: https://example.com/foo/foo.git
+        YAML
+      File.write(File.join(catalog_path, "foo.yml"), <<-YAML)
+        name: Foo
+        description: foodesc
+        shards:
+        - github: foo/foo
+        - git: https://example.com/foo/bar.git
+        YAML
+
+      transaction do |db|
+        Service::ImportCatalog.new(catalog_path).import_catalog(db)
+        db.all_categories.map { |cat| {cat.name, cat.description }}.should eq [{"Bar", "bardesc"}, {"Foo", "foodesc"}]
+      end
+    end
+  end
 end

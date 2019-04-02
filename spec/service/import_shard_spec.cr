@@ -94,7 +94,7 @@ describe Service::ImportShard do
     end
   end
 
-  it "keeps existing entry" do
+  it "skips existing repo" do
     repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
 
     service = Service::ImportShard.new(repo_ref)
@@ -108,7 +108,7 @@ describe Service::ImportShard do
       persisted_shards(db).should eq [{"test", nil, ""}]
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
-      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"shard_id":#{shard_id}})]
+      find_queued_tasks("Service::SyncRepo").map(&.arguments).should be_empty
     end
   end
 end

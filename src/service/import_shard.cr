@@ -36,6 +36,8 @@ struct Service::ImportShard
         WHERE
           shard_id = $1 AND resolver = $2 AND url = $3
         SQL
+        # Repo already exists, skip sync
+        return
       else
         # The repo could be a (legacy) mirror, a fork or simply a homonymous shard.
         # This is impossible to reliably detect automatically.
