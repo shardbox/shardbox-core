@@ -1,8 +1,6 @@
 ---
 name: Environment Management
 shards:
-- github: marciogm/asdf-crystal
-  description: Plugin for asdf version manager
 - github: pine/crenv
   description: Crystal version manager
 - github: maiha/rcm.cr
