@@ -37,10 +37,10 @@ describe Service::ImportCatalog do
         Service::ImportCatalog.new(catalog_path).import_catalog(db)
       end
 
-      enqueued_jobs.should eq [
-        {"Service::ImportShard", %({"repo_ref":{"resolver":"github","url":"foo/foo"}})},
+      enqueued_jobs.sort.should eq [
         {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"https://example.com/foo/bar.git"}})},
         {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"https://example.com/foo/foo.git"}})},
+        {"Service::ImportShard", %({"repo_ref":{"resolver":"github","url":"foo/foo"}})},
       ]
     end
   end
