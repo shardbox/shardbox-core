@@ -22,13 +22,13 @@ struct Service::SyncRepos
   def sync_repos(db)
     shards = db.connection.query_all <<-SQL, @older_than, as: Int64
       SELECT
-        shards.id
+        shard_id
       FROM
-        shards
-      JOIN
-        repos ON repos.shard_id = shards.id AND repos.role = 'canonical'
+        repos
       WHERE
-        synced_at IS NULL OR synced_at < $1
+        repos.role = 'canonical' AND synced_at IS NULL OR synced_at < $1
+      ORDER BY
+        synced_at ASC NULL FIRST
       SQL
 
     shards.each do |id|
