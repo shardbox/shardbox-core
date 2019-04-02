@@ -4,11 +4,13 @@ require "../ext/shards/resolvers/git"
 
 class Repo
   class Resolver
-    def initialize(@resolver : Shards::GitResolver)
+    getter repo_ref
+
+    def initialize(@resolver : Shards::GitResolver, @repo_ref : Repo::Ref)
     end
 
-    def self.new(repo : Repo::Ref)
-      new(resolver_instance(repo))
+    def self.new(repo_ref : Repo::Ref)
+      new(resolver_instance(repo_ref), repo_ref)
     end
 
     def fetch_versions : Array(String)

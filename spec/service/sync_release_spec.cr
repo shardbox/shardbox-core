@@ -21,7 +21,7 @@ describe Service::SyncRelease do
 
       service = Service::SyncRelease.new(shard_id, "0.1.0")
 
-      service.sync_release(db, Repo::Resolver.new(mock_resolver))
+      service.sync_release(db, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
 
       results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int64?, Bool?, Time?}
         SELECT
@@ -53,7 +53,7 @@ describe Service::SyncRelease do
 
       service = Service::SyncRelease.new(shard_id, "0.1.0")
 
-      service.sync_release(db, Repo::Resolver.new(mock_resolver))
+      service.sync_release(db, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
 
       results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int32?, Bool?, Time?}
         SELECT

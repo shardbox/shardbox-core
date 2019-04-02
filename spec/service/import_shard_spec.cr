@@ -34,7 +34,7 @@ describe Service::ImportShard do
     service = Service::ImportShard.new(repo_ref)
 
     transaction do |db|
-      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver))
+      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
 
       persisted_shards(db).should eq [{"test", "test shard", ""}]
       persisted_repos(db).should eq [{"git", "mock:test", "canonical", "test"}]
@@ -51,7 +51,7 @@ describe Service::ImportShard do
       transaction do |db|
         Factory.create_shard(db, "test")
 
-        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver))
+        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
 
         persisted_shards(db).should eq [{"test", nil, ""}, {"test", "test shard", "example.com"}]
         persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
@@ -67,7 +67,7 @@ describe Service::ImportShard do
       transaction do |db|
         Factory.create_shard(db, "test")
 
-        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver))
+        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
 
         persisted_shards(db).should eq [{"test", nil, ""}, {"test", "test shard", "testorg"}]
         persisted_repos(db).should eq [{"github", "testorg/test", "canonical", "test"}]
@@ -84,7 +84,7 @@ describe Service::ImportShard do
         Factory.create_shard(db, "test")
         Factory.create_shard(db, "test", qualifier: "example.com")
 
-        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver))
+        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
 
         persisted_shards(db).should eq [{"test", nil, ""}, {"test", nil, "example.com"}, {"test", "test shard", "example.com-git"}]
         persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
@@ -103,7 +103,7 @@ describe Service::ImportShard do
       shard_id = Factory.create_shard(db, "test")
       Factory.create_repo(db, shard_id, repo_ref)
 
-      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver))
+      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
 
       persisted_shards(db).should eq [{"test", nil, ""}]
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]

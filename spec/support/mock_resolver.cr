@@ -1,5 +1,5 @@
 class Repo::Resolver
-  def initialize(@resolver : MockResolver)
+  def initialize(@resolver : MockResolver, @repo_ref)
   end
 end
 

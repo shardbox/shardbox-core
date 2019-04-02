@@ -45,7 +45,7 @@ describe Service::SyncRepo do
       service = Service::SyncRepo.new(shard_id)
 
       mock_resolver = MockResolver.new(metadata: {"foo" => JSON::Any.new("bar")})
-      resolver = Repo::Resolver.new(mock_resolver)
+      resolver = Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo"))
       service.sync_metadata(db, resolver)
 
       results = db.connection.query_all <<-SQL, as: {JSON::Any, Bool}
