@@ -16,7 +16,7 @@ describe Service::LinkDependencies do
 
       service = Service::LinkDependencies.new(release_id)
 
-      service.link_dependencies(db)
+      service.perform(db)
 
       results = db.connection.query_all <<-SQL, as: {Int64?, String, Bool}
         SELECT

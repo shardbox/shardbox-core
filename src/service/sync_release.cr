@@ -37,6 +37,8 @@ class Service::SyncRelease
     release_id = upsert_release(db, @shard_id, release)
 
     sync_dependencies(db, release_id, spec)
+
+    LinkDependencies.new(release_id).perform(db)
   end
 
   def upsert_release(db, shard_id : Int64, release : Release)

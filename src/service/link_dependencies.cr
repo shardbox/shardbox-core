@@ -11,11 +11,11 @@ class Service::LinkDependencies
 
   def perform
     ShardsDB.transaction do |db|
-      link_dependencies(db)
+      perform(db)
     end
   end
 
-  def link_dependencies(db)
+  def perform(db)
     results = db.connection.query_all <<-SQL, @release_id, as: {Int64, String, JSON::Any, String}
       SELECT
         release_id, name::text, spec, scope::text
