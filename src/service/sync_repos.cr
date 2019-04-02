@@ -28,7 +28,7 @@ struct Service::SyncRepos
       WHERE
         repos.role = 'canonical' AND synced_at IS NULL OR synced_at < $1
       ORDER BY
-        synced_at ASC NULL FIRST
+        synced_at ASC NULLS FIRST
       SQL
 
     shards.each do |id|
