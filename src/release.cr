@@ -1,4 +1,5 @@
 require "./dependency"
+require "json"
 
 class Release
   record RevisionInfo, tag : Tag?, commit : Commit do

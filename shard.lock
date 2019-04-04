@@ -8,6 +8,10 @@ shards:
     github: crystal-lang/crystal-db
     version: 0.5.1
 
+  git:
+    github: smacker/libgit2.cr
+    commit: c9a93f18d180a5c2772013760bcbf1c834773613
+
   github-cr:
     github: arnavb/github-cr
     commit: 119df4c747a81260b37af0878b24eab9345a94f4
