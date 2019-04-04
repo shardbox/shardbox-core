@@ -1,21 +1,12 @@
-require "http/client"
+require "github-cr"
 
 class Shards::GithubResolver
-  @client : HTTP::Client?
+  @client : GithubCr::Client
   def client
-    @client ||= begin
-      client = HTTP::Client.new("api.github.com", 443, true)
-      client.basic_auth ENV["GITHUB_USER"], ENV["GITHUB_KEY"]
-      client
-    end
+    @client ||= GithubCr::Client.new(ENV["GITHUB_USER"], ENV["GITHUB_KEY"])
   end
 
   def fetch_metadata : Hash(String, JSON::Any)
-    url = "/repos/#{dependency["github"]}"
-    p! client
-    p! url
-    response = client.get(url)
-    json = JSON.parse(response.body)
-    json.as_h
+    client.repo(dependency["github"]).raw_json
   end
 end

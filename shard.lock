@@ -8,13 +8,17 @@ shards:
     github: crystal-lang/crystal-db
     version: 0.5.1
 
+  github-cr:
+    github: arnavb/github-cr
+    commit: 119df4c747a81260b37af0878b24eab9345a94f4
+
   mosquito:
     github: robacarp/mosquito
     version: 0.3.0
 
   pg:
     github: will/crystal-pg
-    version: 0.15.0
+    version: 0.16.0
 
   pool:
     github: ysbaddaden/pool

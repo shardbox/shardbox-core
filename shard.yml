@@ -26,3 +26,5 @@ dependencies:
     github: robacarp/mosquito
   raven:
     github: Sija/raven.cr
+  github-cr:
+    github: arnavb/github-cr
