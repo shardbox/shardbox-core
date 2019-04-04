@@ -28,7 +28,7 @@ struct Service::SyncRepo
     versions = resolver.fetch_versions
 
     versions.each do |version|
-      if !SoftwareVersion.valid?(version)
+      if !SoftwareVersion.valid?(version) && version != "HEAD"
         # TODO: What should happen when a version tag is invalid?
         # Ignoring for now.
         Raven.send_event Raven::Event.new(
