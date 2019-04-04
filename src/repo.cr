@@ -26,11 +26,13 @@ class Repo
 
   def_equals_and_hash ref, role
 
-  def initialize(@shard_id : Int64, @ref : Ref, @role : String = "canonical", @metadata = {} of String => JSON::Any)
+  getter! synced_at : Time?
+
+  def initialize(@shard_id : Int64, @ref : Ref, @role : String = "canonical", @metadata = {} of String => JSON::Any, @synced_at : Time? = nil)
   end
 
-  def self.new(shard_id : Int64, resolver : String, url : String, role : String = "canonical", metadata = {} of String => JSON::Any)
-    new(shard_id, Ref.new(resolver, url), role, metadata)
+  def self.new(shard_id : Int64, resolver : String, url : String, role : String = "canonical", metadata = {} of String => JSON::Any, synced_at : Time? = nil)
+    new(shard_id, Ref.new(resolver, url), role, metadata, synced_at)
   end
 end
 
