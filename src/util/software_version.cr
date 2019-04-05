@@ -1,14 +1,17 @@
-# The `Version` type represents a version number.
+# The `SoftwareVersion` type represents a version number.
 #
 # An instance can be created from a version string which consists of a series of
 # segments separated by periods. Each segment contains one ore more alpanumerical
 # ASCII characters. The first segment is expected to contain only digits.
 #
 # There may be one instance of a dash (`-`) which denotes the version as a
-# pre-release. It is otherwise equivalent to a period
+# pre-release. It is otherwise equivalent to a period.
+#
+# Optional version metadata may be attached and is separated by a plus character (`+`).
+# All content following a `+` is considered metadata.
 #
 # This format is described by the regular expression:
-# `/[0-9]+(?>\.[0-9a-zA-Z]+)*(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?/`
+# `/[0-9]+(?>\.[0-9a-zA-Z]+)*(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-.]+)?/`
 #
 # This implementation is compatible to popular versioning schemes such as
 # [`SemVer`](https://semver.org/) and [`CalVer`](https://calver.org/) but
@@ -23,8 +26,8 @@
 #
 # Every set of consecutive digits anywhere in the string are interpreted as a
 # decimal number and numerically sorted. Letters are lexically sorted.
-# Periods (and dash) delimit numbers but don't effect sort order by themselves.
-# Thus `1.0a` is equal to `1.0.a`.
+# Periods (and dash) delimit numbers but don't affect sort order by themselves.
+# Thus `1.0a` is considered equal to `1.0.a`.
 #
 # ## Pre-release
 # If a version number contains a letter (`a-z`) then that version is considered
@@ -33,10 +36,9 @@
 # greater than `1.0-a`.
 struct SoftwareVersion
   include Comparable(self)
-  include Comparable(String)
 
   # :nodoc:
-  VERSION_PATTERN = /[0-9]+(?>\.[0-9a-zA-Z]+)*(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?/
+  VERSION_PATTERN = /[0-9]+(?>\.[0-9a-zA-Z]+)*(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-.]+)?/
   # :nodoc:
   ANCHORED_VERSION_PATTERN = /\A\s*(#{VERSION_PATTERN})\s*\z/
 
@@ -47,17 +49,31 @@ struct SoftwareVersion
     !ANCHORED_VERSION_PATTERN.match(string).nil?
   end
 
-  # Constructs a `Version` from *string*. A version string is a
-  # series of digits or ASCII letters separated by dots.
-  def initialize(string : String)
+  # Constructs a `Version` from *string*.
+  protected def initialize(@string : String)
+  end
+
+  # Parses an instance from a string.
+  #
+  # A version string is a series of digits or ASCII letters separated by dots.
+  #
+  # Returns `nil` if *string* describes an invalid version (see `.valid?`).
+  def self.parse?(string : String) : self?
     # If string is an empty string convert it to 0
     string = "0" if string =~ /\A\s*\Z/
 
-    unless self.class.valid?(string)
-      raise ArgumentError.new("Malformed version string #{string.inspect}")
-    end
+    return unless valid?(string)
 
-    @string = string.strip
+    new(string.strip)
+  end
+
+  # Parses an instance from a string.
+  #
+  # A version string is a series of digits or ASCII letters separated by dots.
+  #
+  # Raises `ArgumentError` if *string* describes an invalid version (see `.valid?`).
+  def self.parse(string : String) : self
+    parse?(string) || raise ArgumentError.new("Malformed version string #{string.inspect}")
   end
 
   # Constructs a `Version` from the string representation of *version* number.
@@ -89,10 +105,27 @@ struct SoftwareVersion
     @string.each_char do |char|
       if char.ascii_letter? || char == '-'
         return true
+      elsif char == '+'
+        # the following chars are metadata
+        return false
       end
     end
 
     false
+  end
+
+  # Returns the metadata attached to this version or `nil` if no metadata available.
+  #
+  # ```
+  # SoftwareVersion.new("1.0.0").metadata            # => nil
+  # SoftwareVersion.new("1.0.0-rc1").metadata        # => nil
+  # SoftwareVersion.new("1.0.0+build1").metadata     # => "build1"
+  # SoftwareVersion.new("1.0.0-rc1+build1").metadata # => "build1"
+  # ```
+  def metadata : String?
+    if index = @string.byte_index('+'.ord)
+      @string.byte_slice(index + 1, @string.bytesize - index - 1)
+    end
   end
 
   # Returns version representing the release version associated with this version.
@@ -100,28 +133,24 @@ struct SoftwareVersion
   # If this version is a pre-release (see `#prerelease?`) a new instance will be created
   # with the same version string before the first ASCII letter or `-`.
   #
-  # Otherwise returns `self`.
+  # Version metadata (see `#metadata`) will be stripped.
   #
   # ```
-  # SoftwareVersion.new("1.0.0").release     # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0-dev").release # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0-1").release   # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0a1").release   # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0").release         # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0-dev").release     # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0-1").release       # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0a1").release       # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0+b1").release      # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0-rc1+b1").release  # => SoftwareVersion.new("1.0.0")
   # ```
   def release : self
     @string.each_char_with_index do |char, index|
-      if char.ascii_letter? || char == '-'
-        return self.class.new(@string.byte_slice(0, index - 1))
+      if char.ascii_letter? || char == '-' || char == '+'
+        return self.class.new(@string.byte_slice(0, index))
       end
     end
 
     self
-  end
-
-  # Compares this version with an instance created from *other* returning
-  # -1, 0, or 1 if the other version is larger, the same, or smaller than this one.
-  def <=>(other : String)
-    self <=> self.class.new(other)
   end
 
   # Compares this version with *other* returning -1, 0, or 1 if the
@@ -160,8 +189,23 @@ struct SoftwareVersion
       rnumber, new_rindex = consume_number(rstring, rindex)
 
       # Proceed depending on where a number was found on each string
-      case {new_lindex != lindex, new_rindex != rindex}
-      when {true, true}
+      case {new_lindex, new_rindex}
+      when {lindex, rindex}
+        # Both strings have a letter at current position.
+        # They are compared (lexical) and the algorithm only continues if they
+        # are equal.
+        ret = lchar <=> rchar
+        return ret unless ret == 0
+
+        lindex += 1
+        rindex += 1
+      when {_, rindex}
+        # Left hand side has a number, right hand side a letter (and thus a pre-release tag)
+        return -1
+      when {lindex, _}
+        # Right hand side has a number, left hand side a letter (and thus a pre-release tag)
+        return 1
+      else
         # Both strings have numbers at current position.
         # They are compared (numerical) and the algorithm only continues if they
         # are equal.
@@ -171,21 +215,6 @@ struct SoftwareVersion
         # Move to the next position in both strings
         lindex = new_lindex
         rindex = new_rindex
-      when {true, false}
-        # Left hand side has a number, right hand side a letter (and thus a pre-release tag)
-        return -1
-      when {false, true}
-        # Right hand side has a number, left hand side a letter (and thus a pre-release tag)
-        return 1
-      when {false, false}
-        # Both strings have a letter at current position.
-        # They are compared (lexical) and the algorithm only continues if they
-        # are equal.
-        ret = lchar <=> rchar
-        return ret unless ret == 0
-
-        lindex += 1
-        rindex += 1
       end
     end
   end
