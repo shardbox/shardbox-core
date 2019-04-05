@@ -41,7 +41,8 @@ class Service::OrderReleases
 
     sorted_releases.each_with_index do |release, index|
       db.connection.exec <<-SQL, release.id, index
-        UPDATE releases
+        UPDATE
+          releases
         SET
           position = $2
         WHERE
@@ -57,11 +58,13 @@ class Service::OrderReleases
 
   def find_releases(db)
     # NOTE: We exclude HEAD versions because they can't be sorted and when there
-    # is a HEAD version it means there are no tags anyway, so there is no need
+    # is a HEAD version it means there are no tags at all, so there is no need
     # to order anyway.
     sql = <<-SQL
-      SELECT id, version, yanked_at IS NOT NULL
-      FROM releases
+      SELECT
+        id, version, yanked_at IS NOT NULL
+      FROM
+        releases
       WHERE
         shard_id = $1 AND version != 'HEAD'
       SQL
@@ -90,7 +93,7 @@ class Service::OrderReleases
       db.connection.exec <<-SQL, @shard_id
         UPDATE releases
         SET
-          latest = false
+          latest = NULL
         WHERE
           shard_id = $1 AND latest = true
         SQL
