@@ -26,16 +26,18 @@ class Service::SyncRelease
   def sync_release(db, resolver)
     spec = resolver.fetch_spec(@version)
 
-    if spec.version != @version
+    unless check_version_match(@version, spec.version)
       # TODO: What to do if spec reports different version than git tag?
       # Just stick with the tag version for now, because the spec version is not
       # really useable anyway.
       # raise "spec reports different version than tag: #{spec.version} - #{@version}"
+      repo = resolver.repo_ref.to_s
       Raven.send_event Raven::Event.new(
           level: :warning,
           message: "Mismatching version tag from shards.yml, using tag version.",
           tags: {
-            repo: resolver.repo_ref.to_s,
+            repo: repo,
+            mismatch: "#{repo}@#{@version}: #{spec.version}",
             tag_version: @version,
             spec_version: spec.version,
           }
@@ -51,6 +53,28 @@ class Service::SyncRelease
     sync_dependencies(db, release_id, spec)
 
     LinkDependencies.new(release_id).perform(db)
+  end
+
+  def check_version_match(tag_version, spec_version)
+    # quick check if versions match up
+    return true if tag_version == spec_version
+
+    # Accept any version in spec on HEAD (i.e. there is no tag version)
+    return true if tag_version == "HEAD"
+
+    # If versions are not identical, maybe they're noted differently.
+    # Try parsing as SoftwareVersion
+    return false unless SoftwareVersion.valid?(tag_version) && SoftwareVersion.valid?(spec_version)
+    tag_version = SoftwareVersion.new(tag_version)
+    spec_version = SoftwareVersion.new(spec_version)
+
+    return true if tag_version == spec_version
+
+    # We also accept versions tagged as pre-release having the release version
+    # in the spec
+    return true if tag_version.release == spec_version
+
+    false
   end
 
   def upsert_release(db, shard_id : Int64, release : Release)
