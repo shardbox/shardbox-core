@@ -4,6 +4,9 @@ require "../ext/yaml/any"
 require "../repo/resolver"
 require "../dependency"
 require "raven"
+require "../util/software_version"
+require "./link_dependencies"
+require "./import_shard"
 
 # This service synchronizes the information about a release in the database.
 class Service::SyncRelease
@@ -24,28 +27,36 @@ class Service::SyncRelease
   end
 
   def sync_release(db, resolver)
-    spec = resolver.fetch_spec(@version)
+    spec_raw = resolver.fetch_raw_spec(@version)
 
-    unless check_version_match(@version, spec.version)
-      # TODO: What to do if spec reports different version than git tag?
-      # Just stick with the tag version for now, because the spec version is not
-      # really useable anyway.
-      # raise "spec reports different version than tag: #{spec.version} - #{@version}"
-      repo = resolver.repo_ref.to_s
-      Raven.send_event Raven::Event.new(
-          level: :warning,
-          message: "Mismatching version tag from shards.yml, using tag version.",
-          tags: {
-            repo: repo,
-            mismatch: "#{repo}@#{@version}: #{spec.version}",
-            tag_version: @version,
-            spec_version: spec.version,
-          }
-        )
+    if spec_raw
+      spec = Shards::Spec.from_yaml(spec_raw)
+      spec_json = JSON.parse(YAML.parse(spec_raw).to_json).as_h
+
+      unless check_version_match(@version, spec.version)
+        # TODO: What to do if spec reports different version than git tag?
+        # Just stick with the tag version for now, because the spec version is not
+        # really useable anyway.
+        # raise "spec reports different version than tag: #{spec.version} - #{@version}"
+        repo = resolver.repo_ref.to_s
+        Raven.send_event Raven::Event.new(
+            level: :warning,
+            message: "Mismatching version tag from shards.yml, using tag version.",
+            tags: {
+              repo: repo,
+              mismatch: "#{repo}@#{@version}: #{spec.version}",
+              tag_version: @version,
+              spec_version: spec.version,
+            }
+          )
+      end
+    else
+      # No `shard.yml` found, using mock spec
+      spec = Shards::Spec.from_yaml(%(name: #{resolver.repo_ref.name}\nversion: #{@version}))
+      spec_json = {} of String => JSON::Any
     end
 
     revision_info = resolver.revision_info(@version)
-    spec_json = JSON.parse(YAML.parse(resolver.fetch_raw_spec(@version)).to_json).as_h
     release = Release.new(@version, revision_info, spec_json)
 
     release_id = upsert_release(db, @shard_id, release)

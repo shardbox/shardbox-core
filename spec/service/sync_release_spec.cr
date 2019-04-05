@@ -121,4 +121,36 @@ describe Service::SyncRelease do
       ]
     end
   end
+
+  it "handles missing spec" do
+    commit_1 = Factory.build_commit("12345678")
+    revision_info_1 = Release::RevisionInfo.new Factory.build_tag("v0.1.0"), commit_1
+    mock_resolver = MockResolver.new
+    mock_resolver.register("0.1.0", revision_info_1, nil)
+
+    transaction do |db|
+      shard_id = Factory.create_shard(db)
+      service = Service::SyncRelease.new(shard_id, "0.1.0")
+      resolver = Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo"))
+
+      service.sync_release(db, resolver)
+
+      results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int64?, Bool?, Time?}
+        SELECT
+          shard_id, version, released_at, spec, revision_info, position, latest, yanked_at
+        FROM releases
+        SQL
+
+      results.size.should eq 1
+      row = results.first
+      row[0].should eq shard_id
+      row[1].should eq "0.1.0"
+      row[2].should eq commit_1.time
+      row[3].should eq JSON.parse(%({}))
+      row[4].should eq JSON.parse(revision_info_1.to_json)
+      row[5].should eq nil
+      row[6].should eq nil
+      row[7].should eq nil
+    end
+  end
 end

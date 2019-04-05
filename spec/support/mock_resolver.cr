@@ -4,12 +4,12 @@ class Repo::Resolver
 end
 
 class MockResolver
-  alias MockEntry = {spec: String, revision_info: Release::RevisionInfo}
+  alias MockEntry = {spec: String?, revision_info: Release::RevisionInfo}
 
   def initialize(@versions : Hash(String, MockEntry) = {} of String => MockEntry, @metadata : Hash(String, JSON::Any) = {} of String => JSON::Any)
   end
 
-  def register(version : String, revision_info : Release::RevisionInfo, spec : String)
+  def register(version : String, revision_info : Release::RevisionInfo, spec : String?)
     @versions[version] = MockEntry.new(spec: spec, revision_info: revision_info)
   end
 

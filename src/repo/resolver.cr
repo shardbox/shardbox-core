@@ -17,12 +17,10 @@ class Repo
       @resolver.available_versions
     end
 
-    def fetch_spec(version : String? = nil)
-      @resolver.spec(version)
-    end
-
     def fetch_raw_spec(version : String? = nil)
       @resolver.read_spec(version)
+    rescue exc : Shards::Error
+      raise exc unless exc.message =~ /Missing ".*:shard.yml" for/
     end
 
     def revision_info(version : String? = nil)
