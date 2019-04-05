@@ -167,6 +167,10 @@ struct SoftwareVersion
         # are equal.
         ret = lnumber <=> rnumber
         return ret unless ret == 0
+
+        # Move to the next position in both strings
+        lindex = new_lindex
+        rindex = new_rindex
       when {true, false}
         # Left hand side has a number, right hand side a letter (and thus a pre-release tag)
         return -1
@@ -179,11 +183,10 @@ struct SoftwareVersion
         # are equal.
         ret = lchar <=> rchar
         return ret unless ret == 0
-      end
 
-      # Move to the next position in both strings
-      lindex = new_lindex
-      rindex = new_rindex
+        lindex += 1
+        rindex += 1
+      end
     end
   end
 
