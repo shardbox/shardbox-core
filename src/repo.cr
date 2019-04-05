@@ -26,7 +26,7 @@ class Repo
 
   def_equals_and_hash ref, role
 
-  getter! synced_at : Time?
+  getter synced_at : Time?
 
   def initialize(@shard_id : Int64, @ref : Ref, @role : String = "canonical", @metadata = {} of String => JSON::Any, @synced_at : Time? = nil)
   end

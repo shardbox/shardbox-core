@@ -44,7 +44,7 @@ class ShardsDB
   end
 
   def find_canonical_repo(shard_id : Int64)
-    resolver, url, metadata, synced_at = connection.query_one <<-SQL, shard_id, as: {String, String, JSON::Any, Time}
+    resolver, url, metadata, synced_at = connection.query_one <<-SQL, shard_id, as: {String, String, JSON::Any, Time?}
       SELECT resolver::text, url::text, metadata::jsonb, synced_at
       FROM repos
       WHERE
