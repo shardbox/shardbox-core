@@ -25,7 +25,13 @@ struct Service::ImportShard
   end
 
   def import_shard(db : ShardsDB, resolver : Repo::Resolver)
-    spec = resolver.fetch_spec
+    spec_raw = resolver.fetch_raw_spec
+
+    unless spec_raw
+      raise "Repo HEAD misses shard.yml"
+    end
+
+    spec = Shards::Spec.from_yaml(spec_raw)
 
     shard_name = spec.name
 

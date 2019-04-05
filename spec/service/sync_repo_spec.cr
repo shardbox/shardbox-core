@@ -1,6 +1,7 @@
 require "spec"
 require "../../src/service/sync_repo"
 require "../support/db"
+require "../support/mock_resolver"
 
 describe Service::SyncRepo do
   pending "it syncs repo" do
@@ -54,6 +55,17 @@ describe Service::SyncRepo do
         SQL
 
       results.should eq [{JSON.parse(%({"foo": "bar"})), true}]
+    end
+  end
+
+  it "handles unresolvable repo" do
+    transaction do |db|
+      shard_id = Factory.create_shard(db)
+
+      service = Service::SyncRepo.new(shard_id)
+
+      resolver = Repo::Resolver.new(MockResolver.unresolvable, Repo::Ref.new("git", "foo"))
+      service.sync_repo(db, resolver)
     end
   end
 end

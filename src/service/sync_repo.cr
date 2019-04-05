@@ -25,7 +25,22 @@ struct Service::SyncRepo
   end
 
   def sync_repo(db, resolver : Repo::Resolver)
-    versions = resolver.fetch_versions
+    begin
+      versions = resolver.fetch_versions
+    rescue Repo::Resolver::RepoUnresolvableError
+      mark_unresolvable(db, resolver.repo_ref)
+
+      Raven.send_event Raven::Event.new(
+          level: :warning,
+          message: "Failed to clone repository",
+          tags: {
+            repo: resolver.repo_ref.to_s,
+            resolver: resolver.repo_ref.resolver
+          }
+        )
+
+      return
+    end
 
     versions.each do |version|
       if !SoftwareVersion.valid?(version) && version != "HEAD"
@@ -75,6 +90,17 @@ struct Service::SyncRepo
         metadata = $2::jsonb
       WHERE
         shard_id = $1 AND role = 'canonical'
+      SQL
+  end
+
+  def mark_unresolvable(db, repo_ref)
+    db.connection.exec <<-SQL, repo_ref.resolver, repo_ref.url
+      UPDATE
+        dependencies
+      SET
+        resolvable = false
+      WHERE
+        spec->>$1 = $2
       SQL
   end
 end

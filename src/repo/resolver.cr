@@ -1,9 +1,13 @@
 require "shards/logger"
 require "shards/package"
 require "../ext/shards/resolvers/git"
+require "../../release"
 
 class Repo
   class Resolver
+    class RepoUnresolvableError < Exception
+    end
+
     getter repo_ref
 
     def initialize(@resolver : Shards::GitResolver, @repo_ref : Repo::Ref)
@@ -15,15 +19,25 @@ class Repo
 
     def fetch_versions : Array(String)
       @resolver.available_versions
+    rescue exc : Shards::Error
+      if exc.message.try &.starts_with?("Failed to clone")
+        raise RepoUnresolvableError.new(cause: exc)
+      else
+        raise exc
+      end
     end
 
-    def fetch_raw_spec(version : String? = nil)
+    def fetch_raw_spec(version : String? = nil) : String?
       @resolver.read_spec(version)
     rescue exc : Shards::Error
-      raise exc unless exc.message =~ /Missing ".*:shard.yml" for/
+      if exc.message =~ /Missing ".*:shard.yml" for/
+        return
+      else
+        raise exc
+      end
     end
 
-    def revision_info(version : String? = nil)
+    def revision_info(version : String? = nil) : Release::RevisionInfo
       @resolver.revision_info(version)
     end
 
