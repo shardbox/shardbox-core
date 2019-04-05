@@ -1,12 +1,26 @@
-require "../../../release"
 require "git"
+require "../../../release"
+require "../../git/repo"
 
 class Shards::GitResolver
   def revision_info(version)
     update_local_cache
 
     repo = Git::Repo.open(local_path)
-    ref = repo.ref("refs/tags/v#{version}")
+
+    if version == "HEAD"
+      ref = repo.ref("HEAD")
+    else
+      ref = repo.ref?("refs/tags/v#{version}")
+
+      # Try without `v` prefix
+      ref ||= repo.ref?("refs/tags/#{version}")
+
+      raise "Can't find tag #{version}" unless ref
+    end
+
+    # Resolve symbolic references
+    ref = ref.resolve
 
     case target = ref.target
     when Git::Tag

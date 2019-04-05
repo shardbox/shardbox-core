@@ -27,13 +27,12 @@ describe Shards::GitResolver do
   describe "#revision_info" do
     it "handles special characters" do
       helper = ShardsHelper.new
-      helper.create_git_repository("foo-revision_info")
-      helper.create_git_commit("foo-revision_info", "foo\nbar")
-      helper.create_git_tag("foo-revision_info", "v0.1", "bar\nfoo")
-      helper.create_git_commit("foo-revision_info", "foo\"bar")
-      helper.create_git_tag("foo-revision_info", "v0.2", "bar\"foo")
-
-      resolver = helper.resolver("foo-revision_info")
+      helper.create_git_repository("foo")
+      helper.create_git_commit("foo", "foo\nbar")
+      helper.create_git_tag("foo", "v0.1", "bar\nfoo")
+      helper.create_git_commit("foo", "foo\"bar")
+      helper.create_git_tag("foo", "v0.2", "bar\"foo")
+      resolver = helper.resolver("foo")
 
       revision_info = resolver.revision_info("0.1")
       revision_info.commit.message.should eq "foo\nbar\n"
@@ -44,7 +43,41 @@ describe Shards::GitResolver do
       revision_info.tag.not_nil!.message.should eq "bar\"foo\n"
     ensure
       if helper
-        FileUtils.rm_rf(helper.git_path("foo-revision_info"))
+        FileUtils.rm_rf(helper.git_path("foo"))
+      end
+    end
+
+    it "resolves HEAD" do
+      helper = ShardsHelper.new
+      helper.create_git_repository("foo")
+      helper.create_git_commit("foo", "foo bar")
+      resolver = helper.resolver("foo")
+
+      revision_info = resolver.revision_info("HEAD")
+      revision_info.commit.message.should eq "foo bar\n"
+      revision_info.tag.should be_nil
+    ensure
+      if helper
+        FileUtils.rm_rf(helper.git_path("foo"))
+      end
+    end
+
+    it "resolves symbolic reference" do
+      helper = ShardsHelper.new
+      helper.create_git_repository("foo")
+      helper.create_git_commit("foo", "foo bar")
+      helper.create_git_tag("foo", "v0.1", "bar foo")
+      Dir.cd(helper.git_path("foo")) do
+        helper.run "git tag v0.2 v0.1"
+      end
+      resolver = helper.resolver("foo")
+
+      revision_info = resolver.revision_info("0.2")
+      revision_info.commit.message.should eq "foo bar\n"
+      revision_info.tag.not_nil!.message.should eq "bar foo\n"
+    ensure
+      if helper
+        FileUtils.rm_rf(helper.git_path("foo"))
       end
     end
   end
