@@ -25,7 +25,22 @@ struct Service::ImportShard
   end
 
   def import_shard(db : ShardsDB, resolver : Repo::Resolver)
-    spec_raw = resolver.fetch_raw_spec
+    begin
+      spec_raw = resolver.fetch_raw_spec
+    rescue Repo::Resolver::RepoUnresolvableError
+      # TODO: Should still insert repo into database and mark unresolvable?
+      Raven.send_event Raven::Event.new(
+          level: :warning,
+          message: "Failed to clone repository",
+          tags: {
+            repo: resolver.repo_ref.to_s,
+            resolver: resolver.repo_ref.resolver
+          }
+        )
+
+      return
+    end
+
 
     unless spec_raw
       raise "Repo HEAD misses shard.yml"

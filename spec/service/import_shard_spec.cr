@@ -1,8 +1,8 @@
 require "spec"
+require "../../src/service/import_shard"
 require "../support/db"
 require "../support/jobs"
 require "../support/mock_resolver"
-require "../../src/service/import_shard"
 
 private def persisted_shards(db)
   db.connection.query_all <<-SQL, as: {String, String?, String}
@@ -109,6 +109,16 @@ describe Service::ImportShard do
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
       find_queued_tasks("Service::SyncRepo").map(&.arguments).should be_empty
+    end
+  end
+
+  it "handles unresolvable repo" do
+    repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
+    service = Service::ImportShard.new(repo_ref)
+
+    transaction do |db|
+      resolver = Repo::Resolver.new(MockResolver.unresolvable, repo_ref)
+      service.import_shard(db, resolver)
     end
   end
 end

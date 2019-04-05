@@ -30,7 +30,9 @@ class Repo
     def fetch_raw_spec(version : String? = nil) : String?
       @resolver.read_spec(version)
     rescue exc : Shards::Error
-      if exc.message =~ /Missing ".*:shard.yml" for/
+      if exc.message.try &.starts_with?("Failed to clone")
+        raise RepoUnresolvableError.new(cause: exc)
+      elsif exc.message =~ /Missing ".*:shard.yml" for/
         return
       else
         raise exc

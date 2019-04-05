@@ -13,7 +13,7 @@ class MockResolver
 
   def self.unresolvable
     resolver = new
-    resolver.resolvable = true
+    resolver.resolvable = false
     resolver
   end
 
