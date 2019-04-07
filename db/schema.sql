@@ -184,11 +184,10 @@ ALTER SEQUENCE public.categories_id_seq OWNED BY public.categories.id;
 
 CREATE TABLE public.dependencies (
     release_id bigint NOT NULL,
-    shard_id bigint,
+    repo_id bigint,
     name public.citext NOT NULL,
     spec jsonb NOT NULL,
     scope public.dependency_scope NOT NULL,
-    resolvable boolean NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -252,6 +251,7 @@ CREATE TABLE public.repos (
     role public.repo_role DEFAULT 'canonical'::public.repo_role NOT NULL,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     synced_at timestamp with time zone,
+    sync_failed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT repos_resolvers_service_url CHECK (((NOT (resolver = ANY (ARRAY['github'::public.repo_resolver, 'gitlab'::public.repo_resolver, 'bitbucket'::public.repo_resolver]))) OR ((url OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}/[A-Za-z0-9_\-.]{1,100}$'::public.citext) AND (url OPERATOR(public.!~~) '%.git'::public.citext))))
@@ -299,22 +299,6 @@ CREATE TABLE public.shards (
 
 
 ALTER TABLE public.shards OWNER TO shards_toolbox;
-
---
--- Name: shards_dependencies; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.shards_dependencies AS
- SELECT DISTINCT dependent.id AS shard,
-    shards.id AS depends_on,
-    dependencies.scope
-   FROM (((public.shards
-     JOIN public.dependencies ON ((dependencies.shard_id = shards.id)))
-     JOIN public.releases ON (((releases.id = dependencies.release_id) AND releases.latest)))
-     JOIN public.shards dependent ON ((dependent.id = releases.shard_id)));
-
-
-ALTER TABLE public.shards_dependencies OWNER TO postgres;
 
 --
 -- Name: shards_id_seq; Type: SEQUENCE; Schema: public; Owner: shards_toolbox
@@ -374,6 +358,14 @@ ALTER TABLE ONLY public.categories
 
 
 --
+-- Name: categories categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.categories
+    ADD CONSTRAINT categories_slug_key UNIQUE (slug);
+
+
+--
 -- Name: categories categories_slug_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -387,6 +379,14 @@ ALTER TABLE ONLY public.categories
 
 ALTER TABLE ONLY public.dependencies
     ADD CONSTRAINT dependencies_uniq UNIQUE (release_id, name);
+
+
+--
+-- Name: categories name_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.categories
+    ADD CONSTRAINT name_uniq UNIQUE (name);
 
 
 --
@@ -516,14 +516,6 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE 
 
 
 --
--- Name: dependencies depdendencies_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.dependencies
-    ADD CONSTRAINT depdendencies_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id);
-
-
---
 -- Name: dependencies dependencies_release_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -532,19 +524,27 @@ ALTER TABLE ONLY public.dependencies
 
 
 --
+-- Name: dependencies dependencies_repo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.dependencies
+    ADD CONSTRAINT dependencies_repo_id_fkey FOREIGN KEY (repo_id) REFERENCES public.repos(id);
+
+
+--
+-- Name: releases releases_shard_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.releases
+    ADD CONSTRAINT releases_shard_id_fk FOREIGN KEY (shard_id) REFERENCES public.shards(id);
+
+
+--
 -- Name: repos repos_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
 --
 
 ALTER TABLE ONLY public.repos
     ADD CONSTRAINT repos_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id) ON DELETE CASCADE;
-
-
---
--- Name: releases specs_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.releases
-    ADD CONSTRAINT specs_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id);
 
 
 --
