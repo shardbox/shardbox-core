@@ -23,8 +23,8 @@ describe Service::ImportCatalog do
       File.write(File.join(catalog_path, "bar.yml"), <<-YAML)
         name: Bar
         shards:
-        - github: foo/foo
         - git: https://example.com/foo/foo.git
+        - git: https://example.com/foo/bar.git
         YAML
       File.write(File.join(catalog_path, "foo.yml"), <<-YAML)
         name: Foo
@@ -34,14 +34,24 @@ describe Service::ImportCatalog do
         YAML
 
       transaction do |db|
+        Factory.create_repo(db, Repo::Ref.new("github", "foo/foo"))
         Service::ImportCatalog.new(catalog_path).import_catalog(db)
-      end
 
-      enqueued_jobs.sort.should eq [
-        {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"https://example.com/foo/bar.git"}})},
-        {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"https://example.com/foo/foo.git"}})},
-        {"Service::ImportShard", %({"repo_ref":{"resolver":"github","url":"foo/foo"}})},
-      ]
+        results = db.connection.query_all <<-SQL, as: {String, String, Int64}
+          SELECT
+            resolver::text, url::text, id
+          FROM
+            repos
+          SQL
+
+        results.map{|result| {result[0], result[1]} }.should eq [
+          {"github", "foo/foo"},
+          {"git", "https://example.com/foo/foo.git"},
+          {"git", "https://example.com/foo/bar.git"},
+        ]
+
+        enqueued_jobs.sort.should eq results.map {|result| {"Service::SyncRepo", %({"repo_id":#{result[2]}})} }[1, 2]
+      end
     end
   end
 

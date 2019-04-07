@@ -26,6 +26,17 @@ struct Service::ImportShard
 
   def import_shard(db : ShardsDB, resolver : Repo::Resolver)
     repo_id = create_repo(db)
+    shard_id = create_shard(db, resolver, repo_id)
+
+    Service::SyncRepo.new(repo_id).perform_later
+
+    shard_id
+  end
+
+  def import_shard(db : ShardsDB, repo_id : Int64)
+    Raven.tags_context repo: @repo_ref.to_s
+
+    resolver = Repo::Resolver.new(@repo_ref)
 
     shard_id = create_shard(db, resolver, repo_id)
 

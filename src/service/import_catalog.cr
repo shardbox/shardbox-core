@@ -27,10 +27,33 @@ struct Service::ImportCatalog
   end
 
   def import_shards(db, repo_refs)
+    new_repos = [] of {Repo::Ref, Int64}
+    statement = db.connection.build(<<-SQL)
+      INSERT INTO repos
+        (resolver, url)
+      VALUES
+        ($1, $2)
+      ON CONFLICT ON CONSTRAINT repos_url_uniq DO NOTHING
+      RETURNING id
+      SQL
     repo_refs.each do |repo_ref|
-      unless db.repo_exists?(repo_ref)
-        Service::ImportShard.new(repo_ref).perform_later
+      result = statement.query(repo_ref.resolver, repo_ref.url)
+
+      # If repo_id is NULL the repo already exists in the database. We only need
+      # to run ImportShard if it is fresh.
+      inserted = result.move_next
+      if inserted
+        new_repos << {repo_ref, result.read(Int64)}
       end
+      result.close
+    end
+
+    if db.responds_to? :commit
+      db.commit
+    end
+
+    new_repos.each do |repo_ref, repo_id|
+      Service::ImportShard.new(repo_ref).import_shard(db,repo_id)
     end
   end
 
