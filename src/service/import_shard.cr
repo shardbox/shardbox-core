@@ -25,10 +25,21 @@ struct Service::ImportShard
   end
 
   def import_shard(db : ShardsDB, resolver : Repo::Resolver)
+    repo_id = create_repo(db)
+
+    shard_id = create_shard(db, resolver, repo_id)
+
+    Service::SyncRepo.new(repo_id).perform_later
+
+    shard_id
+  end
+
+  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo_id)
     begin
       spec_raw = resolver.fetch_raw_spec
     rescue Repo::Resolver::RepoUnresolvableError
-      # TODO: Should still insert repo into database and mark unresolvable?
+      sync_failed(db, repo_id)
+
       Raven.send_event Raven::Event.new(
           level: :warning,
           message: "Failed to clone repository",
@@ -41,27 +52,43 @@ struct Service::ImportShard
       return
     end
 
-
     unless spec_raw
+      sync_failed(db, repo_id)
+
       raise "Repo HEAD misses shard.yml"
     end
 
     spec = Shards::Spec.from_yaml(spec_raw)
 
-    shard_name = spec.name
+    shard_id = find_or_create_shard_by_name(db, spec.name)
 
+    db.connection.exec <<-SQL, repo_id, shard_id
+      UPDATE
+        repos
+      SET
+        shard_id = $2,
+        sync_failed_at = NULL
+      WHERE
+        id = $1 AND shard_id IS NULL
+      SQL
+
+    shard_id
+  end
+
+  def find_or_create_shard_by_name(db, shard_name) : Int64
     if shard_id = db.find_shard_id?(shard_name)
       # There is already a shard by that name. Need to check if it's the same one.
 
       if db.connection.query_one? <<-SQL, shard_id, @repo_ref.resolver, @repo_ref.url, as: {Bool}
-        SELECT true
+        SELECT
+          true
         FROM
           repos
         WHERE
           shard_id = $1 AND resolver = $2 AND url = $3
         SQL
-        # Repo already exists, skip sync
-        return
+        # Repo already linked
+        return shard_id
       else
         # The repo could be a (legacy) mirror, a fork or simply a homonymous shard.
         # This is impossible to reliably detect automatically.
@@ -73,26 +100,28 @@ struct Service::ImportShard
         # create shard with qualifier
         qualifier = find_qualifier(db, shard_name)
 
-        shard_id = db.create_shard(Shard.new(shard_name, qualifier, spec.description))
-
-        create_repo(db, shard_id)
+        return db.create_shard(Shard.new(shard_name, qualifier))
       end
     else
       # No other shard by that name, let's create it:
-      shard = Shard.new(shard_name, description: spec.description)
-      shard_id = db.create_shard(shard)
-
-      create_repo(db, shard_id)
+      return db.create_shard(Shard.new(shard_name))
     end
-
-    SyncRepo.new(shard_id).perform_later
-
-    shard_id
   end
 
-  private def create_repo(db, shard_id)
-    repo = Repo.new(shard_id, @repo_ref, "canonical")
+  private def create_repo(db)
+    repo = Repo.new(@repo_ref, nil, :canonical)
     db.create_repo(repo)
+  end
+
+  private def sync_failed(db, repo_id)
+    db.connection.exec <<-SQL, repo_id
+      UPDATE
+        repos
+      SET
+        sync_failed_at = NOW()
+      WHERE
+        id = $1
+      SQL
   end
 
   def find_qualifier(db, shard_name) : String

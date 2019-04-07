@@ -51,21 +51,34 @@ class ShardsDB
         shard_id = $1 AND role = 'canonical'
       SQL
 
-    Repo.new(shard_id, resolver, url, "canonical", metadata.as_h, synced_at)
+    Repo.new(resolver, url, shard_id, "canonical", metadata.as_h, synced_at)
   end
 
   def find_repo(repo_ref : Repo::Ref)
-    result = connection.query_one <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64?, String, JSON::Any, Time?}
+    result = connection.query_one <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64, Int64?, String, JSON::Any, Time?, Time?}
       SELECT
-        shard_id, role::text, metadata::jsonb, synced_at
+        id, shard_id, role::text, metadata::jsonb, synced_at, sync_failed_at
       FROM
         repos
       WHERE
         resolver = $1 AND url = $2
       SQL
 
-    shard_id, role, metadata, synced_at = result
-    Repo.new(shard_id, repo_ref.resolver, repo_ref.url, role, metadata.as_h, synced_at)
+    id, shard_id, role, metadata, synced_at, sync_failed_at = result
+    Repo.new(repo_ref, shard_id, role, metadata.as_h, synced_at, sync_failed_at, id: id)
+  end
+
+  def find_repo_ref(id : Int64)
+    result = connection.query_one <<-SQL, id, as: {String, String}
+      SELECT
+        resolver::text, url::text
+      FROM
+        repos
+      WHERE
+        id = $1
+      SQL
+
+    Repo::Ref.new(*result)
   end
 
   def create_shard(shard : Shard)
@@ -79,7 +92,7 @@ class ShardsDB
   end
 
   def create_repo(repo : Repo)
-    connection.query_one? <<-SQL, repo.shard_id, repo.ref.resolver, repo.ref.url, repo.role, as: Int64
+    connection.query_one <<-SQL, repo.shard_id, repo.ref.resolver, repo.ref.url, repo.role, as: Int64
       INSERT INTO repos
         (shard_id, resolver, url, role)
       VALUES
@@ -114,15 +127,15 @@ class ShardsDB
       as: {Int64}
   end
 
-  def upsert_dependency(release_id : Int64, dependency : Dependency, shard_id = nil)
-    connection.exec <<-SQL, release_id, shard_id, dependency.name, dependency.spec.to_json, dependency.scope, dependency.resolvable?
+  def upsert_dependency(release_id : Int64, dependency : Dependency, repo_id = nil)
+    connection.exec <<-SQL, release_id, repo_id, dependency.name, dependency.spec.to_json, dependency.scope
       INSERT INTO dependencies
-        (release_id, shard_id, name, spec, scope, resolvable)
+        (release_id, repo_id, name, spec, scope)
       VALUES
         ($1, $2, $3, $4::jsonb, $5, $6)
       ON CONFLICT ON CONSTRAINT dependencies_uniq
       DO UPDATE SET
-        shard_id = $2, spec = $4::jsonb, scope = $5
+        repo_id = $2, spec = $4::jsonb, scope = $5
       SQL
   end
 end

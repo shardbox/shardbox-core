@@ -69,9 +69,9 @@ describe Service::SyncDependencies do
       it "creates dependency and links repo" do
         transaction do |db|
           release_id = Factory.create_release(db)
-          repo_foo = Factory.create_repo(db, nil, Repo::Ref.new("git", "foo"))
+          repo_foo = Factory.create_repo(db, Repo::Ref.new("git", "foo"))
           shard_id = Factory.create_shard(db, "foo")
-          repo_bar = Factory.create_repo(db, shard_id, Repo::Ref.new("git", "bar"))
+          repo_bar = Factory.create_repo(db, Repo::Ref.new("git", "bar"), shard_id)
 
           service = Service::SyncDependencies.new(release_id)
 
@@ -94,9 +94,9 @@ describe Service::SyncDependencies do
       it "updates dependency" do
         transaction do |db|
           release_id = Factory.create_release(db)
-          repo_foo = Factory.create_repo(db, nil, Repo::Ref.new("git", "foo"))
+          repo_foo = Factory.create_repo(db, Repo::Ref.new("git", "foo"))
           shard_id = Factory.create_shard(db, "bar")
-          repo_bar = Factory.create_repo(db, shard_id, Repo::Ref.new("git", "bar"))
+          repo_bar = Factory.create_repo(db, Repo::Ref.new("git", "bar"), shard_id)
 
           service = Service::SyncDependencies.new(release_id)
 
