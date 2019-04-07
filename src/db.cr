@@ -138,6 +138,69 @@ class ShardsDB
         repo_id = $2, spec = $4::jsonb, scope = $5
       SQL
   end
+
+  def create_or_update_category(category : Category)
+    category_id = connection.exec <<-SQL, category.slug, category.name, category.description
+      INSERT INTO categories
+        (slug, name, description)
+      VALUES
+        ($1, $2, $3)
+      ON CONFLICT ON CONSTRAINT categories_slug_uniq
+      DO UPDATE SET
+        name = $2, description = $3
+      SQL
+  end
+
+  def all_categories
+    results = connection.query_all <<-SQL, as: {Int64, String, String, String?, Int32}
+      SELECT
+        id, slug::text, name::text, description::text, entries_count
+      FROM
+        categories
+      ORDER BY
+        name ASC
+      SQL
+
+    results.map do |result|
+      id, slug, name, description, entries_count = result
+
+      Category.new(slug, name, description, entries_count, id: id)
+    end
+  end
+
+  def remove_categories(category_slugs : Array(String))
+    connection.exec <<-SQL % sql_array(category_slugs)
+      DELETE FROM categories
+      WHERE slug != ALL(ARRAY[%s]::text[])
+      SQL
+  end
+
+  private def sql_array(array)
+    String.build do |io|
+      array.each_with_index do |category, i|
+        io << ", " unless i == 0
+        io << '\''
+        io << category.gsub("'", "\\'")
+        io << '\''
+      end
+    end
+  end
+
+  def update_categorization(repo_ref : Repo::Ref, categories : Array(String))
+    sql = <<-SQL % sql_array(categories)
+      UPDATE
+        shards
+      SET
+        categories = coalesce((SELECT array_agg(id) FROM categories WHERE slug = ANY(ARRAY[%s]::text[])), ARRAY[]::bigint[])
+      WHERE
+        id = (SELECT shard_id FROM repos WHERE resolver = $1 AND url = $2)
+      SQL
+    connection.exec sql, repo_ref.resolver, repo_ref.url#, categories
+  end
+
+  def delete_categorizations(repo_refs : Array(Repo::Ref))
+    # TODO: Implement
+  end
 end
 
 at_exit do
