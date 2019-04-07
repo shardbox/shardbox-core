@@ -28,7 +28,7 @@ def show_help(io)
 end
 
 Raven.configure do |config|
-  config.connect_timeout = 5.seconds
+  config.connect_timeout = 10.seconds
 end
 
 case command = ARGV.shift?
