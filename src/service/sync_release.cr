@@ -5,7 +5,7 @@ require "../repo/resolver"
 require "../dependency"
 require "raven"
 require "../util/software_version"
-require "./link_dependencies"
+require "./sync_dependencies"
 require "./import_shard"
 
 # This service synchronizes the information about a release in the database.
@@ -62,8 +62,6 @@ class Service::SyncRelease
     release_id = upsert_release(db, @shard_id, release)
 
     sync_dependencies(db, release_id, spec)
-
-    LinkDependencies.new(release_id).perform(db)
   end
 
   def check_version_match(tag_version, spec_version)
@@ -130,18 +128,6 @@ class Service::SyncRelease
       dependencies << Dependency.from_spec(spec_dependency, :development)
     end
 
-    sync_dependencies(db, release_id, dependencies)
-  end
-
-  def sync_dependencies(db, release_id, dependencies : Enumerable(Dependency))
-    dependencies.each do |dependency|
-      db.upsert_dependency(release_id, dependency)
-    end
-
-    db.connection.exec <<-SQL, release_id, dependencies.map(&.name)
-      DELETE FROM dependencies
-      WHERE
-        release_id = $1 AND name <> ALL($2)
-      SQL
+    SyncDependencies.new(release_id).sync_dependencies(db, dependencies)
   end
 end

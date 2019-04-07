@@ -54,6 +54,20 @@ class ShardsDB
     Repo.new(shard_id, resolver, url, "canonical", metadata.as_h, synced_at)
   end
 
+  def find_repo(repo_ref : Repo::Ref)
+    result = connection.query_one <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64?, String, JSON::Any, Time?}
+      SELECT
+        shard_id, role::text, metadata::jsonb, synced_at
+      FROM
+        repos
+      WHERE
+        resolver = $1 AND url = $2
+      SQL
+
+    shard_id, role, metadata, synced_at = result
+    Repo.new(shard_id, repo_ref.resolver, repo_ref.url, role, metadata.as_h, synced_at)
+  end
+
   def create_shard(shard : Shard)
     shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, as: {Int64}
       INSERT INTO shards

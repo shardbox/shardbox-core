@@ -14,7 +14,7 @@ class Repo
   end
 
   # Returns a reference to the shard hosted in this repo.
-  getter shard_id : Int64
+  getter shard_id : Int64?
 
   # Returns the identifier of this repo, consisting of resolver and url.
   getter ref : Ref
@@ -28,10 +28,12 @@ class Repo
 
   getter synced_at : Time?
 
-  def initialize(@shard_id : Int64, @ref : Ref, @role : String = "canonical", @metadata = {} of String => JSON::Any, @synced_at : Time? = nil)
+  getter! id : Int64?
+
+  def initialize(@shard_id : Int64?, @ref : Ref, @role : String = "canonical", @metadata = {} of String => JSON::Any, @synced_at : Time? = nil, @id : Int64? = nil)
   end
 
-  def self.new(shard_id : Int64, resolver : String, url : String, role : String = "canonical", metadata = {} of String => JSON::Any, synced_at : Time? = nil)
+  def self.new(shard_id : Int64?, resolver : String, url : String, role : String = "canonical", metadata = {} of String => JSON::Any, synced_at : Time? = nil, id : Int64? = nil)
     new(shard_id, Ref.new(resolver, url), role, metadata, synced_at)
   end
 end
