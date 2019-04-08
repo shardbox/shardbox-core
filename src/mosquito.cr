@@ -23,10 +23,6 @@ class MosquitoJob < Mosquito::QueuedJob
       job = Service::ImportCatalog.from_json(args)
     when "Service::ImportShard"
       job = Service::ImportShard.from_json(args)
-    when "Service::LinkDependencies"
-      job = Service::LinkDependencies.from_json(args)
-    when "Service::LinkMissingDependencies"
-      job = Service::LinkMissingDependencies.from_json(args)
     when "Service::OrderReleases"
       job = Service::OrderReleases.from_json(args)
     when "Service::SyncRelease"

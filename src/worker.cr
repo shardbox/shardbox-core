@@ -1,7 +1,6 @@
 require "taskmaster"
 require "./service/import_catalog"
 require "./service/sync_repos"
-require "./service/link_missing_dependencies"
 require "./mosquito"
 
 # Disable git asking for credentials when cloning a repository. It's probably been deleted.
@@ -24,7 +23,6 @@ def show_help(io)
   io.puts "  run:                       Run jobs from queue (default)"
   io.puts "  import_catalog:            Creates a job to import catalog data from ./catalog"
   io.puts "  sync_repos ([hours]):      Creates a job to sync repos not updated in last [hours]"
-  io.puts "  link_missing_dependencies: Creates a job to link missing dependencies"
 end
 
 Raven.configure do |config|
@@ -41,8 +39,6 @@ when "sync_repos"
     age = 24.hours
   end
   enqueue_job(Service::SyncRepos.new(age))
-when "link_missing_dependencies"
-  enqueue_job(Service::LinkMissingDependencies.new)
 when "run", Nil
   Mosquito::Runner.start
 when "help"
