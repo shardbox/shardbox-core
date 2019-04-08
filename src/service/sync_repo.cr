@@ -36,29 +36,30 @@ struct Service::SyncRepo
 
     if repo.role.canonical?
       # We only track releases on canonical repos
-      sync_releases(db, resolver, shard_id)
+
+      begin
+        sync_releases(db, resolver, shard_id)
+      rescue Repo::Resolver::RepoUnresolvableError
+        sync_failed(db)
+
+        Raven.send_event Raven::Event.new(
+            level: :warning,
+            message: "Failed to clone repository",
+            tags: {
+              repo: resolver.repo_ref.to_s,
+              resolver: resolver.repo_ref.resolver
+            }
+          )
+
+        return
+      end
     end
 
     sync_metadata(db, resolver)
   end
 
   def sync_releases(db, resolver, shard_id)
-    begin
-      versions = resolver.fetch_versions
-    rescue Repo::Resolver::RepoUnresolvableError
-      sync_failed(db)
-
-      Raven.send_event Raven::Event.new(
-          level: :warning,
-          message: "Failed to clone repository",
-          tags: {
-            repo: resolver.repo_ref.to_s,
-            resolver: resolver.repo_ref.resolver
-          }
-        )
-
-      return
-    end
+    versions = resolver.fetch_versions
 
     versions.each do |version|
       if !SoftwareVersion.valid?(version) && version != "HEAD"
@@ -117,7 +118,7 @@ struct Service::SyncRepo
       SET
         sync_failed_at = NOW()
       WHERE
-        repo_id = $1
+        id = $1
       SQL
   end
 end

@@ -15,7 +15,8 @@ describe Service::SyncRepo do
         service.sync_repo(db, resolver)
 
         repo = db.find_repo(repo_ref)
-        #repo.resolvable?.should be_false
+        repo.sync_failed_at.should_not be_nil
+        repo.synced_at.should be_nil
       end
     end
   end
