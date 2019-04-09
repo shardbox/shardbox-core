@@ -4,7 +4,6 @@ require "../repo"
 require "../repo/resolver"
 require "./sync_repo"
 require "../shard"
-require "raven"
 
 struct Service::ImportShard
   include Taskmaster::Job

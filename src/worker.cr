@@ -2,6 +2,7 @@ require "taskmaster"
 require "./service/import_catalog"
 require "./service/sync_repos"
 require "./mosquito"
+require "./raven"
 
 # Disable git asking for credentials when cloning a repository. It's probably been deleted.
 # TODO: Remove this workaround (probably use libgit2 bindings instead)
@@ -23,10 +24,6 @@ def show_help(io)
   io.puts "  run:                       Run jobs from queue (default)"
   io.puts "  import_catalog:            Creates a job to import catalog data from ./catalog"
   io.puts "  sync_repos ([hours]):      Creates a job to sync repos not updated in last [hours]"
-end
-
-Raven.configure do |config|
-  config.connect_timeout = 10.seconds
 end
 
 case command = ARGV.shift?

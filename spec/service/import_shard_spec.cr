@@ -1,4 +1,5 @@
 require "spec"
+require "../support/raven"
 require "../../src/service/import_shard"
 require "../support/db"
 require "../support/jobs"

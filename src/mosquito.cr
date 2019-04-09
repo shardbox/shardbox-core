@@ -1,5 +1,4 @@
 require "mosquito"
-require "raven"
 
 class Taskmaster::Mosquito
   include Taskmaster::Adapter

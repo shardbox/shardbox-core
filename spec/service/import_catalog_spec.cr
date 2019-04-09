@@ -2,6 +2,7 @@ require "spec"
 require "../../src/service/import_catalog"
 require "../support/jobs"
 require "../support/db"
+require "../support/raven"
 require "file_utils"
 
 private def with_tempdir(name)

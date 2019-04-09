@@ -3,7 +3,6 @@ require "../db"
 require "../ext/yaml/any"
 require "../repo/resolver"
 require "../dependency"
-require "raven"
 require "../util/software_version"
 require "./sync_dependencies"
 require "./import_shard"
@@ -32,30 +31,18 @@ class Service::SyncRelease
     if spec_raw
       spec = Shards::Spec.from_yaml(spec_raw)
       spec_json = JSON.parse(YAML.parse(spec_raw).to_json).as_h
-
-      unless check_version_match(@version, spec.version)
-        # TODO: What to do if spec reports different version than git tag?
-        # Just stick with the tag version for now, because the spec version is not
-        # really useable anyway.
-        # raise "spec reports different version than tag: #{spec.version} - #{@version}"
-        repo = resolver.repo_ref.to_s
-        Raven.send_event Raven::Event.new(
-            level: :warning,
-            message: "Mismatching version tag from shards.yml, using tag version.",
-            tags: {
-              repo: repo,
-              mismatch: "#{repo}@#{@version}: #{spec.version}",
-              tag_version: @version,
-              spec_version: spec.version,
-            }
-          )
-      end
     else
       # No `shard.yml` found, using mock spec
       spec = Shards::Spec.from_yaml(%(name: #{resolver.repo_ref.name}\nversion: #{@version}))
       spec_json = {} of String => JSON::Any
     end
 
+    # We're always using the tagged version as identifier (@version), which
+    # might be different from the version reported in the spec (spec.version).
+    # This is certainly unexpected but actually not a huge issue, we can just
+    # accept this.
+    # These mismatching releases can be queried from the database:
+    #    SELECT version, spec->>'version' FROM releases WHERE version != spec->>'version'
     revision_info = resolver.revision_info(@version)
     release = Release.new(@version, revision_info, spec_json)
 

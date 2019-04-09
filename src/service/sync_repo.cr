@@ -4,7 +4,6 @@ require "../ext/yaml/any"
 require "../repo/resolver"
 require "./sync_release"
 require "./order_releases"
-require "raven"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepo
@@ -64,7 +63,7 @@ struct Service::SyncRepo
     versions.each do |version|
       if !SoftwareVersion.valid?(version) && version != "HEAD"
         # TODO: What should happen when a version tag is invalid?
-        # Ignoring for now.
+        # Ignoring this release for now and sending a node to sentry.
         Raven.send_event Raven::Event.new(
             level: :warning,
             message: "Invalid version, ignoring release.",

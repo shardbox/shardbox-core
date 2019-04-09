@@ -1,9 +1,10 @@
 require "spec"
 require "../../src/service/sync_release"
-require "../support/db"
 require "../../src/repo"
 require "../../src/repo/resolver"
+require "../support/db"
 require "../support/mock_resolver"
+require "../support/raven"
 
 describe Service::SyncRelease do
   commit_1 = Factory.build_commit("12345678")

@@ -2,6 +2,7 @@ require "spec"
 require "../../src/service/sync_repo"
 require "../support/db"
 require "../support/mock_resolver"
+require "../support/raven"
 
 describe Service::SyncRepo do
   describe "#sync_repo" do
