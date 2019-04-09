@@ -40,6 +40,9 @@ when "run", Nil
   Mosquito::Runner.start
 when "help"
   show_help(STDOUT)
+when "sync_repo"
+  repo_id = ARGV.first.to_i64
+  Service::SyncRepo.new(repo_id).perform
 else
   STDERR.puts "unknown command #{command.inspect}"
   show_help(STDERR)
