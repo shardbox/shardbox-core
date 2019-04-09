@@ -96,8 +96,7 @@ struct Service::SyncRepo
   end
 
   def sync_metadata(db, resolver)
-    metadata = resolver.fetch_metadata
-    metadata ||= JSON::Any.new(Hash(String, JSON::Any).new)
+    metadata = resolver.fetch_metadata || Repo::Metadata.new
 
     db.connection.exec <<-SQL, @repo_id, metadata.to_json
       UPDATE

@@ -8,7 +8,7 @@ class MockResolver
 
   property? resolvable : Bool = true
 
-  def initialize(@versions : Hash(String, MockEntry) = {} of String => MockEntry, @metadata : Hash(String, JSON::Any) = {} of String => JSON::Any)
+  def initialize(@versions : Hash(String, MockEntry) = {} of String => MockEntry, @metadata : Repo::Metadata = Repo::Metadata.new)
   end
 
   def self.unresolvable

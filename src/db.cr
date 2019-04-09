@@ -44,20 +44,20 @@ class ShardsDB
   end
 
   def find_canonical_repo(shard_id : Int64)
-    resolver, url, metadata, synced_at = connection.query_one <<-SQL, shard_id, as: {String, String, JSON::Any, Time?}
-      SELECT resolver::text, url::text, metadata::jsonb, synced_at
+    resolver, url, metadata, synced_at = connection.query_one <<-SQL, shard_id, as: {String, String, String, Time?}
+      SELECT resolver::text, url::text, metadata::text, synced_at
       FROM repos
       WHERE
         shard_id = $1 AND role = 'canonical'
       SQL
 
-    Repo.new(resolver, url, shard_id, "canonical", metadata.as_h, synced_at)
+    Repo.new(resolver, url, shard_id, "canonical", Repo::Metadata.from_json(metadata), synced_at)
   end
 
   def find_repo(repo_ref : Repo::Ref)
-    result = connection.query_one <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64, Int64?, String, JSON::Any, Time?, Time?}
+    result = connection.query_one <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64, Int64?, String, String, Time?, Time?}
       SELECT
-        id, shard_id, role::text, metadata::jsonb, synced_at, sync_failed_at
+        id, shard_id, role::text, metadata::text, synced_at, sync_failed_at
       FROM
         repos
       WHERE
@@ -65,7 +65,7 @@ class ShardsDB
       SQL
 
     id, shard_id, role, metadata, synced_at, sync_failed_at = result
-    Repo.new(repo_ref, shard_id, role, metadata.as_h, synced_at, sync_failed_at, id: id)
+    Repo.new(repo_ref, shard_id, Repo::Role.parse(role), Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: id)
   end
 
   def find_repo_ref(id : Int64)

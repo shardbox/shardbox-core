@@ -30,7 +30,7 @@ class Repo
   # Returns the role of this repo for the shard (defaults to `canonical`).
   getter role : Role
 
-  getter metadata : Hash(String, JSON::Any)
+  getter metadata : Metadata
 
   def_equals_and_hash ref, role
 
@@ -42,21 +42,43 @@ class Repo
 
   def initialize(
       @ref : Ref, @shard_id : Int64?,
-      role : Role | String = :canonical, @metadata = {} of String => JSON::Any,
+      @role : Role = :canonical, @metadata = Metadata.new,
       @synced_at : Time? = nil, @sync_failed_at : Time? = nil,
       @id : Int64? = nil
     )
-    role = Role.parse(role) if role.is_a?(String)
-    @role = role
   end
 
   def self.new(
       resolver : String, url : String,shard_id : Int64?,
-      role : Role | String = :canonical, metadata = {} of String => JSON::Any,
+      role : String = "canonical", metadata = Metadata.new,
       synced_at : Time? = nil, sync_failed_at : Time? = nil,
       id : Int64? = nil
     )
-    new(Ref.new(resolver, url), shard_id, role, metadata, synced_at, sync_failed_at, id)
+    new(Ref.new(resolver, url), shard_id, Role.parse(role), metadata, synced_at, sync_failed_at, id)
+  end
+
+  record Metadata,
+    forks_count : Int32? = nil,
+    stargazers_count : Int32? = nil,
+    watchers_count : Int32? = nil,
+    created_at : Time? = nil,
+    description : String? = nil,
+    issues_enabled : Bool? = nil,
+    wiki_enabled : Bool? = nil,
+    homepage_url : String? = nil,
+    archived : Bool? = nil,
+    fork : Bool? = nil,
+    mirror : Bool? = nil,
+    license : String? = nil,
+    primary_language : String? = nil,
+    pushed_at : Time? = nil,
+    closed_issues_count : Int32? = nil,
+    open_issues_count : Int32? = nil,
+    closed_pull_requests_count : Int32? = nil,
+    open_pull_requests_count : Int32? = nil,
+    merged_pull_requests_count : Int32? = nil,
+    topics : Array(String)? = nil do
+      include JSON::Serializable
   end
 end
 

@@ -1,6 +1,7 @@
 require "shards/logger"
 require "shards/package"
 require "../ext/shards/resolvers/git"
+require "../ext/shards/resolvers/github"
 require "../../release"
 
 class Repo
@@ -43,7 +44,7 @@ class Repo
       @resolver.revision_info(version)
     end
 
-    def fetch_metadata : Hash(String, JSON::Any)?
+    def fetch_metadata : Repo::Metadata?
       if (resolver = @resolver).responds_to?(:fetch_metadata)
         resolver.fetch_metadata
       end

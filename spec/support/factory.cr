@@ -1,5 +1,5 @@
 module Factory
-  def self.create_repo(db, ref : Repo::Ref, shard_id = nil, role = "canonical")
+  def self.create_repo(db, ref : Repo::Ref, shard_id = nil, role : Repo::Role = :canonical)
     db.create_repo Repo.new(ref, shard_id, role)
   end
 

@@ -60,7 +60,7 @@ describe Service::SyncRepo do
 
       service = Service::SyncRepo.new(repo_id)
 
-      mock_resolver = MockResolver.new(metadata: {"foo" => JSON::Any.new("bar")})
+      mock_resolver = MockResolver.new(metadata: Repo::Metadata.new(forks_count: 42))
       resolver = Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo"))
       service.sync_metadata(db, resolver)
 
@@ -70,7 +70,7 @@ describe Service::SyncRepo do
         FROM repos
         SQL
 
-      results.should eq [{JSON.parse(%({"foo": "bar"})), true, nil}]
+      results.should eq [{JSON.parse(%({"forks_count": 42})), true, nil}]
     end
   end
 end
