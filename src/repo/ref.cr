@@ -13,11 +13,11 @@ struct Repo::Ref
     end
   end
 
-  def self.new(url : String)
+  def self.new(url : String) : self
     new URI.parse(url)
   end
 
-  def self.new(uri : URI)
+  def self.new(uri : URI) : self
     case uri.host
     when "github.com", "www.github.com"
       if path = extract_org_repo_url(uri)
@@ -31,6 +31,11 @@ struct Repo::Ref
       if path = extract_org_repo_url(uri)
         return new("bitbucket", path)
       end
+    end
+
+    path = uri.path
+    if path.nil? || path.empty? || path == "/"
+      raise "Invalid url for resolver git: #{uri.to_s.inspect}"
     end
 
     new("git", uri.to_s)
