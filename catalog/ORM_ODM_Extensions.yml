@@ -18,6 +18,8 @@ shards:
   description: Type safe querying, saving and updating
 - github: maiha/redis-tsv.cr
   description: Import and export data from Redis in TSV format
+- github: spider-gazelle/rethinkdb-orm
+  description: ORM for RethinkDB / RebirthDB
 - github: soveran/stal-crystal
   description: Set algebra solver for Redis
 - github: topaz-crystal/topaz

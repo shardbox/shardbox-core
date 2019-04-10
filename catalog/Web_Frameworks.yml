@@ -3,6 +3,9 @@ name: Web Frameworks
 shards:
 - github: amberframework/amber
   description: Open source efficient and cohesive web application framework
+- github: blacksmoke16/athena
+  description: Modular, annotation based, API oriented framework with built in param
+    conversion
 - github: kemalcr/kemal
   description: Lightning Fast, Super Simple web framework. Inspired by Sinatra
 - github: jasonl99/lattice-core

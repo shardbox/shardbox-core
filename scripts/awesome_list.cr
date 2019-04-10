@@ -2,12 +2,12 @@
 #
 require "http/client"
 require "file_utils"
-require "../src/category"
+require "../src/catalog"
 require "../src/db"
 
 AWESOME_URL = ARGV.first? || "https://raw.githubusercontent.com/veelenga/awesome-crystal/master/README.md"
 
-catalog = [] of Category
+catalog = [] of Catalog::Category
 
 HTTP::Client.get(AWESOME_URL) do |response|
   if response.status_code != 200
@@ -21,7 +21,7 @@ HTTP::Client.get(AWESOME_URL) do |response|
     if line.starts_with?("# ") && line != "# Awesome Crystal"
       break
     elsif line.starts_with?("## ")
-      current_category = Category.new(line.byte_slice(3, line.bytesize - 3).strip)
+      current_category = Catalog::Category.new(line.byte_slice(3, line.bytesize - 3).strip)
       catalog << current_category
     elsif current_category
       if match = line.match(/\A\s*\* \[(?<name>.+)\]\((?<url>.+)\) [–-] (?<description>.+)\z/)
@@ -32,7 +32,7 @@ HTTP::Client.get(AWESOME_URL) do |response|
         end
 
         repo_ref = Repo::Ref.new(url)
-        current_category.shards << Category::Entry.new(repo_ref, match["description"])
+        current_category.shards << Catalog::Entry.new(repo_ref, match["description"])
       elsif !line.strip.empty?
         print "// "
         puts line
