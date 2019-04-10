@@ -62,7 +62,8 @@ ALTER TYPE public.repo_resolver OWNER TO postgres;
 CREATE TYPE public.repo_role AS ENUM (
     'canonical',
     'mirror',
-    'legacy'
+    'legacy',
+    'obsolete'
 );
 
 
@@ -245,7 +246,7 @@ ALTER SEQUENCE public.releases_id_seq OWNED BY public.releases.id;
 
 CREATE TABLE public.repos (
     id bigint NOT NULL,
-    shard_id bigint NOT NULL,
+    shard_id bigint,
     resolver public.repo_resolver NOT NULL,
     url public.citext NOT NULL,
     role public.repo_role DEFAULT 'canonical'::public.repo_role NOT NULL,
@@ -516,6 +517,14 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE 
 
 
 --
+-- Name: dependencies depdendencies_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.dependencies
+    ADD CONSTRAINT dependencies_shard_id_fkey FOREIGN KEY (shard_id_deprecated) REFERENCES public.shards(id) ON DELETE CASCADE;
+
+
+--
 -- Name: dependencies dependencies_release_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -536,7 +545,7 @@ ALTER TABLE ONLY public.dependencies
 --
 
 ALTER TABLE ONLY public.releases
-    ADD CONSTRAINT releases_shard_id_fk FOREIGN KEY (shard_id) REFERENCES public.shards(id);
+    ADD CONSTRAINT releases_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id) ON DELETE CASCADE;
 
 
 --

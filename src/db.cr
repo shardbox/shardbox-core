@@ -3,6 +3,7 @@ require "pg"
 require "./shard"
 require "./release"
 require "./category"
+require "./repo"
 
 class ShardsDB
   class Error < Exception
@@ -41,6 +42,28 @@ class ShardsDB
         name = $1
       LIMIT 1
       SQL
+  end
+
+  def get_repo_shard_id(resolver : String, url : String)
+    connection.query_one <<-SQL, resolver, url, as: Int64
+          SELECT
+            shard_id
+          FROM
+            repos
+          WHERE
+            resolver = $1 AND url = $2
+          SQL
+  end
+
+  def get_repo_shard_id?(resolver : String, url : String)
+    connection.query_one? <<-SQL, resolver, url, as: Int64
+          SELECT
+            shard_id
+          FROM
+            repos
+          WHERE
+            resolver = $1 AND url = $2
+          SQL
   end
 
   def find_canonical_repo(shard_id : Int64)
@@ -82,7 +105,7 @@ class ShardsDB
   end
 
   def create_shard(shard : Shard)
-    shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, as: {Int64}
+    shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, as: Int64
       INSERT INTO shards
         (name, qualifier, description)
       VALUES

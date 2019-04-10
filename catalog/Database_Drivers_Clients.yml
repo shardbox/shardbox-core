@@ -11,6 +11,8 @@ shards:
   description: MySQL connector for Crystal
 - github: will/crystal-pg
   description: A Postgres driver
+  legacy:
+  - github: asterite/crystal-pg
 - github: stefanwille/crystal-redis
   description: Full featured Redis client
 - github: kingsleyh/crystal-rethinkdb

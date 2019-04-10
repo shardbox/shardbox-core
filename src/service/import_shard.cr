@@ -33,9 +33,11 @@ struct Service::ImportShard
   end
 
   def import_shard(db : ShardsDB, repo_id : Int64)
-    Raven.tags_context repo: @repo_ref.to_s
+    import_shard(db, repo_id, Repo::Resolver.new(@repo_ref))
+  end
 
-    resolver = Repo::Resolver.new(@repo_ref)
+  def import_shard(db : ShardsDB, repo_id : Int64, resolver : Repo::Resolver)
+    Raven.tags_context repo: resolver.repo_ref.to_s
 
     shard_id = create_shard(db, resolver, repo_id)
 
@@ -65,7 +67,7 @@ struct Service::ImportShard
     unless spec_raw
       sync_failed(db, repo_id)
 
-      raise "Repo HEAD misses shard.yml"
+      return
     end
 
     spec = Shards::Spec.from_yaml(spec_raw)
