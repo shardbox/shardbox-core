@@ -90,16 +90,18 @@ struct Service::ImportCatalog
         next unless shard_id
       end
 
+      mirrors = [] of Repo::Ref
       entry.mirror.each do |item|
         mirror_statement.exec item.resolver, item.url, "mirror", shard_id
+        mirrors << item
       end
       entry.legacy.each do |item|
         mirror_statement.exec item.resolver, item.url, "legacy", shard_id
+        mirrors << item
       end
+      unlink_removed_mirrors(db, mirrors, shard_id)
     end
 
-    obsolete_deleted_repos(db, true, entries.map &.repo_ref)
-    obsolete_deleted_repos(db, false, mirrors)
     delete_unreferenced_shards(db)
   end
 
@@ -120,38 +122,28 @@ struct Service::ImportCatalog
     Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id)
   end
 
-  private def obsolete_deleted_repos(db, canonical, valid_refs)
-    if valid_refs.empty?
-      # no mirror repos, delete all non-canonical
-      db.connection.exec <<-SQL % (canonical ? "=" : "<>"),
-        UPDATE
-          repos
-        SET
-          role = 'obsolete',
-          shard_id = NULL
-        WHERE
-          role %s 'canonical'
-        SQL
-    else
-      args = [] of String
+  private def unlink_removed_mirrors(db, valid_refs, shard_id)
+    args = [] of String
+    unless valid_refs.empty?
       sql_rows = Array(String).new(valid_refs.size)
       valid_refs.each_with_index do |repo_ref, index|
         args << repo_ref.resolver
         args << repo_ref.url
         sql_rows << "($#{index * 2 + 1}::repo_resolver, $#{index * 2 + 2}::citext)"
       end
-      sql_rows = sql_rows.join(',')
-      db.connection.exec <<-SQL % {canonical ? "=" : "<>", sql_rows}, args
-        UPDATE
-          repos
-        SET
-          role = 'obsolete',
-          shard_id = NULL
-        WHERE
-          role %s 'canonical' AND
-          ROW(resolver, url) <> ALL(ARRAY[%s])
-        SQL
+      sql_where = "AND ROW(resolver, url) <> ALL(ARRAY[#{sql_rows.join(',')}])"
     end
+
+    db.connection.exec <<-SQL, args
+      UPDATE
+        repos
+      SET
+        role = 'obsolete',
+        shard_id = NULL
+      WHERE
+        role <> 'canonical'
+        #{sql_where}
+      SQL
   end
 
   def read_catalog
