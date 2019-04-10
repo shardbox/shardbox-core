@@ -9,16 +9,23 @@ require "./order_releases"
 struct Service::SyncRepo
   include Taskmaster::Job
 
-  def initialize(@repo_id : Int64)
+  def self.new(repo_id : Int64)
+    instance = nil
+    ShardsDB.transaction do |db|
+      instance = new(db.find_repo_ref(repo_id))
+    end
+    instance.not_nil!
+  end
+
+  def initialize(@repo_ref : Repo::Ref)
   end
 
   def perform
+    resolver = Repo::Resolver.new(@repo_ref)
+
+    Raven.tags_context repo: @repo_ref.to_s
+
     ShardsDB.transaction do |db|
-      repo_ref = db.find_repo_ref(@repo_id)
-      resolver = Repo::Resolver.new(repo_ref)
-
-      Raven.tags_context repo: repo_ref.to_s
-
       sync_repo(db, resolver)
     end
   end
@@ -28,7 +35,7 @@ struct Service::SyncRepo
     shard_id = repo.shard_id
 
     unless shard_id
-      shard_id = ImportShard.new(resolver.repo_ref).create_shard(db, resolver, @repo_id)
+      shard_id = ImportShard.new(resolver.repo_ref).create_shard(db, resolver, repo.id)
 
       return unless shard_id
     end
@@ -39,7 +46,7 @@ struct Service::SyncRepo
       begin
         sync_releases(db, resolver, shard_id)
       rescue Repo::Resolver::RepoUnresolvableError
-        sync_failed(db)
+        sync_failed(db, repo.id)
 
         Raven.send_event Raven::Event.new(
             level: :warning,
@@ -54,7 +61,7 @@ struct Service::SyncRepo
       end
     end
 
-    sync_metadata(db, resolver)
+    sync_metadata(db, resolver, repo.id)
   end
 
   def sync_releases(db, resolver, shard_id)
@@ -94,10 +101,20 @@ struct Service::SyncRepo
       SQL
   end
 
-  def sync_metadata(db, resolver)
-    metadata = resolver.fetch_metadata || Repo::Metadata.new
+  def sync_metadata(db, resolver, repo_id)
+    begin
+      metadata = resolver.fetch_metadata
+    rescue exc : Shards::Error
+      sync_failed(db, repo_id)
 
-    db.connection.exec <<-SQL, @repo_id, metadata.to_json
+      db.connection.exec("COMMIT")
+
+      raise exc
+    end
+
+    metadata ||= Repo::Metadata.new
+
+    db.connection.exec <<-SQL,repo_id, metadata.to_json
       UPDATE
         repos
       SET
@@ -109,8 +126,8 @@ struct Service::SyncRepo
       SQL
   end
 
-  private def sync_failed(db)
-    db.connection.exec <<-SQL, @repo_id
+  private def sync_failed(db, repo_id)
+    db.connection.exec <<-SQL, repo_id
       UPDATE
         repos
       SET

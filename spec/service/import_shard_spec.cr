@@ -41,7 +41,7 @@ describe Service::ImportShard do
       persisted_repos(db).should eq [{"git", "mock:test", "canonical", "test"}]
 
       repo_id = db.find_repo(repo_ref).id
-      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_id":#{repo_id}})]
+      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
     end
   end
 
@@ -58,8 +58,7 @@ describe Service::ImportShard do
         persisted_shards(db).should eq [{"test", ""}, {"test", "example.com"}]
         persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
-        repo_id = db.find_repo(repo_ref).id
-        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_id":#{repo_id}})]
+        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
       end
     end
 
@@ -75,8 +74,7 @@ describe Service::ImportShard do
         persisted_shards(db).should eq [{"test", ""}, {"test", "testorg"}]
         persisted_repos(db).should eq [{"github", "testorg/test", "canonical", "test"}]
 
-        repo_id = db.find_repo(repo_ref).id
-        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_id":#{repo_id}})]
+        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
       end
     end
 
@@ -93,8 +91,7 @@ describe Service::ImportShard do
         persisted_shards(db).should eq [{"test", ""}, {"test", "example.com"}, {"test", "example.com-git"}]
         persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
-        repo_id = db.find_repo(repo_ref).id
-        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_id":#{repo_id}})]
+        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
       end
     end
   end

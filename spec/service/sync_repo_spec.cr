@@ -10,7 +10,7 @@ describe Service::SyncRepo do
       transaction do |db|
         repo_ref = Repo::Ref.new("git", "foo")
         repo_id = Factory.create_repo(db, repo_ref)
-        service = Service::SyncRepo.new(repo_id)
+        service = Service::SyncRepo.new(repo_ref)
 
         resolver = Repo::Resolver.new(MockResolver.unresolvable, repo_ref)
         service.sync_repo(db, resolver)
@@ -33,7 +33,7 @@ describe Service::SyncRepo do
                ($1, '0.1.3', '2018-12-30 00:00:02 UTC', '{}', '{}', 3, true, NULL)
         SQL
 
-      service = Service::SyncRepo.new(-1)
+      service = Service::SyncRepo.new(Repo::Ref.new("git", "blank"))
 
       valid_versions = ["0.1.0", "0.1.2"]
       service.yank_releases_with_missing_versions(db, shard_id, valid_versions)
@@ -59,11 +59,12 @@ describe Service::SyncRepo do
         RETURNING id
         SQL
 
-      service = Service::SyncRepo.new(repo_id)
+      repo_ref = Repo::Ref.new("git", "foo")
+      service = Service::SyncRepo.new(repo_ref)
 
       mock_resolver = MockResolver.new(metadata: Repo::Metadata.new(forks_count: 42))
-      resolver = Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo"))
-      service.sync_metadata(db, resolver)
+      resolver = Repo::Resolver.new(mock_resolver, repo_ref)
+      service.sync_metadata(db, resolver, repo_id)
 
       results = db.connection.query_all <<-SQL, as: {JSON::Any, Bool, Time?}
         SELECT

@@ -41,8 +41,12 @@ when "run", Nil
 when "help"
   show_help(STDOUT)
 when "sync_repo"
-  repo_id = ARGV.first.to_i64
-  Service::SyncRepo.new(repo_id).perform
+  arg = ARGV.shift
+  if repo_id = arg.to_i64?
+    Service::SyncRepo.new(repo_id).perform_later
+  else
+    Service::SyncRepo.new(Repo::Ref.parse(arg)).perform_later
+  end
 else
   STDERR.puts "unknown command #{command.inspect}"
   show_help(STDERR)

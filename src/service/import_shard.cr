@@ -27,7 +27,7 @@ struct Service::ImportShard
     repo_id = create_repo(db)
     shard_id = create_shard(db, resolver, repo_id)
 
-    Service::SyncRepo.new(repo_id).perform_later
+    Service::SyncRepo.new(resolver.repo_ref).perform_later
 
     shard_id
   end
