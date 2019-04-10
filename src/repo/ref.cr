@@ -41,6 +41,20 @@ struct Repo::Ref
     new("git", uri.to_s)
   end
 
+  def self.parse(string : String)
+    PROVIDER_RESOLVERS.each do |resolver|
+      if string.starts_with?(resolver)
+        size = resolver.bytesize
+        if string.byte_at(size) == ':'.ord
+          size += 1
+          return new(resolver, string.byte_slice(size, string.bytesize - size))
+        end
+      end
+    end
+
+    new(string)
+  end
+
   def to_uri : URI
     if PROVIDER_RESOLVERS.includes?(@resolver)
       # FIXME: Leading slash should not be needed

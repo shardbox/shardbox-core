@@ -22,8 +22,6 @@ dependencies:
     github: will/crystal-pg
   taskmaster:
     github: straight-shoota/taskmaster
-  mosquito:
-    github: robacarp/mosquito
   raven:
     github: Sija/raven.cr
   git:

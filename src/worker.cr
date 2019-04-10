@@ -1,43 +1,38 @@
 require "taskmaster"
+require "taskmaster/adapter/queue"
 require "./service/import_catalog"
 require "./service/sync_repos"
-require "./mosquito"
 require "./raven"
 
 # Disable git asking for credentials when cloning a repository. It's probably been deleted.
 # TODO: Remove this workaround (probably use libgit2 bindings instead)
 ENV["GIT_ASKPASS"] = "/usr/bin/test"
 
-Taskmaster.adapter = Taskmaster::Mosquito.new
-
-def enqueue_job(job)
-  puts "Enqueueing job #{job.class} #{job.to_json}."
-
-  job.perform_later
-
-  puts "Run `#{PROGRAM_NAME}` to execute job queue."
-end
+queue = Taskmaster::Queue.new
+Taskmaster.adapter = queue
 
 def show_help(io)
   io.puts "shards-toolbox worker"
   io.puts "commands:"
-  io.puts "  run:                       Run jobs from queue (default)"
-  io.puts "  import_catalog:            Creates a job to import catalog data from ./catalog"
-  io.puts "  sync_repos ([hours]):      Creates a job to sync repos not updated in last [hours]"
+  io.puts "  import_catalog [path]        import catalog data from [path] (default: ./catalog)"
+  io.puts "  sync_repos [hours [ratio]]   syncs repos not updated in last [hours] ([ratio] 0.0-1.0)"
 end
 
 case command = ARGV.shift?
 when "import_catalog"
-  enqueue_job(Service::ImportCatalog.new("catalog"))
+  catalog_path = ARGV.shift? || "./catalog"
+  Service::ImportCatalog.new(catalog_path).perform_later
 when "sync_repos"
-  if age = ARGV.first?
-    age = age.to_i.hours
-  else
-    age = 24.hours
+  hours = 24
+  ratio = 1.0/24
+  if arg = ARGV.shift?
+    hours = arg.to_i
+    if arg = ARGV.shift?
+      ratio = arg.to_f
+    end
   end
-  enqueue_job(Service::SyncRepos.new(age))
-when "run", Nil
-  Mosquito::Runner.start
+
+  Service::SyncRepos.new(hours.hours, ratio).perform_later
 when "help"
   show_help(STDOUT)
 when "sync_repo"
@@ -52,3 +47,5 @@ else
   show_help(STDERR)
   exit 1
 end
+
+queue.run
