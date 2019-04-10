@@ -26,11 +26,11 @@ class Shards::GithubResolver
     body = { query: graphql_query, variables: { owner: owner, name: name } }
     response = graphql_client.post "/graphql", body: body.to_json, headers: HTTP::Headers{"Authorization" => "bearer #{api_token}"}
 
-    raise "Repository unavailable" unless response.status_code == 200
+    raise Shards::Error.new("Repository unavailable") unless response.status_code == 200
 
     metadata = Repo::Metadata.from_github_graphql(response.body)
 
-    raise "Invalid response" unless metadata
+    raise Shards::Error.new("Invalid response") unless metadata
 
     metadata
   end
@@ -45,7 +45,9 @@ struct Repo::Metadata
       when "data"
         pull.read_object do |key|
           if key == "repository"
-            metadata = new(github_pull: pull)
+            pull.read_null_or do
+              metadata = new(github_pull: pull)
+            end
           else
             pull.skip
           end
@@ -57,11 +59,12 @@ struct Repo::Metadata
             errors << pull.read_string
           end
         end
-        raise "Repository error #{errors.join(", ")}"
+        raise Shards::Error.new("Repository error: #{errors.join(", ")}")
       else
         pull.skip
       end
     end
+
     metadata
   end
 
