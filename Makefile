@@ -42,7 +42,10 @@ catalog:
 	crystal run scripts/awesome-list.cr
 
 .PHONY: test_db/drop_sync
-test_db/drop_sync:
-	dropdb -U $(PG_USER) $(TEST_DATABASE_NAME) || true
+test_db/drop_sync: test_db/drop
 	createdb -U $(PG_USER) $(TEST_DATABASE_NAME) 2> /dev/null
 	pg_dump -U $(PG_USER) -s $(DATABASE_NAME) | psql -U $(PG_USER) $(TEST_DATABASE_NAME) -q
+
+.PHONY: test_db/drop
+test_db/drop:
+	dropdb -U $(PG_USER) $(TEST_DATABASE_NAME) || true
