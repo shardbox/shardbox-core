@@ -218,7 +218,7 @@ class ShardsDB
       WHERE
         id = (SELECT shard_id FROM repos WHERE resolver = $1 AND url = $2)
       SQL
-    connection.exec sql, repo_ref.resolver, repo_ref.url#, categories
+    connection.exec sql, repo_ref.resolver, repo_ref.url
   end
 
   def delete_categorizations(repo_refs : Array(Repo::Ref))

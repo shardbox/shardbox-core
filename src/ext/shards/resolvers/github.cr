@@ -23,7 +23,7 @@ class Shards::GithubResolver
 
   def self.fetch_metadata(path)
     owner, name = path.split("/")
-    body = { query: graphql_query, variables: { owner: owner, name: name } }
+    body = {query: graphql_query, variables: {owner: owner, name: name}}
     response = graphql_client.post "/graphql", body: body.to_json, headers: HTTP::Headers{"Authorization" => "bearer #{api_token}"}
 
     raise Shards::Error.new("Repository unavailable") unless response.status_code == 200

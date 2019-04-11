@@ -6,11 +6,11 @@ class Category
   getter! id : Int64
 
   def initialize(
-      @slug : String,
-      @name : String,
-      @description : String? = nil,
-      @entries_count : Int32 = 0,
-      @id : Int64? = nil
-    )
+    @slug : String,
+    @name : String,
+    @description : String? = nil,
+    @entries_count : Int32 = 0,
+    @id : Int64? = nil
+  )
   end
 end

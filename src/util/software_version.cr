@@ -136,12 +136,12 @@ struct SoftwareVersion
   # Version metadata (see `#metadata`) will be stripped.
   #
   # ```
-  # SoftwareVersion.new("1.0.0").release         # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0-dev").release     # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0-1").release       # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0a1").release       # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0+b1").release      # => SoftwareVersion.new("1.0.0")
-  # SoftwareVersion.new("1.0.0-rc1+b1").release  # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0").release        # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0-dev").release    # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0-1").release      # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0a1").release      # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0+b1").release     # => SoftwareVersion.new("1.0.0")
+  # SoftwareVersion.new("1.0.0-rc1+b1").release # => SoftwareVersion.new("1.0.0")
   # ```
   def release : self
     @string.each_char_with_index do |char, index|

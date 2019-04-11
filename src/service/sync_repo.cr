@@ -49,13 +49,13 @@ struct Service::SyncRepo
         sync_failed(db, repo.id)
 
         Raven.send_event Raven::Event.new(
-            level: :warning,
-            message: "Failed to clone repository",
-            tags: {
-              repo: resolver.repo_ref.to_s,
-              resolver: resolver.repo_ref.resolver
-            }
-          )
+          level: :warning,
+          message: "Failed to clone repository",
+          tags: {
+            repo:     resolver.repo_ref.to_s,
+            resolver: resolver.repo_ref.resolver,
+          }
+        )
 
         return
       end
@@ -72,13 +72,13 @@ struct Service::SyncRepo
         # TODO: What should happen when a version tag is invalid?
         # Ignoring this release for now and sending a node to sentry.
         Raven.send_event Raven::Event.new(
-            level: :warning,
-            message: "Invalid version, ignoring release.",
-            tags: {
-              repo: resolver.repo_ref.to_s,
-              tag_version: version
-            }
-          )
+          level: :warning,
+          message: "Invalid version, ignoring release.",
+          tags: {
+            repo:        resolver.repo_ref.to_s,
+            tag_version: version,
+          }
+        )
         next
       end
 
@@ -114,7 +114,7 @@ struct Service::SyncRepo
 
     metadata ||= Repo::Metadata.new
 
-    db.connection.exec <<-SQL,repo_id, metadata.to_json
+    db.connection.exec <<-SQL, repo_id, metadata.to_json
       UPDATE
         repos
       SET

@@ -59,7 +59,7 @@ describe Service::SyncDependencies do
 
           enqueued_jobs.should eq [
             {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"foo"}})},
-            {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"bar"}})}
+            {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"bar"}})},
           ]
         end
       end

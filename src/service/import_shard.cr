@@ -53,13 +53,13 @@ struct Service::ImportShard
       sync_failed(db, repo_id)
 
       Raven.send_event Raven::Event.new(
-          level: :warning,
-          message: "Failed to clone repository",
-          tags: {
-            repo: resolver.repo_ref.to_s,
-            resolver: resolver.repo_ref.resolver
-          }
-        )
+        level: :warning,
+        message: "Failed to clone repository",
+        tags: {
+          repo:     resolver.repo_ref.to_s,
+          resolver: resolver.repo_ref.resolver,
+        }
+      )
 
       return
     end

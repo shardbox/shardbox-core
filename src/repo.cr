@@ -41,19 +41,19 @@ class Repo
   getter! id : Int64?
 
   def initialize(
-      @ref : Ref, @shard_id : Int64?,
-      @role : Role = :canonical, @metadata = Metadata.new,
-      @synced_at : Time? = nil, @sync_failed_at : Time? = nil,
-      @id : Int64? = nil
-    )
+    @ref : Ref, @shard_id : Int64?,
+    @role : Role = :canonical, @metadata = Metadata.new,
+    @synced_at : Time? = nil, @sync_failed_at : Time? = nil,
+    @id : Int64? = nil
+  )
   end
 
   def self.new(
-      resolver : String, url : String,shard_id : Int64?,
-      role : String = "canonical", metadata = Metadata.new,
-      synced_at : Time? = nil, sync_failed_at : Time? = nil,
-      id : Int64? = nil
-    )
+    resolver : String, url : String, shard_id : Int64?,
+    role : String = "canonical", metadata = Metadata.new,
+    synced_at : Time? = nil, sync_failed_at : Time? = nil,
+    id : Int64? = nil
+  )
     new(Ref.new(resolver, url), shard_id, Role.parse(role), metadata, synced_at, sync_failed_at, id)
   end
 
@@ -78,7 +78,7 @@ class Repo
     open_pull_requests_count : Int32? = nil,
     merged_pull_requests_count : Int32? = nil,
     topics : Array(String)? = nil do
-      include JSON::Serializable
+    include JSON::Serializable
   end
 end
 

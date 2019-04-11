@@ -195,6 +195,7 @@ describe Service::ImportCatalog do
             repos
           ORDER BY url
           SQL
+
         results.should eq [
           {"git", "bar/bar", "obsolete", nil},
           {"git", "bar/foo", "mirror", shard_id},
@@ -282,7 +283,7 @@ describe Service::ImportCatalog do
           ORDER BY name
           SQL
         results.should eq [
-          {foo_shard_id, "foo"}
+          {foo_shard_id, "foo"},
         ]
       end
     end
@@ -295,7 +296,6 @@ describe Service::ImportCatalog do
       foo_id = Factory.create_shard(db, "foo")
       Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id)
 
-
       service = Service::ImportCatalog.new("")
       service.delete_unreferenced_shards(db)
 
@@ -306,7 +306,7 @@ describe Service::ImportCatalog do
           shards
         SQL
       results.should eq [
-        {foo_id, "foo"}
+        {foo_id, "foo"},
       ]
 
       releases_count = db.connection.query_one <<-SQL, as: Int64
@@ -377,7 +377,7 @@ describe Service::ImportCatalog do
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
         service.import_catalog(db)
-        db.all_categories.map { |cat| {cat.name, cat.description }}.should eq [{"Bar", "bardesc"}, {"Foo", "foodesc"}]
+        db.all_categories.map { |cat| {cat.name, cat.description} }.should eq [{"Bar", "bardesc"}, {"Foo", "foodesc"}]
       end
     end
   end
