@@ -1,6 +1,7 @@
 require "taskmaster"
 require "../db"
 require "./sync_repo"
+require "./update_dependencies"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepos
@@ -16,6 +17,8 @@ struct Service::SyncRepos
   def perform
     ShardsDB.transaction do |db|
       sync_repos(db)
+
+      UpdateDependencies.new.perform(db)
     end
   end
 

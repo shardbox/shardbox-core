@@ -16,14 +16,14 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: citext; Type: EXTENSION; Schema: -; Owner:
+-- Name: citext; Type: EXTENSION; Schema: -; Owner: 
 --
 
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 
 
 --
--- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner:
+-- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: 
 --
 
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -95,6 +95,38 @@ $$;
 ALTER FUNCTION public.ensure_only_one_latest_release_trigger() OWNER TO postgres;
 
 --
+-- Name: shard_dependencies_materialize(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.shard_dependencies_materialize() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+      TRUNCATE shard_dependencies;
+
+      INSERT INTO
+        shard_dependencies
+      SELECT DISTINCT
+        releases.shard_id,
+        repos.shard_id AS depends_on,
+        dependencies.scope
+      FROM
+        dependencies
+      JOIN
+        repos ON repos.id = dependencies.repo_id
+      JOIN
+        releases ON releases.id = dependencies.release_id AND releases.latest
+      WHERE
+        repos.shard_id IS NOT NULL
+      ON CONFLICT ON CONSTRAINT shard_dependencies_uniq DO NOTHING
+      ;
+END;
+$$;
+
+
+ALTER FUNCTION public.shard_dependencies_materialize() OWNER TO postgres;
+
+--
 -- Name: shards_categories_trigger(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -122,6 +154,107 @@ $$;
 
 
 ALTER FUNCTION public.shards_categories_trigger() OWNER TO postgres;
+
+--
+-- Name: shards_refresh_dependents(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.shards_refresh_dependents() RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  curr_id bigint;
+  var_dependents_count int;
+  var_dev_dependents_count int;
+  var_transitive_dependents_count int;
+  var_row_count int;
+BEGIN
+  RAISE NOTICE 'Refreshing dependents stats...';
+
+  FOR curr_id IN SELECT id FROM shards LOOP
+
+    RAISE NOTICE 'Refreshing dependents stats on % ...', curr_id;
+
+    CREATE TEMPORARY TABLE dependents
+    AS
+      SELECT
+        shard_id, scope
+      FROM
+        shards_dependencies
+      WHERE
+        depends_on = curr_id
+    ;
+      
+    SELECT
+      COUNT(*)
+    INTO
+      var_dependents_count
+    FROM
+      dependents
+    WHERE
+      scope = 'runtime'
+    ;
+
+    SELECT
+      COUNT(*)
+    INTO var_dev_dependents_count
+    FROM
+      dependents
+    WHERE
+      scope <> 'runtime'
+    ;
+
+    WITH RECURSIVE transitive_dependents AS (
+      SELECT
+        shard_id, curr_id AS depends_on
+      FROM
+        dependents
+      WHERE
+        scope = 'runtime'
+      UNION
+      SELECT
+        d.shard_id, d.depends_on
+      FROM
+        shards_dependencies d
+      INNER JOIN
+        transitive_dependents ON transitive_dependents.shard_id = d.depends_on AND d.scope = 'runtime'
+    )
+    SELECT 
+      COUNT(*)
+    INTO
+      var_transitive_dependents_count
+    FROM
+      (
+        SELECT DISTINCT
+          shard_id
+        FROM
+          transitive_dependents
+      ) AS d
+    ;
+
+    UPDATE
+      shards
+    SET
+      dependents_count = var_dependents_count,
+      dev_dependents_count = var_dev_dependents_count,
+      transitive_dependents_count = var_transitive_dependents_count
+    WHERE
+      id = curr_id
+    ;
+
+    DROP TABLE dependents;
+    
+    GET DIAGNOSTICS var_row_count = ROW_COUNT;
+    RAISE NOTICE '% Updated % tables with % % %', FOUND, var_row_count, var_dependents_count, var_dev_dependents_count, var_transitive_dependents_count;
+  END LOOP;
+
+  RAISE NOTICE 'Done refreshing dependents stats.';
+  RETURN 1;
+END;
+$$;
+
+
+ALTER FUNCTION public.shards_refresh_dependents() OWNER TO postgres;
 
 --
 -- Name: trigger_set_timestamp(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -185,12 +318,13 @@ ALTER SEQUENCE public.categories_id_seq OWNED BY public.categories.id;
 
 CREATE TABLE public.dependencies (
     release_id bigint NOT NULL,
-    repo_id bigint,
+    shard_id_deprecated bigint,
     name public.citext NOT NULL,
     spec jsonb NOT NULL,
     scope public.dependency_scope NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    repo_id bigint
 );
 
 
@@ -250,11 +384,11 @@ CREATE TABLE public.repos (
     resolver public.repo_resolver NOT NULL,
     url public.citext NOT NULL,
     role public.repo_role DEFAULT 'canonical'::public.repo_role NOT NULL,
-    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     synced_at timestamp with time zone,
-    sync_failed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    sync_failed_at timestamp with time zone,
     CONSTRAINT repos_resolvers_service_url CHECK (((NOT (resolver = ANY (ARRAY['github'::public.repo_resolver, 'gitlab'::public.repo_resolver, 'bitbucket'::public.repo_resolver]))) OR ((url OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}/[A-Za-z0-9_\-.]{1,100}$'::public.citext) AND (url OPERATOR(public.!~~) '%.git'::public.citext))))
 );
 
@@ -283,6 +417,19 @@ ALTER SEQUENCE public.repos_id_seq OWNED BY public.repos.id;
 
 
 --
+-- Name: shard_dependencies; Type: TABLE; Schema: public; Owner: shards_toolbox
+--
+
+CREATE TABLE public.shard_dependencies (
+    shard_id bigint NOT NULL,
+    depends_on bigint NOT NULL,
+    scope public.dependency_scope NOT NULL
+);
+
+
+ALTER TABLE public.shard_dependencies OWNER TO shards_toolbox;
+
+--
 -- Name: shards; Type: TABLE; Schema: public; Owner: shards_toolbox
 --
 
@@ -291,15 +438,51 @@ CREATE TABLE public.shards (
     name public.citext NOT NULL,
     qualifier public.citext DEFAULT ''::public.citext NOT NULL,
     description text,
-    categories bigint[] DEFAULT '{}'::bigint[] NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    categories bigint[] DEFAULT '{}'::bigint[] NOT NULL,
+    popularity real DEFAULT 1 NOT NULL,
+    dependents_count integer,
+    transitive_dependents_count integer,
+    dev_dependents_count integer,
     CONSTRAINT shards_name_check CHECK ((name OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}$'::text)),
     CONSTRAINT shards_qualifier_check CHECK ((qualifier OPERATOR(public.~) '^[A-Za-z0-9_\-.]{0,100}$'::public.citext))
 );
 
 
 ALTER TABLE public.shards OWNER TO shards_toolbox;
+
+--
+-- Name: shards_dependencies; Type: VIEW; Schema: public; Owner: postgres
+--
+
+CREATE VIEW public.shards_dependencies AS
+ SELECT DISTINCT repos.shard_id AS depends_on,
+    releases.shard_id,
+    dependencies.scope
+   FROM ((public.dependencies
+     JOIN public.repos ON ((repos.id = dependencies.repo_id)))
+     JOIN public.releases ON (((releases.id = dependencies.release_id) AND releases.latest)));
+
+
+ALTER TABLE public.shards_dependencies OWNER TO postgres;
+
+--
+-- Name: shards_deps; Type: MATERIALIZED VIEW; Schema: public; Owner: postgres
+--
+
+CREATE MATERIALIZED VIEW public.shards_deps AS
+ SELECT DISTINCT dependent.id AS shard,
+    shards.id AS depends_on,
+    dependencies.scope
+   FROM (((public.shards
+     JOIN public.dependencies ON ((dependencies.shard_id_deprecated = shards.id)))
+     JOIN public.releases ON (((releases.id = dependencies.release_id) AND releases.latest)))
+     JOIN public.shards dependent ON ((dependent.id = releases.shard_id)))
+  WITH NO DATA;
+
+
+ALTER TABLE public.shards_deps OWNER TO postgres;
 
 --
 -- Name: shards_id_seq; Type: SEQUENCE; Schema: public; Owner: shards_toolbox
@@ -321,6 +504,22 @@ ALTER TABLE public.shards_id_seq OWNER TO shards_toolbox;
 
 ALTER SEQUENCE public.shards_id_seq OWNED BY public.shards.id;
 
+
+--
+-- Name: shards_stats; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.shards_stats (
+    id bigint NOT NULL,
+    watchers integer,
+    forks integer,
+    popularity real DEFAULT 1 NOT NULL,
+    dependents integer,
+    score real DEFAULT 1 NOT NULL
+);
+
+
+ALTER TABLE public.shards_stats OWNER TO postgres;
 
 --
 -- Name: categories id; Type: DEFAULT; Schema: public; Owner: postgres
@@ -423,6 +622,14 @@ ALTER TABLE ONLY public.repos
 
 
 --
+-- Name: shard_dependencies shard_dependencies_uniq; Type: CONSTRAINT; Schema: public; Owner: shards_toolbox
+--
+
+ALTER TABLE ONLY public.shard_dependencies
+    ADD CONSTRAINT shard_dependencies_uniq UNIQUE (depends_on, shard_id, scope);
+
+
+--
 -- Name: shards shards_name_unique; Type: CONSTRAINT; Schema: public; Owner: shards_toolbox
 --
 
@@ -436,6 +643,14 @@ ALTER TABLE ONLY public.shards
 
 ALTER TABLE ONLY public.shards
     ADD CONSTRAINT shards_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shards_stats shards_stats_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shards_stats
+    ADD CONSTRAINT shards_stats_id_key UNIQUE (id);
 
 
 --
@@ -465,6 +680,13 @@ CREATE UNIQUE INDEX repos_shard_id_role_idx ON public.repos USING btree (shard_i
 --
 
 CREATE INDEX repos_synced_at ON public.repos USING btree (synced_at NULLS FIRST) INCLUDE (shard_id, role);
+
+
+--
+-- Name: shard_dependencies_depends_on; Type: INDEX; Schema: public; Owner: shards_toolbox
+--
+
+CREATE INDEX shard_dependencies_depends_on ON public.shard_dependencies USING btree (depends_on, scope) INCLUDE (shard_id);
 
 
 --
@@ -517,14 +739,6 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE 
 
 
 --
--- Name: dependencies depdendencies_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.dependencies
-    ADD CONSTRAINT dependencies_shard_id_fkey FOREIGN KEY (shard_id_deprecated) REFERENCES public.shards(id) ON DELETE CASCADE;
-
-
---
 -- Name: dependencies dependencies_release_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -541,19 +755,27 @@ ALTER TABLE ONLY public.dependencies
 
 
 --
--- Name: releases releases_shard_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.releases
-    ADD CONSTRAINT releases_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id) ON DELETE CASCADE;
-
-
---
 -- Name: repos repos_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
 --
 
 ALTER TABLE ONLY public.repos
     ADD CONSTRAINT repos_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shard_dependencies shard_dependencies_depends_on_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
+--
+
+ALTER TABLE ONLY public.shard_dependencies
+    ADD CONSTRAINT shard_dependencies_depends_on_fkey FOREIGN KEY (depends_on) REFERENCES public.shards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shard_dependencies shard_dependencies_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
+--
+
+ALTER TABLE ONLY public.shard_dependencies
+    ADD CONSTRAINT shard_dependencies_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id) ON DELETE CASCADE;
 
 
 --

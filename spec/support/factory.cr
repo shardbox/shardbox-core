@@ -22,12 +22,12 @@ module Factory
       shard_id, version, released_at.at_beginning_of_second, spec, revision_info, latest, yanked_at.try(&.at_beginning_of_second), as: {Int64}
   end
 
-  def self.create_dependency(db, release_id : Int64, name : String, spec : JSON::Any, repo_id : Int64? = nil, scope = Dependency::Scope::RUNTIME, resolvable = true)
-    db.connection.exec <<-SQL, release_id, name, spec.to_json, repo_id, scope, resolvable
+  def self.create_dependency(db, release_id : Int64, name : String, spec : JSON::Any = JSON.parse("{}"), repo_id : Int64? = nil, scope = Dependency::Scope::RUNTIME)
+    db.connection.exec <<-SQL, release_id, name, spec.to_json, repo_id, scope
         INSERT INTO dependencies
-          (release_id, name, spec, repo_id, scope, resolvable)
+          (release_id, name, spec, repo_id, scope)
         VALUES
-          ($1, $2, $3::jsonb, $4, $5, $6)
+          ($1, $2, $3::jsonb, $4, $5)
         SQL
   end
 
