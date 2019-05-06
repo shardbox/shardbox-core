@@ -27,11 +27,11 @@ HTTP::Client.get(AWESOME_URL) do |response|
       if match = line.match(/\A\s*\* \[(?<name>.+)\]\((?<url>.+)\) [–-] (?<description>.+)\z/)
 
         url = URI.parse(match["url"])
-        if (path = url.path || url.opaque) && path.ends_with?(".html")
+        if url.path.ends_with?(".html")
           next
         end
 
-        repo_ref = Repo::Ref.new(url)
+        repo_ref = Repo::Ref.new(url) rescue next
         current_category.shards << Catalog::Entry.new(repo_ref, match["description"])
       elsif !line.strip.empty?
         print "// "

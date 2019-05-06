@@ -23,7 +23,7 @@ class Service::OrderReleases
     getter? yanked
 
     def initialize(@id : Int64, version : String, @yanked : Bool)
-      @version = SoftwareVersion.new(version)
+      @version = SoftwareVersion.parse(version)
     end
 
     def <=>(other : self)

@@ -1,5 +1,6 @@
 require "shards/logger"
 require "shards/package"
+require "../ext/shards/dependency"
 require "../ext/shards/resolvers/git"
 require "../ext/shards/resolvers/github"
 require "../../release"
@@ -53,15 +54,7 @@ class Repo
     def self.resolver_instance(repo_ref)
       dependency = Shards::Dependency.new(repo_ref.name)
 
-      url = URI.parse(repo_ref.url)
-      #  TODO: Remove when URI behaves properly
-      if repo_ref.resolver == "git" && url.scheme == "file" && (path = url.opaque)
-        url = url.dup
-        url.opaque = nil
-        url.path = File.expand_path(path)
-      end
-
-      dependency[repo_ref.resolver] = url.to_s
+      dependency[repo_ref.resolver] = repo_ref.url
 
       Shards.find_resolver(dependency).as(Shards::GitResolver)
     end

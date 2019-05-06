@@ -75,7 +75,7 @@ struct Repo::Ref
 
   def name
     uri = URI.parse(url)
-    File.basename((uri.path || uri.opaque).not_nil!).rchop('/').rchop(".git")
+    File.basename(uri.path).rchop('/').rchop(".git")
   end
 
   def to_s(io : IO)
