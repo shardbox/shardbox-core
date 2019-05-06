@@ -49,12 +49,12 @@ module Catalog
           builder.scalar description
         end
 
-        mirror_to_yaml(mirror, "mirror")
-        mirror_to_yaml(legacy, "legacy")
+        mirror_to_yaml(builder, mirror, "mirror")
+        mirror_to_yaml(builder, legacy, "legacy")
       end
     end
 
-    private def mirror_to_yaml(list, name)
+    private def mirror_to_yaml(builder, list, name)
       unless list.empty?
         builder.scalar name
         builder.sequence do
