@@ -22,6 +22,10 @@ db: SHARDSDB_DATABASE
 	createdb -U $(PG_USER) $(DATABASE_NAME)
 	psql -U $(PG_USER) $(DATABASE_NAME) < db/schema.sql
 
+.PHONY: db/dump
+db/dump: SHARDSDB_DATABASE
+	pg_dump -U $(PG_USER) -d $(DATABASE_NAME) > db/dump/$(shell date +'%Y-%m-%d-%H%M').sql
+
 .PHONY: db/dump_schema
 db/dump_schema: SHARDSDB_DATABASE
 	pg_dump -U $(PG_USER) -s $(DATABASE_NAME) > db/schema.sql
