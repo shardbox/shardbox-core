@@ -63,7 +63,9 @@ class Release
   end
 
   def crystal : String?
-    spec["crystal"]?.try &.as_s
+    if crystal = spec["crystal"]?
+      crystal.as_s? || crystal.as_f?.try &.to_s # A version might have been encoded as a number in YAML
+    end
   end
 
   def_equals_and_hash version, revision_info, released_at, spec
