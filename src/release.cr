@@ -19,8 +19,8 @@ class Release
   end
 
   property version : String
-  property revision_info : RevisionInfo
   property released_at : Time
+  property! revision_info : RevisionInfo?
   property? yanked_at : Time?
   getter spec : Hash(String, JSON::Any)
   getter? latest : Bool
@@ -46,7 +46,7 @@ class Release
   def initialize(
     @version : String,
     @released_at : Time,
-    @revision_info : RevisionInfo,
+    @revision_info : RevisionInfo? = nil,
     @spec : Hash(String, JSON::Any) = {} of String => JSON::Any,
     @yanked_at : Time? = nil,
     @latest : Bool = false,
