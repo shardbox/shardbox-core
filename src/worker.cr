@@ -26,13 +26,14 @@ when "import_catalog"
   Service::ImportCatalog.new(catalog_path).perform_later
 when "sync_repos"
   hours = 24
-  ratio = 1.0/24
+  ratio = nil
   if arg = ARGV.shift?
     hours = arg.to_i
     if arg = ARGV.shift?
       ratio = arg.to_f
     end
   end
+  ratio ||= 2.0 / hours
 
   Service::SyncRepos.new(hours.hours, ratio).perform_later
 when "help"
