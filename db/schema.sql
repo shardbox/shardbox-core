@@ -127,6 +127,334 @@ $$;
 ALTER FUNCTION public.shard_dependencies_materialize() OWNER TO postgres;
 
 --
+-- Name: shard_metrics_calculate(bigint); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE OR REPLACE FUNCTION public.shard_metrics_calculate(curr_shard_id bigint) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+
+  CREATE TEMPORARY TABLE dependents
+  AS
+    SELECT
+      shard_id, scope
+    FROM
+      shards_dependencies
+    WHERE
+      depends_on = curr_shard_id
+  ;
+  CREATE TEMPORARY TABLE tmp_dependencies
+  AS
+    SELECT
+      depends_on, scope
+    FROM
+      shards_dependencies
+    WHERE
+      shard_id = curr_shard_id
+  ;
+
+  INSERT INTO shard_metrics
+    (
+      shard_id,
+      dependents_count, dev_dependents_count, transitive_dependents_count,
+      dependencies_count, dev_dependencies_count, transitive_dependencies_count,
+      likes_count, watchers_count, forks_count,
+      popularity
+    )
+  SELECT
+    curr_shard_id AS shard_id,
+    (
+      SELECT
+        COUNT(*)
+      FROM
+        dependents
+      WHERE
+        scope = 'runtime'
+    ) AS dependents_count,
+    (
+      SELECT
+        COUNT(*)
+      FROM
+        dependents
+      WHERE
+        scope <> 'runtime'
+    ) AS dev_dependents_count,
+    tdc.transitive_dependents_count,
+    (
+      SELECT
+        COUNT(*)
+      FROM
+        tmp_dependencies
+      WHERE
+        scope = 'runtime'
+    ) AS dependencies_count,
+    (
+      SELECT
+        COUNT(*)
+      FROM
+        tmp_dependencies
+      WHERE
+        scope <> 'runtime'
+    ) AS dev_dependencies_count,
+    (
+      WITH RECURSIVE transitive_dependencies AS (
+        SELECT
+          curr_shard_id AS shard_id, depends_on
+        FROM
+          tmp_dependencies
+        WHERE
+          scope = 'runtime'
+        UNION
+        SELECT
+          d.shard_id, d.depends_on
+        FROM
+          shards_dependencies d
+        INNER JOIN
+          transitive_dependencies ON transitive_dependencies.depends_on = d.shard_id AND d.scope = 'runtime'
+      )
+      SELECT
+        COUNT(*)
+      FROM
+      (
+        SELECT DISTINCT
+          depends_on
+        FROM
+          transitive_dependencies
+      ) AS d
+    ) AS transitive_dependencies_count,
+    repo_stats.*,
+    COALESCE(
+      POWER(
+        POWER(COALESCE(tdc.transitive_dependents_count, 0) + 1, 1.5) *
+        POWER(COALESCE(repo_stats.likes_count, 0) + 1, 1.3) *
+        POWER(COALESCE(repo_stats.watchers_count, 0) + 1, 1.0) *
+        POWER(COALESCE(repo_stats.forks_count, 0) + 1, .3),
+        1.0/4
+      ),
+      1.0
+    ) AS popularity
+    FROM
+      (
+        SELECT
+          COALESCE((metadata->'stargazers_count')::int, 0) AS likes_count,
+          COALESCE((metadata->'watchers_count')::int, 0) AS watchers_count,
+          COALESCE((metadata->'forks_count')::int, 0) AS forks_count
+        FROM
+          repos
+        WHERE
+          shard_id = curr_shard_id AND role = 'canonical'
+      ) AS repo_stats,
+      (
+        WITH RECURSIVE transitive_dependents AS (
+          SELECT
+            shard_id, curr_shard_id AS depends_on
+          FROM
+            dependents
+          WHERE
+            scope = 'runtime'
+          UNION
+          SELECT
+            d.shard_id, d.depends_on
+          FROM
+            shards_dependencies d
+          INNER JOIN
+            transitive_dependents ON transitive_dependents.shard_id = d.depends_on AND d.scope = 'runtime'
+        )
+        SELECT
+          COUNT(*) AS transitive_dependents_count
+        FROM
+        (
+          SELECT DISTINCT
+            shard_id
+          FROM
+            transitive_dependents
+        ) AS d
+      ) AS tdc
+  ;
+
+  DROP TABLE dependents;
+  DROP TABLE tmp_dependencies;
+END;
+$$;
+
+
+ALTER FUNCTION public.shard_metrics_calculate(curr_shard_id bigint) OWNER TO postgres;
+
+--
+-- Name: shard_metrics_current_trigger(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.shard_metrics_current_trigger() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF (TG_OP = 'DELETE') THEN
+    DELETE FROM shard_metrics_current WHERE shard_id = OLD.shard_id;
+  ELSE
+    DELETE FROM shard_metrics_current WHERE shard_id = NEW.shard_id;
+
+    INSERT INTO
+      shard_metrics_current
+    VALUES
+      (NEW.*);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.shard_metrics_current_trigger() OWNER TO postgres;
+
+--
+-- Name: shard_metrics_materialize(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.shard_metrics_materialize() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  shards_cursor NO SCROLL CURSOR FOR
+    SELECT
+        id, name
+    FROM
+        shards;
+  curr_shard RECORD;
+BEGIN
+  OPEN shards_cursor;
+
+  LOOP
+    FETCH shards_cursor INTO curr_shard;
+    EXIT WHEN NOT FOUND;
+
+    RAISE NOTICE 'curr_shard %', curr_shard;
+
+    CREATE TEMPORARY TABLE dependents
+    AS
+      SELECT
+        shard_id, scope
+      FROM
+        shards_dependencies
+      WHERE
+        depends_on = curr_shard.id
+    ;
+    CREATE TEMPORARY TABLE tmp_dependencies
+    AS
+      SELECT
+        depends_on, scope
+      FROM
+        shards_dependencies
+      WHERE
+        shard_id = curr_shard.id
+    ;
+
+    INSERT INTO shard_metrics
+        (
+            shard_id,
+            dependents_count, dev_dependents_count, transitive_dependents_count,
+            dependencies_count, dev_dependencies_count, transitive_dependencies_count
+        )
+    SELECT
+        curr_shard.id AS shard_id,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                dependents
+            WHERE
+                scope = 'runtime'
+        ) AS dependents_count,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                dependents
+            WHERE
+                scope <> 'runtime'
+        ) AS dev_dependents_count,
+        (
+            WITH RECURSIVE transitive_dependents AS (
+                SELECT
+                    shard_id, curr_shard.id AS depends_on
+                FROM
+                    dependents
+                WHERE
+                    scope = 'runtime'
+                UNION
+                SELECT
+                    d.shard_id, d.depends_on
+                FROM
+                    shards_dependencies d
+                INNER JOIN
+                    transitive_dependents ON transitive_dependents.shard_id = d.depends_on AND d.scope = 'runtime'
+            )
+            SELECT
+                COUNT(*)
+            FROM
+            (
+                SELECT DISTINCT
+                shard_id
+                FROM
+                transitive_dependents
+            ) AS d
+        ) AS transitive_dependents_count,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                tmp_dependencies
+            WHERE
+                scope = 'runtime'
+        ) AS dependencies_count,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                tmp_dependencies
+            WHERE
+                scope <> 'runtime'
+        ) AS dev_dependencies_count,
+        (
+            WITH RECURSIVE transitive_dependencies AS (
+                SELECT
+                    curr_shard.id AS shard_id, depends_on
+                FROM
+                    tmp_dependencies
+                WHERE
+                    scope = 'runtime'
+                UNION
+                SELECT
+                    d.shard_id, d.depends_on
+                FROM
+                    shards_dependencies d
+                INNER JOIN
+                    transitive_dependencies ON transitive_dependencies.depends_on = d.shard_id AND d.scope = 'runtime'
+            )
+            SELECT
+                COUNT(*)
+            FROM
+            (
+                SELECT DISTINCT
+                    depends_on
+                FROM
+                    transitive_dependencies
+            ) AS d
+        ) AS transitive_dependencies_count
+    ;
+
+    DROP TABLE dependents;
+    DROP TABLE tmp_dependencies;
+  END LOOP;
+
+  CLOSE shards_cursor;
+END;
+$$;
+
+
+ALTER FUNCTION public.shard_metrics_materialize() OWNER TO postgres;
+
+--
 -- Name: shards_categories_trigger(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -159,21 +487,22 @@ ALTER FUNCTION public.shards_categories_trigger() OWNER TO postgres;
 -- Name: shards_refresh_dependents(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.shards_refresh_dependents() RETURNS integer
+CREATE FUNCTION public.shards_refresh_dependents() RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
-  curr_id bigint;
-  var_dependents_count int;
-  var_dev_dependents_count int;
-  var_transitive_dependents_count int;
-  var_row_count int;
+  shards_cursor NO SCROLL CURSOR FOR
+    SELECT
+        id, name
+    FROM
+        shards;
+  curr_shard RECORD;
 BEGIN
-  RAISE NOTICE 'Refreshing dependents stats...';
+  OPEN shards_cursor;
 
-  FOR curr_id IN SELECT id FROM shards LOOP
-
-    RAISE NOTICE 'Refreshing dependents stats on % ...', curr_id;
+  LOOP
+    FETCH shards_cursor INTO curr_shard;
+    EXIT WHEN NOT FOUND;
 
     CREATE TEMPORARY TABLE dependents
     AS
@@ -182,74 +511,112 @@ BEGIN
       FROM
         shards_dependencies
       WHERE
-        depends_on = curr_id
+        depends_on = curr_shard.id
     ;
-      
-    SELECT
-      COUNT(*)
-    INTO
-      var_dependents_count
-    FROM
-      dependents
-    WHERE
-      scope = 'runtime'
-    ;
-
-    SELECT
-      COUNT(*)
-    INTO var_dev_dependents_count
-    FROM
-      dependents
-    WHERE
-      scope <> 'runtime'
-    ;
-
-    WITH RECURSIVE transitive_dependents AS (
+    CREATE TEMPORARY TABLE tmp_dependencies
+    AS
       SELECT
-        shard_id, curr_id AS depends_on
+        depends_on, scope
       FROM
-        dependents
+        shards_dependencies
       WHERE
-        scope = 'runtime'
-      UNION
-      SELECT
-        d.shard_id, d.depends_on
-      FROM
-        shards_dependencies d
-      INNER JOIN
-        transitive_dependents ON transitive_dependents.shard_id = d.depends_on AND d.scope = 'runtime'
-    )
-    SELECT 
-      COUNT(*)
-    INTO
-      var_transitive_dependents_count
-    FROM
-      (
-        SELECT DISTINCT
-          shard_id
-        FROM
-          transitive_dependents
-      ) AS d
+        shard_id = curr_shard.id
     ;
 
-    UPDATE
-      shards
-    SET
-      dependents_count = var_dependents_count,
-      dev_dependents_count = var_dev_dependents_count,
-      transitive_dependents_count = var_transitive_dependents_count
-    WHERE
-      id = curr_id
+    INSERT INTO shard_metrics
+    SELECT
+        curr_shard.id AS shard_id,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                dependents
+            WHERE
+                scope = 'runtime'
+        ) AS dependents_count,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                dependents
+            WHERE
+                scope <> 'runtime'
+        ) AS dev_dependents_count,
+        (
+            WITH RECURSIVE transitive_dependents AS (
+                SELECT
+                    shard_id, curr_shard.id AS depends_on
+                FROM
+                    dependents
+                WHERE
+                    scope = 'runtime'
+                UNION
+                SELECT
+                    d.shard_id, d.depends_on
+                FROM
+                    shards_dependencies d
+                INNER JOIN
+                    transitive_dependents ON transitive_dependents.shard_id = d.depends_on AND d.scope = 'runtime'
+            )
+            SELECT
+                COUNT(*)
+            FROM
+            (
+                SELECT DISTINCT
+                shard_id
+                FROM
+                transitive_dependents
+            ) AS d
+        ) AS transitive_dependents_count,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                tmp_dependencies
+            WHERE
+                scope = 'runtime'
+        ) AS dependencies_count,
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                tmp_dependencies
+            WHERE
+                scope <> 'runtime'
+        ) AS dev_dependencies_count,
+        (
+            WITH RECURSIVE transitive_dependencies AS (
+                SELECT
+                    curr_shard.id AS shard_id, depends_on
+                FROM
+                    tmp_dependencies
+                WHERE
+                    scope = 'runtime'
+                UNION
+                SELECT
+                    d.shard_id, d.depends_on
+                FROM
+                    shards_dependencies d
+                INNER JOIN
+                    transitive_dependencies ON transitive_dependencies.depends_on = d.shard_id AND d.scope = 'runtime'
+            )
+            SELECT
+                COUNT(*)
+            FROM
+            (
+                SELECT DISTINCT
+                    depends_on
+                FROM
+                    transitive_dependencies
+            ) AS d
+        ) AS transitive_dependencies_count
     ;
 
     DROP TABLE dependents;
-    
-    GET DIAGNOSTICS var_row_count = ROW_COUNT;
-    RAISE NOTICE '% Updated % tables with % % %', FOUND, var_row_count, var_dependents_count, var_dev_dependents_count, var_transitive_dependents_count;
+    DROP TABLE tmp_dependencies;
   END LOOP;
 
-  RAISE NOTICE 'Done refreshing dependents stats.';
-  RETURN 1;
+  CLOSE shards_cursor;
 END;
 $$;
 
@@ -430,6 +797,62 @@ CREATE TABLE public.shard_dependencies (
 ALTER TABLE public.shard_dependencies OWNER TO shards_toolbox;
 
 --
+-- Name: shard_metrics; Type: TABLE; Schema: public; Owner: shards_toolbox
+--
+
+CREATE TABLE public.shard_metrics (
+    id bigint NOT NULL,
+    shard_id bigint NOT NULL,
+    popularity real,
+    likes_count integer,
+    watchers_count integer,
+    forks_count integer,
+    clones_count integer,
+    dependents_count integer,
+    transitive_dependents_count integer,
+    dev_dependents_count integer,
+    transitive_dependencies_count integer,
+    dev_dependencies_count integer,
+    dependencies_count integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.shard_metrics OWNER TO shards_toolbox;
+
+--
+-- Name: shard_metrics_current; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.shard_metrics_current (
+)
+INHERITS (public.shard_metrics);
+
+
+ALTER TABLE public.shard_metrics_current OWNER TO postgres;
+
+--
+-- Name: shard_metrics_id_seq; Type: SEQUENCE; Schema: public; Owner: shards_toolbox
+--
+
+CREATE SEQUENCE public.shard_metrics_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.shard_metrics_id_seq OWNER TO shards_toolbox;
+
+--
+-- Name: shard_metrics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shards_toolbox
+--
+
+ALTER SEQUENCE public.shard_metrics_id_seq OWNED BY public.shard_metrics.id;
+
+
+--
 -- Name: shards; Type: TABLE; Schema: public; Owner: shards_toolbox
 --
 
@@ -441,10 +864,6 @@ CREATE TABLE public.shards (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     categories bigint[] DEFAULT '{}'::bigint[] NOT NULL,
-    popularity real DEFAULT 1 NOT NULL,
-    dependents_count integer,
-    transitive_dependents_count integer,
-    dev_dependents_count integer,
     CONSTRAINT shards_name_check CHECK ((name OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}$'::text)),
     CONSTRAINT shards_qualifier_check CHECK ((qualifier OPERATOR(public.~) '^[A-Za-z0-9_\-.]{0,100}$'::public.citext))
 );
@@ -540,6 +959,27 @@ ALTER TABLE ONLY public.releases ALTER COLUMN id SET DEFAULT nextval('public.rel
 --
 
 ALTER TABLE ONLY public.repos ALTER COLUMN id SET DEFAULT nextval('public.repos_id_seq'::regclass);
+
+
+--
+-- Name: shard_metrics id; Type: DEFAULT; Schema: public; Owner: shards_toolbox
+--
+
+ALTER TABLE ONLY public.shard_metrics ALTER COLUMN id SET DEFAULT nextval('public.shard_metrics_id_seq'::regclass);
+
+
+--
+-- Name: shard_metrics_current id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shard_metrics_current ALTER COLUMN id SET DEFAULT NULL;
+
+
+--
+-- Name: shard_metrics_current created_at; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shard_metrics_current ALTER COLUMN created_at SET DEFAULT NULL;
 
 
 --
@@ -690,6 +1130,13 @@ CREATE INDEX shard_dependencies_depends_on ON public.shard_dependencies USING bt
 
 
 --
+-- Name: shard_metrics_current_shard_id_uniq; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX shard_metrics_current_shard_id_uniq ON public.shard_metrics_current USING btree (shard_id);
+
+
+--
 -- Name: shards_categories; Type: INDEX; Schema: public; Owner: shards_toolbox
 --
 
@@ -739,6 +1186,13 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE 
 
 
 --
+-- Name: shard_metrics shard_metrics_current; Type: TRIGGER; Schema: public; Owner: shards_toolbox
+--
+
+CREATE TRIGGER shard_metrics_current AFTER INSERT OR DELETE OR UPDATE ON public.shard_metrics FOR EACH ROW EXECUTE PROCEDURE public.shard_metrics_current_trigger();
+
+
+--
 -- Name: dependencies dependencies_release_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -776,6 +1230,14 @@ ALTER TABLE ONLY public.shard_dependencies
 
 ALTER TABLE ONLY public.shard_dependencies
     ADD CONSTRAINT shard_dependencies_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shard_metrics shard_metrics_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
+--
+
+ALTER TABLE ONLY public.shard_metrics
+    ADD CONSTRAINT shard_metrics_shard_id_fkey FOREIGN KEY (shard_id) REFERENCES public.shards(id) ON DELETE CASCADE;
 
 
 --

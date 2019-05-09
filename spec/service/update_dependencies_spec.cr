@@ -17,15 +17,60 @@ end
 
 private def dependents_stats(db)
   db.connection.query_all <<-SQL, as: {Int64, Int32?, Int32?, Int32?}
+    WITH max_ids AS (
+      SELECT
+        MAX(id) AS id
+      FROM
+        shard_metrics
+      GROUP BY
+        shard_id
+    )
     SELECT
-      id, dependents_count, dev_dependents_count, transitive_dependents_count
+      shard_id, dependents_count, dev_dependents_count, transitive_dependents_count
     FROM
-      shards
+      shard_metrics
+    JOIN
+      max_ids USING(id)
     WHERE
       dependents_count > 0 OR dev_dependents_count > 0 OR transitive_dependents_count > 0
     ORDER BY
       id
     SQL
+end
+
+private def dependencies_stats(db)
+  db.connection.query_all <<-SQL, as: {Int64, Int32?, Int32?, Int32?}
+    WITH max_ids AS (
+      SELECT
+        MAX(id) AS id
+      FROM
+        shard_metrics
+      GROUP BY
+        shard_id
+    )
+    SELECT
+      shard_id, dependencies_count, dev_dependencies_count, transitive_dependencies_count
+    FROM
+      shard_metrics
+    JOIN
+      max_ids USING(id)
+    WHERE
+      dependencies_count > 0 OR dev_dependencies_count > 0 OR transitive_dependencies_count > 0
+    ORDER BY
+      shard_id
+    SQL
+end
+
+def calculate_shard_metrics(db)
+  ids = db.connection.query_all <<-SQL, as: Int64
+    SELECT
+      id
+    FROM
+      shards
+    SQL
+  ids.each do |id|
+    db.connection.exec "SELECT shard_metrics_calculate($1)", id
+  end
 end
 
 describe Service::UpdateDependencies do
@@ -59,9 +104,12 @@ describe Service::UpdateDependencies do
         {foo_id, baz_id, "runtime"},
       ]
 
-      service.update_dependents_stats(db)
+      calculate_shard_metrics(db)
       dependents_stats(db).should eq [
         {baz_id, 1, 0, 1},
+      ]
+      dependencies_stats(db).should eq [
+        {foo_id, 2, 0, 2},
       ]
 
       Factory.create_dependency(db, foo_release1, "bar", repo_id: baz_repo_id)
@@ -71,9 +119,12 @@ describe Service::UpdateDependencies do
         {foo_id, baz_id, "runtime"},
       ]
 
-      service.update_dependents_stats(db)
+      calculate_shard_metrics(db)
       dependents_stats(db).should eq [
         {baz_id, 1, 0, 1},
+      ]
+      dependencies_stats(db).should eq [
+        {foo_id, 2, 0, 2},
       ]
 
       Factory.create_dependency(db, foo_release2, "bar", repo_id: bar_repo_id)
@@ -84,10 +135,13 @@ describe Service::UpdateDependencies do
         {foo_id, baz_id, "runtime"},
       ]
 
-      service.update_dependents_stats(db)
+      calculate_shard_metrics(db)
       dependents_stats(db).should eq [
         {bar_id, 1, 0, 1},
         {baz_id, 1, 0, 1},
+      ]
+      dependencies_stats(db).should eq [
+        {foo_id, 3, 0, 3},
       ]
 
       Factory.create_dependency(db, bar_release2, "qux", repo_id: qux_repo_id)
@@ -103,11 +157,16 @@ describe Service::UpdateDependencies do
         {baz_id, qux_id, "development"},
       ]
 
-      service.update_dependents_stats(db)
+      calculate_shard_metrics(db)
       dependents_stats(db).should eq [
         {bar_id, 1, 0, 1},
         {baz_id, 2, 0, 2},
         {qux_id, 1, 1, 2},
+      ]
+      dependencies_stats(db).should eq [
+        {foo_id, 3, 0, 4},
+        {bar_id, 2, 0, 2},
+        {baz_id, 0, 1, 0},
       ]
 
       db.connection.exec <<-SQL, foo_release2
@@ -124,10 +183,15 @@ describe Service::UpdateDependencies do
         {baz_id, qux_id, "development"},
       ]
 
-      service.update_dependents_stats(db)
+      calculate_shard_metrics(db)
       dependents_stats(db).should eq [
         {baz_id, 2, 0, 2},
         {qux_id, 1, 1, 1},
+      ]
+      dependencies_stats(db).should eq [
+        {foo_id, 2, 0, 2},
+        {bar_id, 2, 0, 2},
+        {baz_id, 0, 1, 0},
       ]
     end
   end

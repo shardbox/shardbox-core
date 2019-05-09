@@ -2,6 +2,7 @@ require "taskmaster"
 require "taskmaster/adapter/queue"
 require "./service/import_catalog"
 require "./service/sync_repos"
+require "./service/update_shard_metrics"
 require "./raven"
 
 # Disable git asking for credentials when cloning a repository. It's probably been deleted.
@@ -16,6 +17,7 @@ def show_help(io)
   io.puts "commands:"
   io.puts "  import_catalog [path]        import catalog data from [path] (default: ./catalog)"
   io.puts "  sync_repos [hours [ratio]]   syncs repos not updated in last [hours] ([ratio] 0.0-1.0)"
+  io.puts "  update_metrics               update shard metrics (should be run once per day)"
 end
 
 case command = ARGV.shift?
@@ -42,6 +44,8 @@ when "sync_repo"
   else
     Service::SyncRepo.new(Repo::Ref.parse(arg)).perform_later
   end
+when "update_metrics"
+  Service::UpdateShardMetrics.new.perform_later
 else
   STDERR.puts "unknown command #{command.inspect}"
   show_help(STDERR)

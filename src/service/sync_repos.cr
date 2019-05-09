@@ -18,7 +18,7 @@ struct Service::SyncRepos
     ShardsDB.transaction do |db|
       sync_repos(db)
 
-      UpdateDependencies.new.perform(db)
+      UpdateDependencies.new.perform_later
     end
   end
 
