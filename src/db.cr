@@ -191,6 +191,56 @@ class ShardsDB
     end
   end
 
+  def shards_in_category(category_id : Int64?)
+    if category_id
+      args = [category_id]
+      where = "$1 = ANY(categories)"
+    else
+      args = [] of String
+      where = "categories = '{}'::bigint[]"
+    end
+
+    results = connection.query_all <<-SQL, args, as: {Int64, String, String, String?, String, String}
+      SELECT
+        shards.id, name::text, qualifier::text, shards.description,
+        repos.resolver::text, repos.url::text
+      FROM
+        shards
+      JOIN
+        repos ON repos.shard_id = shards.id AND repos.role = 'canonical'
+      WHERE
+        #{where}
+      ORDER BY
+        shards.name
+      SQL
+
+    results.map do |result|
+      shard_id, name, qualifier, description, resolver, url = result
+
+      {
+        shard: Shard.new(name, qualifier, description, id: shard_id),
+        repo: Repo.new(resolver, url, shard_id),
+      }
+    end
+  end
+
+  def find_mirror_repos(shard_id : Int64)
+    results = [] of Repo
+    connection.query_all <<-SQL, shard_id do |result|
+      SELECT resolver::text, url::text, role::text, metadata::text, synced_at
+      FROM repos
+      WHERE
+        shard_id = $1 AND role <> 'canonical'
+      ORDER BY
+        role, url
+      SQL
+
+      resolver, url, role, metadata, synced_at = result.read String, String, String, String, Time?
+      results << Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at)
+    end
+    results
+  end
+
   def remove_categories(category_slugs : Array(String))
     connection.exec <<-SQL % sql_array(category_slugs)
       DELETE FROM categories
