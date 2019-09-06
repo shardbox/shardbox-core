@@ -3,7 +3,7 @@ require "shards/package"
 require "../ext/shards/dependency"
 require "../ext/shards/resolvers/git"
 require "../ext/shards/resolvers/github"
-require "../../release"
+require "../release"
 
 class Repo
   class Resolver

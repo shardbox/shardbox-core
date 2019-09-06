@@ -22,8 +22,13 @@ class Shards::GitResolver
     # Resolve symbolic references
     ref = ref.resolve
 
-    case target = ref.target
-    when Git::Tag
+    target = ref.target
+    if target.is_a?(Git::Tag)
+      target = repo.lookup_tag(target.target_id)
+    end
+
+    case target
+    when Git::Tag::Annotation
       # annotated tag
       tag = target
       commit = repo.lookup_commit(tag.target_oid)
