@@ -31,7 +31,7 @@ module Catalog
 
   struct Entry
     getter repo_ref : Repo::Ref
-    getter description : String?
+    property description : String?
     getter mirror : Array(Repo::Ref)
     getter legacy : Array(Repo::Ref)
     getter categories : Array(String) = [] of String
@@ -59,8 +59,10 @@ module Catalog
         builder.scalar name
         builder.sequence do
           list.each do |ref|
-            builder.scalar ref.resolver
-            builder.scalar ref.url.to_s
+            builder.mapping do
+              builder.scalar ref.resolver
+              builder.scalar ref.url.to_s
+            end
           end
         end
       end
