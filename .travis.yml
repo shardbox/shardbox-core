@@ -1,13 +1,29 @@
 language: crystal
 
 addons:
-  postgresql: "9.5"
+  postgresql: "11".5"
 
 env:
-  SHARDSDB_TEST_DATABASE: "postgres://postgres:@localhost/shardsdb_test"
+  TEST_DATABASE_URL: "postgres://postgres:@localhost/shardbox"
 
 services:
 - postgresql
 
 before_script:
+- shards install
+- apt update && apt install -y postgresql-client cmake
+- |
+    git clone --depth=1 -b maint/v0.27 https://github.com/libgit2/libgit2.git
+    cd libgit2/
+
+    mkdir build && cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=../_install -DBUILD_CLAR=OFF
+    cmake --build . --target install
+    echo "export LIBRARY_PATH=$LIBRARY_PATH:libgit2/_install/lib" >> $BASH_ENV
+    echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:libgit2/_install/lib" >> $BASH_ENV
 - make test_db
+
+script:
+- crystal spec
+- make bin/worker
+- bin/worker sync_repos && bin/worker update_metrics
