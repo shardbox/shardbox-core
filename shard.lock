@@ -1,8 +1,8 @@
 version: 1.0
 shards:
   any_hash:
-    github: Sija/any_hash.cr
-    version: 0.2.3
+    github: sija/any_hash.cr
+    commit: 1907068cdbfc3ef9759954194472b82f9f19c6e4
 
   db:
     github: crystal-lang/crystal-db
@@ -10,7 +10,7 @@ shards:
 
   git:
     github: smacker/libgit2.cr
-    commit: 64120f8f33dd04b8871fe180e2d00f5a8c6e7397
+    commit: 3426bf335e0970852e300f7602cf6e8dd21d0867
 
   github-cr:
     github: arnavb/github-cr
