@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 11.1 (Ubuntu 11.1-1.pgdg16.04+1)
--- Dumped by pg_dump version 11.1 (Ubuntu 11.1-1.pgdg16.04+1)
+-- Dumped from database version 11.5 (Ubuntu 11.5-1.pgdg16.04+1)
+-- Dumped by pg_dump version 11.5 (Ubuntu 11.5-1.pgdg16.04+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -12,25 +12,26 @@ SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
+SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: citext; Type: EXTENSION; Schema: -; Owner: 
+-- Name: citext; Type: EXTENSION; Schema: -; Owner:
 --
 
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 
 
 --
--- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: 
+-- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner:
 --
 
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
 
 
 --
--- Name: dependency_scope; Type: TYPE; Schema: public; Owner: postgres
+-- Name: dependency_scope; Type: TYPE; Schema: public; Owner: shardbox
 --
 
 CREATE TYPE public.dependency_scope AS ENUM (
@@ -39,10 +40,10 @@ CREATE TYPE public.dependency_scope AS ENUM (
 );
 
 
-ALTER TYPE public.dependency_scope OWNER TO postgres;
+ALTER TYPE public.dependency_scope OWNER TO shardbox;
 
 --
--- Name: repo_resolver; Type: TYPE; Schema: public; Owner: postgres
+-- Name: repo_resolver; Type: TYPE; Schema: public; Owner: shardbox
 --
 
 CREATE TYPE public.repo_resolver AS ENUM (
@@ -53,10 +54,10 @@ CREATE TYPE public.repo_resolver AS ENUM (
 );
 
 
-ALTER TYPE public.repo_resolver OWNER TO postgres;
+ALTER TYPE public.repo_resolver OWNER TO shardbox;
 
 --
--- Name: repo_role; Type: TYPE; Schema: public; Owner: postgres
+-- Name: repo_role; Type: TYPE; Schema: public; Owner: shardbox
 --
 
 CREATE TYPE public.repo_role AS ENUM (
@@ -67,10 +68,10 @@ CREATE TYPE public.repo_role AS ENUM (
 );
 
 
-ALTER TYPE public.repo_role OWNER TO postgres;
+ALTER TYPE public.repo_role OWNER TO shardbox;
 
 --
--- Name: ensure_only_one_latest_release_trigger(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: ensure_only_one_latest_release_trigger(); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
 CREATE FUNCTION public.ensure_only_one_latest_release_trigger() RETURNS trigger
@@ -92,10 +93,10 @@ END;
 $$;
 
 
-ALTER FUNCTION public.ensure_only_one_latest_release_trigger() OWNER TO postgres;
+ALTER FUNCTION public.ensure_only_one_latest_release_trigger() OWNER TO shardbox;
 
 --
--- Name: shard_dependencies_materialize(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: shard_dependencies_materialize(); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
 CREATE FUNCTION public.shard_dependencies_materialize() RETURNS void
@@ -124,13 +125,13 @@ END;
 $$;
 
 
-ALTER FUNCTION public.shard_dependencies_materialize() OWNER TO postgres;
+ALTER FUNCTION public.shard_dependencies_materialize() OWNER TO shardbox;
 
 --
--- Name: shard_metrics_calculate(bigint); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: shard_metrics_calculate(bigint); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
-CREATE OR REPLACE FUNCTION public.shard_metrics_calculate(curr_shard_id bigint) RETURNS void
+CREATE FUNCTION public.shard_metrics_calculate(curr_shard_id bigint) RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -279,10 +280,10 @@ END;
 $$;
 
 
-ALTER FUNCTION public.shard_metrics_calculate(curr_shard_id bigint) OWNER TO postgres;
+ALTER FUNCTION public.shard_metrics_calculate(curr_shard_id bigint) OWNER TO shardbox;
 
 --
--- Name: shard_metrics_current_trigger(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: shard_metrics_current_trigger(); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
 CREATE FUNCTION public.shard_metrics_current_trigger() RETURNS trigger
@@ -305,10 +306,10 @@ END;
 $$;
 
 
-ALTER FUNCTION public.shard_metrics_current_trigger() OWNER TO postgres;
+ALTER FUNCTION public.shard_metrics_current_trigger() OWNER TO shardbox;
 
 --
--- Name: shard_metrics_materialize(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: shard_metrics_materialize(); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
 CREATE FUNCTION public.shard_metrics_materialize() RETURNS void
@@ -452,10 +453,10 @@ END;
 $$;
 
 
-ALTER FUNCTION public.shard_metrics_materialize() OWNER TO postgres;
+ALTER FUNCTION public.shard_metrics_materialize() OWNER TO shardbox;
 
 --
--- Name: shards_categories_trigger(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: shards_categories_trigger(); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
 CREATE FUNCTION public.shards_categories_trigger() RETURNS trigger
@@ -481,10 +482,10 @@ END;
 $$;
 
 
-ALTER FUNCTION public.shards_categories_trigger() OWNER TO postgres;
+ALTER FUNCTION public.shards_categories_trigger() OWNER TO shardbox;
 
 --
--- Name: shards_refresh_dependents(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: shards_refresh_dependents(); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
 CREATE FUNCTION public.shards_refresh_dependents() RETURNS void
@@ -621,10 +622,10 @@ END;
 $$;
 
 
-ALTER FUNCTION public.shards_refresh_dependents() OWNER TO postgres;
+ALTER FUNCTION public.shards_refresh_dependents() OWNER TO shardbox;
 
 --
--- Name: trigger_set_timestamp(); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: trigger_set_timestamp(); Type: FUNCTION; Schema: public; Owner: shardbox
 --
 
 CREATE FUNCTION public.trigger_set_timestamp() RETURNS trigger
@@ -637,14 +638,14 @@ END;
 $$;
 
 
-ALTER FUNCTION public.trigger_set_timestamp() OWNER TO postgres;
+ALTER FUNCTION public.trigger_set_timestamp() OWNER TO shardbox;
 
 SET default_tablespace = '';
 
 SET default_with_oids = false;
 
 --
--- Name: categories; Type: TABLE; Schema: public; Owner: postgres
+-- Name: categories; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.categories (
@@ -656,10 +657,10 @@ CREATE TABLE public.categories (
 );
 
 
-ALTER TABLE public.categories OWNER TO postgres;
+ALTER TABLE public.categories OWNER TO shardbox;
 
 --
--- Name: categories_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: categories_id_seq; Type: SEQUENCE; Schema: public; Owner: shardbox
 --
 
 CREATE SEQUENCE public.categories_id_seq
@@ -670,17 +671,17 @@ CREATE SEQUENCE public.categories_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.categories_id_seq OWNER TO postgres;
+ALTER TABLE public.categories_id_seq OWNER TO shardbox;
 
 --
--- Name: categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shardbox
 --
 
 ALTER SEQUENCE public.categories_id_seq OWNED BY public.categories.id;
 
 
 --
--- Name: dependencies; Type: TABLE; Schema: public; Owner: postgres
+-- Name: dependencies; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.dependencies (
@@ -695,10 +696,10 @@ CREATE TABLE public.dependencies (
 );
 
 
-ALTER TABLE public.dependencies OWNER TO postgres;
+ALTER TABLE public.dependencies OWNER TO shardbox;
 
 --
--- Name: releases; Type: TABLE; Schema: public; Owner: postgres
+-- Name: releases; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.releases (
@@ -718,10 +719,10 @@ CREATE TABLE public.releases (
 );
 
 
-ALTER TABLE public.releases OWNER TO postgres;
+ALTER TABLE public.releases OWNER TO shardbox;
 
 --
--- Name: releases_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+-- Name: releases_id_seq; Type: SEQUENCE; Schema: public; Owner: shardbox
 --
 
 CREATE SEQUENCE public.releases_id_seq
@@ -732,17 +733,17 @@ CREATE SEQUENCE public.releases_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.releases_id_seq OWNER TO postgres;
+ALTER TABLE public.releases_id_seq OWNER TO shardbox;
 
 --
--- Name: releases_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+-- Name: releases_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shardbox
 --
 
 ALTER SEQUENCE public.releases_id_seq OWNED BY public.releases.id;
 
 
 --
--- Name: repos; Type: TABLE; Schema: public; Owner: shards_toolbox
+-- Name: repos; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.repos (
@@ -760,10 +761,10 @@ CREATE TABLE public.repos (
 );
 
 
-ALTER TABLE public.repos OWNER TO shards_toolbox;
+ALTER TABLE public.repos OWNER TO shardbox;
 
 --
--- Name: repos_id_seq; Type: SEQUENCE; Schema: public; Owner: shards_toolbox
+-- Name: repos_id_seq; Type: SEQUENCE; Schema: public; Owner: shardbox
 --
 
 CREATE SEQUENCE public.repos_id_seq
@@ -774,17 +775,17 @@ CREATE SEQUENCE public.repos_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.repos_id_seq OWNER TO shards_toolbox;
+ALTER TABLE public.repos_id_seq OWNER TO shardbox;
 
 --
--- Name: repos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shards_toolbox
+-- Name: repos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shardbox
 --
 
 ALTER SEQUENCE public.repos_id_seq OWNED BY public.repos.id;
 
 
 --
--- Name: shard_dependencies; Type: TABLE; Schema: public; Owner: shards_toolbox
+-- Name: shard_dependencies; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.shard_dependencies (
@@ -794,10 +795,10 @@ CREATE TABLE public.shard_dependencies (
 );
 
 
-ALTER TABLE public.shard_dependencies OWNER TO shards_toolbox;
+ALTER TABLE public.shard_dependencies OWNER TO shardbox;
 
 --
--- Name: shard_metrics; Type: TABLE; Schema: public; Owner: shards_toolbox
+-- Name: shard_metrics; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.shard_metrics (
@@ -818,10 +819,10 @@ CREATE TABLE public.shard_metrics (
 );
 
 
-ALTER TABLE public.shard_metrics OWNER TO shards_toolbox;
+ALTER TABLE public.shard_metrics OWNER TO shardbox;
 
 --
--- Name: shard_metrics_current; Type: TABLE; Schema: public; Owner: postgres
+-- Name: shard_metrics_current; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.shard_metrics_current (
@@ -829,10 +830,10 @@ CREATE TABLE public.shard_metrics_current (
 INHERITS (public.shard_metrics);
 
 
-ALTER TABLE public.shard_metrics_current OWNER TO postgres;
+ALTER TABLE public.shard_metrics_current OWNER TO shardbox;
 
 --
--- Name: shard_metrics_id_seq; Type: SEQUENCE; Schema: public; Owner: shards_toolbox
+-- Name: shard_metrics_id_seq; Type: SEQUENCE; Schema: public; Owner: shardbox
 --
 
 CREATE SEQUENCE public.shard_metrics_id_seq
@@ -843,17 +844,17 @@ CREATE SEQUENCE public.shard_metrics_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.shard_metrics_id_seq OWNER TO shards_toolbox;
+ALTER TABLE public.shard_metrics_id_seq OWNER TO shardbox;
 
 --
--- Name: shard_metrics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shards_toolbox
+-- Name: shard_metrics_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shardbox
 --
 
 ALTER SEQUENCE public.shard_metrics_id_seq OWNED BY public.shard_metrics.id;
 
 
 --
--- Name: shards; Type: TABLE; Schema: public; Owner: shards_toolbox
+-- Name: shards; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.shards (
@@ -869,10 +870,10 @@ CREATE TABLE public.shards (
 );
 
 
-ALTER TABLE public.shards OWNER TO shards_toolbox;
+ALTER TABLE public.shards OWNER TO shardbox;
 
 --
--- Name: shards_dependencies; Type: VIEW; Schema: public; Owner: postgres
+-- Name: shards_dependencies; Type: VIEW; Schema: public; Owner: shardbox
 --
 
 CREATE VIEW public.shards_dependencies AS
@@ -884,10 +885,10 @@ CREATE VIEW public.shards_dependencies AS
      JOIN public.releases ON (((releases.id = dependencies.release_id) AND releases.latest)));
 
 
-ALTER TABLE public.shards_dependencies OWNER TO postgres;
+ALTER TABLE public.shards_dependencies OWNER TO shardbox;
 
 --
--- Name: shards_deps; Type: MATERIALIZED VIEW; Schema: public; Owner: postgres
+-- Name: shards_deps; Type: MATERIALIZED VIEW; Schema: public; Owner: shardbox
 --
 
 CREATE MATERIALIZED VIEW public.shards_deps AS
@@ -901,10 +902,10 @@ CREATE MATERIALIZED VIEW public.shards_deps AS
   WITH NO DATA;
 
 
-ALTER TABLE public.shards_deps OWNER TO postgres;
+ALTER TABLE public.shards_deps OWNER TO shardbox;
 
 --
--- Name: shards_id_seq; Type: SEQUENCE; Schema: public; Owner: shards_toolbox
+-- Name: shards_id_seq; Type: SEQUENCE; Schema: public; Owner: shardbox
 --
 
 CREATE SEQUENCE public.shards_id_seq
@@ -915,17 +916,17 @@ CREATE SEQUENCE public.shards_id_seq
     CACHE 1;
 
 
-ALTER TABLE public.shards_id_seq OWNER TO shards_toolbox;
+ALTER TABLE public.shards_id_seq OWNER TO shardbox;
 
 --
--- Name: shards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shards_toolbox
+-- Name: shards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: shardbox
 --
 
 ALTER SEQUENCE public.shards_id_seq OWNED BY public.shards.id;
 
 
 --
--- Name: shards_stats; Type: TABLE; Schema: public; Owner: postgres
+-- Name: shards_stats; Type: TABLE; Schema: public; Owner: shardbox
 --
 
 CREATE TABLE public.shards_stats (
@@ -938,59 +939,59 @@ CREATE TABLE public.shards_stats (
 );
 
 
-ALTER TABLE public.shards_stats OWNER TO postgres;
+ALTER TABLE public.shards_stats OWNER TO shardbox;
 
 --
--- Name: categories id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: categories id; Type: DEFAULT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.categories ALTER COLUMN id SET DEFAULT nextval('public.categories_id_seq'::regclass);
 
 
 --
--- Name: releases id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: releases id; Type: DEFAULT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.releases ALTER COLUMN id SET DEFAULT nextval('public.releases_id_seq'::regclass);
 
 
 --
--- Name: repos id; Type: DEFAULT; Schema: public; Owner: shards_toolbox
+-- Name: repos id; Type: DEFAULT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.repos ALTER COLUMN id SET DEFAULT nextval('public.repos_id_seq'::regclass);
 
 
 --
--- Name: shard_metrics id; Type: DEFAULT; Schema: public; Owner: shards_toolbox
+-- Name: shard_metrics id; Type: DEFAULT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shard_metrics ALTER COLUMN id SET DEFAULT nextval('public.shard_metrics_id_seq'::regclass);
 
 
 --
--- Name: shard_metrics_current id; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: shard_metrics_current id; Type: DEFAULT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shard_metrics_current ALTER COLUMN id SET DEFAULT NULL;
 
 
 --
--- Name: shard_metrics_current created_at; Type: DEFAULT; Schema: public; Owner: postgres
+-- Name: shard_metrics_current created_at; Type: DEFAULT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shard_metrics_current ALTER COLUMN created_at SET DEFAULT NULL;
 
 
 --
--- Name: shards id; Type: DEFAULT; Schema: public; Owner: shards_toolbox
+-- Name: shards id; Type: DEFAULT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shards ALTER COLUMN id SET DEFAULT nextval('public.shards_id_seq'::regclass);
 
 
 --
--- Name: categories categories_name_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: categories categories_name_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.categories
@@ -998,7 +999,7 @@ ALTER TABLE ONLY public.categories
 
 
 --
--- Name: categories categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: categories categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.categories
@@ -1006,7 +1007,7 @@ ALTER TABLE ONLY public.categories
 
 
 --
--- Name: categories categories_slug_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: categories categories_slug_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.categories
@@ -1014,7 +1015,7 @@ ALTER TABLE ONLY public.categories
 
 
 --
--- Name: dependencies dependencies_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dependencies dependencies_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.dependencies
@@ -1022,7 +1023,7 @@ ALTER TABLE ONLY public.dependencies
 
 
 --
--- Name: categories name_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: categories name_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.categories
@@ -1030,7 +1031,7 @@ ALTER TABLE ONLY public.categories
 
 
 --
--- Name: releases releases_position_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: releases releases_position_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.releases
@@ -1038,7 +1039,7 @@ ALTER TABLE ONLY public.releases
 
 
 --
--- Name: releases releases_version_uniq; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: releases releases_version_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.releases
@@ -1046,7 +1047,7 @@ ALTER TABLE ONLY public.releases
 
 
 --
--- Name: repos repos_pkey; Type: CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: repos repos_pkey; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.repos
@@ -1054,7 +1055,7 @@ ALTER TABLE ONLY public.repos
 
 
 --
--- Name: repos repos_url_uniq; Type: CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: repos repos_url_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.repos
@@ -1062,7 +1063,7 @@ ALTER TABLE ONLY public.repos
 
 
 --
--- Name: shard_dependencies shard_dependencies_uniq; Type: CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: shard_dependencies shard_dependencies_uniq; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shard_dependencies
@@ -1070,7 +1071,7 @@ ALTER TABLE ONLY public.shard_dependencies
 
 
 --
--- Name: shards shards_name_unique; Type: CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: shards shards_name_unique; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shards
@@ -1078,7 +1079,7 @@ ALTER TABLE ONLY public.shards
 
 
 --
--- Name: shards shards_pkey; Type: CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: shards shards_pkey; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shards
@@ -1086,7 +1087,7 @@ ALTER TABLE ONLY public.shards
 
 
 --
--- Name: shards_stats shards_stats_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: shards_stats shards_stats_id_key; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shards_stats
@@ -1094,7 +1095,7 @@ ALTER TABLE ONLY public.shards_stats
 
 
 --
--- Name: releases specs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: releases specs_pkey; Type: CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.releases
@@ -1102,98 +1103,98 @@ ALTER TABLE ONLY public.releases
 
 
 --
--- Name: releases_shard_id_latest_idx; Type: INDEX; Schema: public; Owner: postgres
+-- Name: releases_shard_id_latest_idx; Type: INDEX; Schema: public; Owner: shardbox
 --
 
 CREATE UNIQUE INDEX releases_shard_id_latest_idx ON public.releases USING btree (shard_id, latest) WHERE (latest = true);
 
 
 --
--- Name: repos_shard_id_role_idx; Type: INDEX; Schema: public; Owner: shards_toolbox
+-- Name: repos_shard_id_role_idx; Type: INDEX; Schema: public; Owner: shardbox
 --
 
 CREATE UNIQUE INDEX repos_shard_id_role_idx ON public.repos USING btree (shard_id, role) WHERE (role = 'canonical'::public.repo_role);
 
 
 --
--- Name: repos_synced_at; Type: INDEX; Schema: public; Owner: shards_toolbox
+-- Name: repos_synced_at; Type: INDEX; Schema: public; Owner: shardbox
 --
 
 CREATE INDEX repos_synced_at ON public.repos USING btree (synced_at NULLS FIRST) INCLUDE (shard_id, role);
 
 
 --
--- Name: shard_dependencies_depends_on; Type: INDEX; Schema: public; Owner: shards_toolbox
+-- Name: shard_dependencies_depends_on; Type: INDEX; Schema: public; Owner: shardbox
 --
 
 CREATE INDEX shard_dependencies_depends_on ON public.shard_dependencies USING btree (depends_on, scope) INCLUDE (shard_id);
 
 
 --
--- Name: shard_metrics_current_shard_id_uniq; Type: INDEX; Schema: public; Owner: postgres
+-- Name: shard_metrics_current_shard_id_uniq; Type: INDEX; Schema: public; Owner: shardbox
 --
 
 CREATE UNIQUE INDEX shard_metrics_current_shard_id_uniq ON public.shard_metrics_current USING btree (shard_id);
 
 
 --
--- Name: shards_categories; Type: INDEX; Schema: public; Owner: shards_toolbox
+-- Name: shards_categories; Type: INDEX; Schema: public; Owner: shardbox
 --
 
 CREATE INDEX shards_categories ON public.shards USING gin (categories);
 
 
 --
--- Name: shards categories_entries_count; Type: TRIGGER; Schema: public; Owner: shards_toolbox
+-- Name: shards categories_entries_count; Type: TRIGGER; Schema: public; Owner: shardbox
 --
 
 CREATE TRIGGER categories_entries_count AFTER INSERT OR DELETE OR UPDATE OF categories ON public.shards FOR EACH ROW EXECUTE PROCEDURE public.shards_categories_trigger();
 
 
 --
--- Name: releases releases_only_one_latest_release; Type: TRIGGER; Schema: public; Owner: postgres
+-- Name: releases releases_only_one_latest_release; Type: TRIGGER; Schema: public; Owner: shardbox
 --
 
 CREATE TRIGGER releases_only_one_latest_release BEFORE INSERT OR UPDATE OF latest ON public.releases FOR EACH ROW WHEN ((new.latest = true)) EXECUTE PROCEDURE public.ensure_only_one_latest_release_trigger();
 
 
 --
--- Name: releases set_timestamp; Type: TRIGGER; Schema: public; Owner: postgres
+-- Name: releases set_timestamp; Type: TRIGGER; Schema: public; Owner: shardbox
 --
 
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.releases FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
 
 
 --
--- Name: shards set_timestamp; Type: TRIGGER; Schema: public; Owner: shards_toolbox
+-- Name: shards set_timestamp; Type: TRIGGER; Schema: public; Owner: shardbox
 --
 
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.shards FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
 
 
 --
--- Name: dependencies set_timestamp; Type: TRIGGER; Schema: public; Owner: postgres
+-- Name: dependencies set_timestamp; Type: TRIGGER; Schema: public; Owner: shardbox
 --
 
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.dependencies FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
 
 
 --
--- Name: repos set_timestamp; Type: TRIGGER; Schema: public; Owner: shards_toolbox
+-- Name: repos set_timestamp; Type: TRIGGER; Schema: public; Owner: shardbox
 --
 
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
 
 
 --
--- Name: shard_metrics shard_metrics_current; Type: TRIGGER; Schema: public; Owner: shards_toolbox
+-- Name: shard_metrics shard_metrics_current; Type: TRIGGER; Schema: public; Owner: shardbox
 --
 
 CREATE TRIGGER shard_metrics_current AFTER INSERT OR DELETE OR UPDATE ON public.shard_metrics FOR EACH ROW EXECUTE PROCEDURE public.shard_metrics_current_trigger();
 
 
 --
--- Name: dependencies dependencies_release_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dependencies dependencies_release_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.dependencies
@@ -1201,7 +1202,7 @@ ALTER TABLE ONLY public.dependencies
 
 
 --
--- Name: dependencies dependencies_repo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: dependencies dependencies_repo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.dependencies
@@ -1209,7 +1210,7 @@ ALTER TABLE ONLY public.dependencies
 
 
 --
--- Name: repos repos_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: repos repos_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.repos
@@ -1217,7 +1218,7 @@ ALTER TABLE ONLY public.repos
 
 
 --
--- Name: shard_dependencies shard_dependencies_depends_on_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: shard_dependencies shard_dependencies_depends_on_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shard_dependencies
@@ -1225,7 +1226,7 @@ ALTER TABLE ONLY public.shard_dependencies
 
 
 --
--- Name: shard_dependencies shard_dependencies_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: shard_dependencies shard_dependencies_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shard_dependencies
@@ -1233,7 +1234,7 @@ ALTER TABLE ONLY public.shard_dependencies
 
 
 --
--- Name: shard_metrics shard_metrics_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shards_toolbox
+-- Name: shard_metrics shard_metrics_shard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: shardbox
 --
 
 ALTER TABLE ONLY public.shard_metrics
@@ -1241,49 +1242,49 @@ ALTER TABLE ONLY public.shard_metrics
 
 
 --
--- Name: FUNCTION trigger_set_timestamp(); Type: ACL; Schema: public; Owner: postgres
+-- Name: FUNCTION trigger_set_timestamp(); Type: ACL; Schema: public; Owner: shardbox
 --
 
 GRANT ALL ON FUNCTION public.trigger_set_timestamp() TO shards_toolbox;
 
 
 --
--- Name: TABLE categories; Type: ACL; Schema: public; Owner: postgres
+-- Name: TABLE categories; Type: ACL; Schema: public; Owner: shardbox
 --
 
 GRANT ALL ON TABLE public.categories TO shards_toolbox;
 
 
 --
--- Name: SEQUENCE categories_id_seq; Type: ACL; Schema: public; Owner: postgres
+-- Name: SEQUENCE categories_id_seq; Type: ACL; Schema: public; Owner: shardbox
 --
 
 GRANT ALL ON SEQUENCE public.categories_id_seq TO shards_toolbox;
 
 
 --
--- Name: TABLE dependencies; Type: ACL; Schema: public; Owner: postgres
+-- Name: TABLE dependencies; Type: ACL; Schema: public; Owner: shardbox
 --
 
 GRANT ALL ON TABLE public.dependencies TO shards_toolbox;
 
 
 --
--- Name: TABLE releases; Type: ACL; Schema: public; Owner: postgres
+-- Name: TABLE releases; Type: ACL; Schema: public; Owner: shardbox
 --
 
 GRANT ALL ON TABLE public.releases TO shards_toolbox;
 
 
 --
--- Name: SEQUENCE releases_id_seq; Type: ACL; Schema: public; Owner: postgres
+-- Name: SEQUENCE releases_id_seq; Type: ACL; Schema: public; Owner: shardbox
 --
 
 GRANT ALL ON SEQUENCE public.releases_id_seq TO shards_toolbox;
 
 
 --
--- Name: TABLE shards_dependencies; Type: ACL; Schema: public; Owner: postgres
+-- Name: TABLE shards_dependencies; Type: ACL; Schema: public; Owner: shardbox
 --
 
 GRANT ALL ON TABLE public.shards_dependencies TO shards_toolbox;
