@@ -320,13 +320,13 @@ DECLARE
 BEGIN
     IF (TG_OP = 'UPDATE' OR TG_OP = 'INSERT') THEN
         FOREACH id IN ARRAY NEW.categories LOOP
-            EXECUTE format('UPDATE %I.categories SET entries_count = (SELECT COUNT(*) FROM shards WHERE categories @> ARRAY[%s]::bigint[]) WHERE id = %s', TG_TABLE_SCHEMA, id, id);
+            EXECUTE format('UPDATE %I.categories SET entries_count = (SELECT COUNT(*) FROM public.shards WHERE categories @> ARRAY[%s]::bigint[]) WHERE id = %s', TG_TABLE_SCHEMA, id, id);
         END LOOP;
     END IF;
 
     IF (TG_OP = 'UPDATE' OR TG_OP = 'DELETE') THEN
         FOREACH id IN ARRAY OLD.categories LOOP
-            EXECUTE format('UPDATE %I.categories SET entries_count = (SELECT COUNT(*) FROM shards WHERE categories @> ARRAY[%s]::bigint[]) WHERE id = %s', TG_TABLE_SCHEMA, id, id);
+            EXECUTE format('UPDATE %I.categories SET entries_count = (SELECT COUNT(*) FROM public.shards WHERE categories @> ARRAY[%s]::bigint[]) WHERE id = %s', TG_TABLE_SCHEMA, id, id);
         END LOOP;
     END IF;
 
