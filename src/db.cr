@@ -91,6 +91,22 @@ class ShardsDB
     Repo.new(repo_ref, shard_id, Repo::Role.parse(role), Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: id)
   end
 
+  def find_repo?(repo_ref : Repo::Ref)
+    result = connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64, Int64?, String, String, Time?, Time?}
+      SELECT
+        id, shard_id, role::text, metadata::text, synced_at, sync_failed_at
+      FROM
+        repos
+      WHERE
+        resolver = $1 AND url = $2
+      SQL
+
+    return unless result
+
+    id, shard_id, role, metadata, synced_at, sync_failed_at = result
+    Repo.new(repo_ref, shard_id, Repo::Role.parse(role), Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: id)
+  end
+
   def find_repo_ref(id : Int64)
     result = connection.query_one <<-SQL, id, as: {String, String}
       SELECT

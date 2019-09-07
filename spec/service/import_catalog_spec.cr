@@ -40,6 +40,33 @@ struct Service::ImportCatalog
 end
 
 describe Service::ImportCatalog do
+  it "imports repo" do
+    with_tempdir("import_catalog-repo") do |catalog_path|
+      File.write(File.join(catalog_path, "foo.yml"), <<-YAML)
+        name: Foo
+        shards:
+        - git: foo
+        YAML
+
+      transaction do |db|
+        service = Service::ImportCatalog.new(catalog_path)
+        service.mock_create_shard = true
+        service.import_catalog(db)
+
+        results = db.connection.query_all <<-SQL, as: {String, String}
+          SELECT
+            resolver::text, url::text
+          FROM
+            repos
+          SQL
+
+        results.should eq [
+          {"git", "foo"},
+        ]
+      end
+    end
+  end
+
   it "imports repos" do
     with_tempdir("import_catalog-repos") do |catalog_path|
       File.write(File.join(catalog_path, "bar.yml"), <<-YAML)

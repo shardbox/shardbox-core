@@ -37,11 +37,15 @@ struct Service::ImportShard
   end
 
   def import_shard(db : ShardsDB, repo_id : Int64, resolver : Repo::Resolver)
-    Raven.tags_context repo: resolver.repo_ref.to_s
+    Raven.tags_context repo: @repo_ref.to_s, repo_id: repo_id
 
     shard_id = create_shard(db, resolver, repo_id)
 
-    Service::SyncRepo.new(repo_id).perform_later
+    Raven.tags_context shard_id: shard_id
+
+    Service::SyncRepo.new(@repo_ref).perform_later
+
+    Raven.tags_context repo: nil, repo_id: nil, shard_id: nil
 
     shard_id
   end
@@ -121,8 +125,12 @@ struct Service::ImportShard
   end
 
   private def create_repo(db)
-    repo = Repo.new(@repo_ref, nil, :canonical)
-    db.create_repo(repo)
+    if repo = db.find_repo?(@repo_ref)
+      repo.id
+    else
+      repo = Repo.new(@repo_ref, nil, :canonical)
+      db.create_repo(repo)
+    end
   end
 
   private def sync_failed(db, repo_id)

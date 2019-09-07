@@ -96,7 +96,7 @@ describe Service::ImportShard do
     end
   end
 
-  it "skips existing repo" do
+  it "is idempotent" do
     repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
 
     service = Service::ImportShard.new(repo_ref)
@@ -105,12 +105,29 @@ describe Service::ImportShard do
       shard_id = Factory.create_shard(db, "test")
       repo_id = Factory.create_repo(db, repo_ref, shard_id)
 
-      shard_id = service.create_shard(db, Repo::Resolver.new(mock_resolver, repo_ref), repo_id)
+      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
 
       persisted_shards(db).should eq [{"test", ""}]
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
-      find_queued_tasks("Service::SyncRepo").map(&.arguments).should be_empty
+      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]
+    end
+  end
+
+  it "skips existing repo" do
+    repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
+
+    service = Service::ImportShard.new(repo_ref)
+
+    transaction do |db|
+      repo_id = Factory.create_repo(db, repo_ref, nil)
+
+      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
+
+      persisted_shards(db).should eq [{"test", ""}]
+      persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
+
+      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]
     end
   end
 
