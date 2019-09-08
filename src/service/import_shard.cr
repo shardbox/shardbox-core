@@ -53,23 +53,14 @@ struct Service::ImportShard
   def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo_id)
     begin
       spec_raw = resolver.fetch_raw_spec
-    rescue Repo::Resolver::RepoUnresolvableError
-      sync_failed(db, repo_id)
-
-      Raven.send_event Raven::Event.new(
-        level: :warning,
-        message: "Failed to clone repository",
-        tags: {
-          repo:     resolver.repo_ref.to_s,
-          resolver: resolver.repo_ref.resolver,
-        }
-      )
+    rescue exc : Repo::Resolver::RepoUnresolvableError
+      SyncRepo.sync_failed(db, Repo.new(resolver.repo_ref, nil, id: repo_id), "fetch_spec_failed", exc.cause)
 
       return
     end
 
     unless spec_raw
-      sync_failed(db, repo_id)
+      SyncRepo.sync_failed(db, Repo.new(resolver.repo_ref, nil, id: repo_id), "spec_missing")
 
       return
     end
@@ -87,6 +78,8 @@ struct Service::ImportShard
       WHERE
         id = $1 AND shard_id IS NULL
       SQL
+
+    db.sync_log repo_id, "synced", {"action" => "new_shard"}
 
     shard_id
   end
@@ -131,17 +124,6 @@ struct Service::ImportShard
       repo = Repo.new(@repo_ref, nil, :canonical)
       db.create_repo(repo)
     end
-  end
-
-  private def sync_failed(db, repo_id)
-    db.connection.exec <<-SQL, repo_id
-      UPDATE
-        repos
-      SET
-        sync_failed_at = NOW()
-      WHERE
-        id = $1
-      SQL
   end
 
   def find_qualifier(db, shard_name) : String

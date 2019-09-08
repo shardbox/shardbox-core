@@ -45,23 +45,14 @@ struct Service::SyncRepo
 
       begin
         sync_releases(db, resolver, shard_id)
-      rescue Repo::Resolver::RepoUnresolvableError
-        sync_failed(db, repo.id)
-
-        Raven.send_event Raven::Event.new(
-          level: :warning,
-          message: "Failed to clone repository",
-          tags: {
-            repo:     resolver.repo_ref.to_s,
-            resolver: resolver.repo_ref.resolver,
-          }
-        )
+      rescue exc : Repo::Resolver::RepoUnresolvableError
+        SyncRepo.sync_failed(db, repo, "clone_failed", exc)
 
         return
       end
     end
 
-    sync_metadata(db, resolver, repo.id)
+    sync_metadata(db, resolver, repo)
   end
 
   def sync_releases(db, resolver, shard_id)
@@ -70,7 +61,8 @@ struct Service::SyncRepo
     versions.each do |version|
       if !SoftwareVersion.valid?(version) && version != "HEAD"
         # TODO: What should happen when a version tag is invalid?
-        # Ignoring this release for now and sending a node to sentry.
+        # Ignoring this release for now and sending a note to sentry.
+
         Raven.send_event Raven::Event.new(
           level: :warning,
           message: "Invalid version, ignoring release.",
@@ -101,11 +93,11 @@ struct Service::SyncRepo
       SQL
   end
 
-  def sync_metadata(db, resolver, repo_id)
+  def sync_metadata(db, resolver, repo : Repo)
     begin
       metadata = resolver.fetch_metadata
     rescue exc : Shards::Error
-      sync_failed(db, repo_id)
+      SyncRepo.sync_failed(db, repo, "fetch_metadata_failed", exc)
 
       db.connection.exec("COMMIT")
 
@@ -114,7 +106,7 @@ struct Service::SyncRepo
 
     metadata ||= Repo::Metadata.new
 
-    db.connection.exec <<-SQL, repo_id, metadata.to_json
+    db.connection.exec <<-SQL, repo.id, metadata.to_json
       UPDATE
         repos
       SET
@@ -124,10 +116,12 @@ struct Service::SyncRepo
       WHERE
         id = $1
       SQL
+
+    db.sync_log repo.id, "synced", nil
   end
 
-  private def sync_failed(db, repo_id)
-    db.connection.exec <<-SQL, repo_id
+  def self.sync_failed(db, repo : Repo, event, exc = nil)
+    db.connection.exec <<-SQL, repo.id
       UPDATE
         repos
       SET
@@ -135,5 +129,23 @@ struct Service::SyncRepo
       WHERE
         id = $1
       SQL
+
+    metadata = nil
+    if exc
+      metadata = {
+        "exception" => exc.class.to_s,
+        "message"   => exc.message,
+      }
+    end
+    db.sync_log repo.id, event, metadata
+
+    Raven.send_event Raven::Event.new(
+      level: :warning,
+      message: "Failed to clone repository",
+      tags: {
+        repo:     repo.ref.to_s,
+        resolver: repo.ref.resolver,
+      }
+    )
   end
 end

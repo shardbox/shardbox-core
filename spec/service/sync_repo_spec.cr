@@ -4,8 +4,44 @@ require "../support/db"
 require "../support/mock_resolver"
 require "../support/raven"
 
+def last_synclog_entry(db)
+  db.connection.query_one? <<-SQL, as: {Int64, String}
+    SELECT
+      repo_id, event, created_at
+    FROM
+      sync_log
+    ORDER BY created_at DESC
+    LIMIT 1
+    SQL
+end
+
 describe Service::SyncRepo do
   describe "#sync_repo" do
+    it "successfully syncs" do
+      transaction do |db|
+        repo_ref = Repo::Ref.new("git", "foo")
+        shard_id = Factory.create_shard(db, "foo")
+        repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
+        service = Service::SyncRepo.new(repo_ref)
+
+        resolver = Repo::Resolver.new(MockResolver.new, repo_ref)
+
+        last_synclog_entry(db).should eq(nil)
+
+        service.sync_repo(db, resolver)
+
+        repo = db.find_repo(repo_ref)
+        repo.sync_failed_at.should be_nil
+        repo.synced_at.should_not be_nil
+
+        last_synclog_entry(db).should eq({repo_id, "synced"})
+
+        db.connection.exec("TRUNCATE sync_log")
+
+        service.sync_repo(db, resolver)
+      end
+    end
+
     it "handles unresolvable repo" do
       transaction do |db|
         repo_ref = Repo::Ref.new("git", "foo")
@@ -18,6 +54,8 @@ describe Service::SyncRepo do
         repo = db.find_repo(repo_ref)
         repo.sync_failed_at.should_not be_nil
         repo.synced_at.should be_nil
+
+        last_synclog_entry(db).should eq({repo_id, "fetch_spec_failed"})
       end
     end
   end
@@ -64,7 +102,8 @@ describe Service::SyncRepo do
 
       mock_resolver = MockResolver.new(metadata: Repo::Metadata.new(forks_count: 42))
       resolver = Repo::Resolver.new(mock_resolver, repo_ref)
-      service.sync_metadata(db, resolver, repo_id)
+      repo = Repo.new(repo_ref, nil, id: repo_id)
+      service.sync_metadata(db, resolver, repo)
 
       results = db.connection.query_all <<-SQL, as: {JSON::Any, Bool, Time?}
         SELECT

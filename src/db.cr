@@ -294,6 +294,20 @@ class ShardsDB
   def delete_categorizations(repo_refs : Array(Repo::Ref))
     # TODO: Implement
   end
+
+  # LOGGING
+  def sync_log(repo_id : Int64, event : String, metadata)
+    connection.exec <<-SQL, repo_id, event, metadata.to_json
+        INSERT INTO sync_log
+        (
+          repo_id, event, metadata
+        )
+        VALUES
+        (
+          $1, $2, $3
+        )
+      SQL
+  end
 end
 
 at_exit do
