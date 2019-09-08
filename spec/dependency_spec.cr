@@ -1,4 +1,5 @@
 require "spec"
+require "../src/dependency"
 
 describe Dependency do
   it "#version_reference" do

@@ -30,12 +30,15 @@ db/dump: DATABASE_URL
 db/dump_schema: DATABASE_URL
 	pg_dump -U $(PG_USER) -s $(DATABASE_NAME) > db/schema.sql
 
+$(BIN):
+	mkdir $(BIN)
+
 .PHONY: $(BIN)/worker
-$(BIN)/worker: src/worker.cr
+$(BIN)/worker: src/worker.cr $(BIN)
 	crystal build src/worker.cr -o $(@)
 
 .PHONY: $(BIN)/app
-$(BIN)/app: src/app.cr
+$(BIN)/app: src/app.cr $(BIN)
 	crystal build src/app.cr -o $(@)
 
 .PHONY: test

@@ -240,7 +240,7 @@ class ShardsDB
 
       {
         shard: Shard.new(name, qualifier, description, id: shard_id),
-        repo: Repo.new(resolver, url, shard_id),
+        repo:  Repo.new(resolver, url, shard_id),
       }
     end
   end
@@ -255,7 +255,6 @@ class ShardsDB
       ORDER BY
         role, url
       SQL
-
       resolver, url, role, metadata, synced_at = result.read String, String, String, String, Time?
       results << Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at)
     end

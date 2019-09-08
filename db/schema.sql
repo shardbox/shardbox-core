@@ -140,7 +140,7 @@ BEGIN
     SELECT
       shard_id, scope
     FROM
-      shards_dependencies
+      shard_dependencies
     WHERE
       depends_on = curr_shard_id
   ;
@@ -149,7 +149,7 @@ BEGIN
     SELECT
       depends_on, scope
     FROM
-      shards_dependencies
+      shard_dependencies
     WHERE
       shard_id = curr_shard_id
   ;
@@ -209,7 +209,7 @@ BEGIN
         SELECT
           d.shard_id, d.depends_on
         FROM
-          shards_dependencies d
+          shard_dependencies d
         INNER JOIN
           transitive_dependencies ON transitive_dependencies.depends_on = d.shard_id AND d.scope = 'runtime'
       )
@@ -257,7 +257,7 @@ BEGIN
           SELECT
             d.shard_id, d.depends_on
           FROM
-            shards_dependencies d
+            shard_dependencies d
           INNER JOIN
             transitive_dependents ON transitive_dependents.shard_id = d.depends_on AND d.scope = 'runtime'
         )
@@ -362,7 +362,7 @@ BEGIN
       SELECT
         shard_id, scope
       FROM
-        shards_dependencies
+        shard_dependencies
       WHERE
         depends_on = curr_shard.id
     ;
@@ -371,7 +371,7 @@ BEGIN
       SELECT
         depends_on, scope
       FROM
-        shards_dependencies
+        shard_dependencies
       WHERE
         shard_id = curr_shard.id
     ;
@@ -407,7 +407,7 @@ BEGIN
                 SELECT
                     d.shard_id, d.depends_on
                 FROM
-                    shards_dependencies d
+                    shard_dependencies d
                 INNER JOIN
                     transitive_dependents ON transitive_dependents.shard_id = d.depends_on AND d.scope = 'runtime'
             )
@@ -449,7 +449,7 @@ BEGIN
                 SELECT
                     d.shard_id, d.depends_on
                 FROM
-                    shards_dependencies d
+                    shard_dependencies d
                 INNER JOIN
                     transitive_dependencies ON transitive_dependencies.depends_on = d.shard_id AND d.scope = 'runtime'
             )

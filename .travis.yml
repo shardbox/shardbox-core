@@ -1,13 +1,37 @@
 language: crystal
 
 addons:
-  postgresql: "9.5"
+  postgresql: "11.5"
 
 env:
-  TEST_DATABASE_URL: "postgres://postgres:@localhost/shardsdb_test"
+  TEST_DATABASE_URL: "postgres://postgres:@localhost/shardbox"
 
 services:
 - postgresql
 
 before_script:
+- crystal --version
+- shards --version
+- shards check || shards install
+- |
+  sudo apt update
+  sudo apt-get --yes remove postgresql\*
+  sudo apt-get install -y postgresql-11 postgresql-client-11
+  sudo cp /etc/postgresql/{9.6,11}/main/pg_hba.conf
+  sudo service postgresql restart 11
+- |
+  sudo apt install --yes cmake
+  if [ ! -f "~/lib/libgit2" ]; then
+    scripts/build_libgit2.sh ~ maint/v0.27
+  fi
+  export LIBRARY_PATH=$LIBRARY_PATH:~/lib
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/lib
 - make test_db
+
+script:
+- crystal spec
+- make bin/worker
+- |
+  export DATABASE_URL=$TEST_DATABASE_URL
+  bin/worker sync_repos && bin/worker update_metrics
+- crystal tool format src spec
