@@ -13,22 +13,22 @@ TEST_DATABASE_URL:
 
 .PHONY: test_db
 test_db: TEST_DATABASE_URL
-	@psql $(TEST_DATABASE_NAME) -c "SELECT 1" > /dev/null 2>&1 || \
+	@psql $(TEST_DATABASE_URL) -c "SELECT 1" > /dev/null 2>&1 || \
 	(createdb -U $(PG_USER) $(TEST_DATABASE_NAME) && psql -U $(PG_USER) $(TEST_DATABASE_NAME) < db/schema.sql)
 
 .PHONY: db
 db: DATABASE_URL
-	@psql $(DATABASE_NAME) -c "SELECT 1" > /dev/null 2>&1 || \
+	@psql $(DATABASE_URL) -c "SELECT 1" > /dev/null 2>&1 || \
 	createdb -U $(PG_USER) $(DATABASE_NAME)
 	psql -U $(PG_USER) $(DATABASE_NAME) < db/schema.sql
 
 .PHONY: db/dump
 db/dump: DATABASE_URL
-	pg_dump -U $(PG_USER) -d $(DATABASE_NAME) -a > db/dump/$(shell date +'%Y-%m-%d-%H%M').sql
+	pg_dump $(DATABASE_URL) -a > db/dump/$(shell date +'%Y-%m-%d-%H%M').sql
 
 .PHONY: db/dump_schema
 db/dump_schema: DATABASE_URL
-	pg_dump -U $(PG_USER) -s $(DATABASE_NAME) > db/schema.sql
+	pg_dump $(DATABASE_URL) -s > db/schema.sql
 
 $(BIN):
 	mkdir $(BIN)
