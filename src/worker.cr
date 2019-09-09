@@ -3,6 +3,7 @@ require "taskmaster/adapter/queue"
 require "./service/import_catalog"
 require "./service/sync_repos"
 require "./service/update_shard_metrics"
+require "./service/worker_loop"
 require "./raven"
 
 # Disable git asking for credentials when cloning a repository. It's probably been deleted.
@@ -47,6 +48,8 @@ when "sync_repo"
   end
 when "update_metrics"
   Service::UpdateShardMetrics.new.perform_later
+when "loop"
+  Service::WorkerLoop.new.perform_later
 else
   STDERR.puts "unknown command #{command.inspect}"
   show_help(STDERR)

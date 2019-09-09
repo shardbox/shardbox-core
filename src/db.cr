@@ -39,6 +39,14 @@ class ShardsDB
 
   getter connection
 
+  def last_repo_sync : Time?
+    connection.query_one?("SELECT MAX(created_at) FROM sync_log", as: Time)
+  end
+
+  def last_metrics_calc : Time?
+    connection.query_one?("SELECT MAX(created_at) FROM shard_metrics_current", as: Time)
+  end
+
   def find_shard_id?(name : String)
     connection.query_one? <<-SQL, name, as: {Int64}
       SELECT id
