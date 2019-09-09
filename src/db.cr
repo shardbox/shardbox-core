@@ -9,7 +9,7 @@ class ShardsDB
   class Error < Exception
   end
 
-  class_property database_url : String { ENV["SHARDSDB_DATABASE"] }
+  class_property database_url : String { ENV["DATABASE_URL"] }
 
   @@db : DB::Database?
 

@@ -4,7 +4,7 @@ addons:
   postgresql: "9.5"
 
 env:
-  SHARDSDB_TEST_DATABASE: "postgres://postgres:@localhost/shardsdb_test"
+  TEST_DATABASE_URL: "postgres://postgres:@localhost/shardsdb_test"
 
 services:
 - postgresql

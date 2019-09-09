@@ -6,15 +6,15 @@ Shards database, collecting shard repositories, releases and dependencies.
 
 ### Prerequisites
 
-* Crystal 0.28.0
+* Crystal 0.30.1
 * PostgresSQL database (for data storage).
-  Should probably work with all versions beginning with 9.5 or so. Tested with PostgreSQL 11.
+  Should probably work with all versions => 10. Tested with PostgreSQL 11.5
 
 PostgreSQL databases needs to be created manually.
 Connection configuration is read from environment variables:
 
-* development database: `SHARDSDB_DATABASE`
-* testing database: `SHARDSDB_TEST_DATABASE` (only for running tests)
+* development database: `DATABASE_URL`
+* testing database: `TEST_DATABASE_URL` (only for running tests)
 * sentry: `SENTRY_DSN` (optional, for sending error reports to sentry)
 
 Install database schema by running `make db test_db`.
