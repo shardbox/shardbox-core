@@ -17,6 +17,11 @@ class ShardsDB
     @@db ||= DB.open(database_url)
   end
 
+  # :nodoc:
+  def self.db?
+    @@db
+  end
+
   def self.connect
     db.using_connection do |connection|
       yield ShardsDB.new(connection)
@@ -293,7 +298,7 @@ class ShardsDB
 end
 
 at_exit do
-  ShardsDB.db.close
+  ShardsDB.db?.try &.close
 end
 
 <<-SQL
