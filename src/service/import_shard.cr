@@ -94,7 +94,7 @@ struct Service::ImportShard
         FROM
           repos
         WHERE
-          shard_id = $1 AND resolver = $2 AND url = $3
+          shard_id = $1 AND resolver = $2 AND url = $3 AND role = 'canonical'
         SQL
         # Repo already linked, don't need to create it
 
@@ -110,6 +110,7 @@ struct Service::ImportShard
 
         return shard_id
       else
+        # The shard exists, but it has a different canonical repo.
         # The repo could be a (legacy) mirror, a fork or simply a homonymous shard.
         # This is impossible to reliably detect automatically.
         # In essence, both forks and distinct shards need a separate Shard instance.

@@ -1,5 +1,6 @@
 require "../catalog"
 require "./import_shard"
+require "./update_shard"
 require "taskmaster"
 
 struct Service::ImportCatalog
@@ -82,7 +83,9 @@ struct Service::ImportCatalog
       repo_id, shard_id = result.read Int64, Int64?
       result.close
 
-      unless shard_id
+      if shard_id
+        update_shard(db, entry, shard_id)
+      else
         shard_id = create_shard(db, entry, repo_id)
 
         # If a shard could not be created, simply skip this one. The reason should
@@ -122,6 +125,10 @@ struct Service::ImportCatalog
     Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id, description: entry.description)
   end
 
+  private def update_shard(db, entry, shard_id)
+    Service::UpdateShard.new(shard_id, description: entry.description).perform(db)
+  end
+
   private def unlink_removed_mirrors(db, valid_refs, shard_id)
     args = [] of String
     unless valid_refs.empty?
@@ -140,9 +147,9 @@ struct Service::ImportCatalog
       SET
         role = 'obsolete',
         shard_id = NULL
-      WHERE
-        role <> 'canonical'
-        #{sql_where}
+        WHERE
+          role <> 'canonical'
+          #{sql_where}
       SQL
   end
 
