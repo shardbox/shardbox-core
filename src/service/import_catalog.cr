@@ -119,7 +119,7 @@ struct Service::ImportCatalog
   end
 
   private def create_shard(db, entry, repo_id)
-    Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id)
+    Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id, description: entry.description)
   end
 
   private def unlink_removed_mirrors(db, valid_refs, shard_id)

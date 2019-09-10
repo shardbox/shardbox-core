@@ -23,23 +23,23 @@ struct Service::ImportShard
     import_shard(db, Repo::Resolver.new(@repo_ref))
   end
 
-  def import_shard(db : ShardsDB, resolver : Repo::Resolver)
+  def import_shard(db : ShardsDB, resolver : Repo::Resolver, **data)
     repo_id = create_repo(db)
-    shard_id = create_shard(db, resolver, repo_id)
+    shard_id = create_shard(db, resolver, repo_id, **data)
 
     Service::SyncRepo.new(resolver.repo_ref).perform_later
 
     shard_id
   end
 
-  def import_shard(db : ShardsDB, repo_id : Int64)
-    import_shard(db, repo_id, Repo::Resolver.new(@repo_ref))
+  def import_shard(db : ShardsDB, repo_id : Int64, **data)
+    import_shard(db, repo_id, Repo::Resolver.new(@repo_ref), **data)
   end
 
-  def import_shard(db : ShardsDB, repo_id : Int64, resolver : Repo::Resolver)
+  def import_shard(db : ShardsDB, repo_id : Int64, resolver : Repo::Resolver, **data)
     Raven.tags_context repo: @repo_ref.to_s, repo_id: repo_id
 
-    shard_id = create_shard(db, resolver, repo_id)
+    shard_id = create_shard(db, resolver, repo_id, **data)
 
     Raven.tags_context shard_id: shard_id
 
@@ -50,7 +50,7 @@ struct Service::ImportShard
     shard_id
   end
 
-  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo_id)
+  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo_id, description : String? = nil)
     begin
       spec_raw = resolver.fetch_raw_spec
     rescue exc : Repo::Resolver::RepoUnresolvableError
@@ -67,7 +67,7 @@ struct Service::ImportShard
 
     spec = Shards::Spec.from_yaml(spec_raw)
 
-    shard_id = find_or_create_shard_by_name(db, spec.name)
+    shard_id = find_or_create_shard_by_name(db, spec.name, description)
 
     db.connection.exec <<-SQL, repo_id, shard_id
       UPDATE
@@ -84,7 +84,7 @@ struct Service::ImportShard
     shard_id
   end
 
-  def find_or_create_shard_by_name(db, shard_name) : Int64
+  def find_or_create_shard_by_name(db, shard_name, description) : Int64
     if shard_id = db.find_shard_id?(shard_name)
       # There is already a shard by that name. Need to check if it's the same one.
 
@@ -96,7 +96,18 @@ struct Service::ImportShard
         WHERE
           shard_id = $1 AND resolver = $2 AND url = $3
         SQL
-        # Repo already linked
+        # Repo already linked, don't need to create it
+
+        # Update metadata
+        db.connection.exec <<-SQL, description, shard_id
+          UPDATE
+            shards
+          SET
+            description = $1
+          WHERE
+            id = $2
+          SQL
+
         return shard_id
       else
         # The repo could be a (legacy) mirror, a fork or simply a homonymous shard.
@@ -109,11 +120,11 @@ struct Service::ImportShard
         # create shard with qualifier
         qualifier = find_qualifier(db, shard_name)
 
-        return db.create_shard(Shard.new(shard_name, qualifier))
+        return db.create_shard(Shard.new(shard_name, qualifier, description: description))
       end
     else
       # No other shard by that name, let's create it:
-      return db.create_shard(Shard.new(shard_name))
+      return db.create_shard(Shard.new(shard_name, description: description))
     end
   end
 
