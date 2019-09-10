@@ -194,4 +194,22 @@ struct Service::ImportCatalog
   def delete_obsolete_categorizations(db, repos)
     db.delete_categorizations(repos.map &.repo_ref)
   end
+
+  def self.checkout_catalog(uri)
+    checkout_catalog(uri, "./catalog")
+  end
+
+  def self.checkout_catalog(uri, checkout_path)
+    if File.directory?(checkout_path)
+      if Process.run("git", ["-C", checkout_path.to_s, "pull", uri.to_s], output: :inherit, error: :inherit).success?
+        return checkout_path.to_s
+      else
+        abort "Can't checkout catalog from #{uri}: checkout path #{checkout_path.inspect} exists, but is not a git repository"
+      end
+    end
+
+    Process.run("git", ["clone", uri.to_s, checkout_path.to_s], output: :inherit, error: :inherit)
+
+    Path[checkout_path, "catalog"].to_s
+  end
 end
