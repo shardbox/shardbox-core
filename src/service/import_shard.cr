@@ -85,7 +85,7 @@ struct Service::ImportShard
   end
 
   def find_or_create_shard_by_name(db, shard_name, description) : Int64
-    if shard_id = db.find_shard_id?(shard_name)
+    if shard_id = db.get_shard_id?(shard_name, nil)
       # There is already a shard by that name. Need to check if it's the same one.
 
       if db.connection.query_one? <<-SQL, shard_id, @repo_ref.resolver, @repo_ref.url, as: {Bool}
