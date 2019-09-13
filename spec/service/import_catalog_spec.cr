@@ -27,6 +27,18 @@ private def persisted_repos(db)
     SQL
 end
 
+private def shard_categorizations(db)
+  db.connection.query_all <<-SQL, as: {String, String, Array(String)?}
+    SELECT
+      name::text, qualifier::text,
+      (SELECT array_agg(categories.slug::text ORDER BY slug) FROM categories WHERE shards.categories @> ARRAY[categories.id])
+    FROM
+      shards
+    ORDER BY
+      name, qualifier
+    SQL
+end
+
 struct Service::ImportCatalog
   property mock_create_shard = false
 
@@ -43,6 +55,11 @@ struct Service::ImportCatalog
         WHERE
           id = $1 AND shard_id IS NULL
         SQL
+
+      unless entry.categories.empty?
+        db.update_categorization(shard_id, entry.categories)
+      end
+
       shard_id
     else
       previous_def
@@ -64,9 +81,12 @@ describe Service::ImportCatalog do
         service.mock_create_shard = true
         service.import_catalog(db)
 
-        shard_id =  db.get_shard_id("foo")
+        shard_id = db.get_shard_id("foo")
         persisted_repos(db).should eq [
           {"git", "foo", "canonical", shard_id},
+        ]
+        shard_categorizations(db).should eq [
+          {"foo", "", ["foo"]},
         ]
       end
     end
@@ -97,6 +117,11 @@ describe Service::ImportCatalog do
           {"github", "foo/foo", "canonical", db.get_shard_id("foo")},
           {"git", "https://example.com/foo/bar.git", "canonical", db.get_shard_id("bar")},
           {"git", "https://example.com/foo/baz.git", "canonical", db.get_shard_id("baz")},
+        ]
+        shard_categorizations(db).should eq [
+          {"bar", "", ["bar", "foo"]},
+          {"baz", "", ["bar"]},
+          {"foo", "", ["foo"]},
         ]
       end
     end
@@ -135,13 +160,17 @@ describe Service::ImportCatalog do
           {"git", "foo/foo", "canonical", foo_id},
           {"git", "qux/foo", "legacy", foo_id},
         ]
+        shard_categorizations(db).should eq [
+          {"bar", "", ["category"]},
+          {"foo", "", ["category"]},
+        ]
       end
     end
   end
 
   it "imports mirrors from different categories" do
     with_tempdir("import_catalog-mirrors") do |catalog_path|
-      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+      File.write(File.join(catalog_path, "category1.yml"), <<-YAML)
         name: Category
         shards:
         - git: foo/foo
@@ -173,6 +202,9 @@ describe Service::ImportCatalog do
           {"git", "baz/foo", "legacy", shard_id},
           {"git", "foo/foo", "canonical", shard_id},
           {"git", "qux/foo", "legacy", shard_id},
+        ]
+        shard_categorizations(db).should eq [
+          {"foo", "", ["category1", "category2"]},
         ]
       end
     end
@@ -207,6 +239,9 @@ describe Service::ImportCatalog do
           {"git", "baz/foo", "legacy", shard_id},
           {"git", "foo/foo", "canonical", shard_id},
         ]
+        shard_categorizations(db).should eq [
+          {"foo", "", ["category"]},
+        ]
       end
     end
   end
@@ -233,6 +268,10 @@ describe Service::ImportCatalog do
         persisted_repos(db).should eq [
           {"git", "foo/bar", "canonical", bar_shard_id},
           {"git", "foo/foo", "canonical", foo_shard_id},
+        ]
+        shard_categorizations(db).should eq [
+          {"bar", "", ["category"]},
+          {"foo", "", ["category"]},
         ]
       end
     end
@@ -272,6 +311,9 @@ describe Service::ImportCatalog do
         results.should eq [
           {foo_shard_id, "foo"},
         ]
+        shard_categorizations(db).should eq [
+          {"foo", "", ["category"]},
+        ]
       end
     end
   end
@@ -292,7 +334,6 @@ describe Service::ImportCatalog do
         qux_id = Factory.create_shard(db, "qux", categories: %w[foo])
         Factory.create_repo(db, Repo::Ref.new("git", "qux/qux"), shard_id: qux_id)
 
-
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
         service.import_catalog(db)
@@ -302,6 +343,10 @@ describe Service::ImportCatalog do
           {"git", "baz/baz", "canonical", baz_id},
           {"git", "foo/foo", "canonical", db.get_shard_id("foo")},
           {"git", "qux/qux", "obsolete", nil},
+        ]
+        shard_categorizations(db).should eq [
+          {"baz", "", nil},
+          {"foo", "", ["category"]},
         ]
       end
     end
@@ -342,6 +387,9 @@ describe Service::ImportCatalog do
         results.should eq [
           {foo_shard_id, "foo"},
         ]
+        shard_categorizations(db).should eq [
+          {"foo", "", ["category"]},
+        ]
       end
     end
   end
@@ -373,6 +421,9 @@ describe Service::ImportCatalog do
           releases
         SQL
       releases_count.should eq 0
+      shard_categorizations(db).should eq [
+        {"foo", "", nil},
+      ]
     end
   end
 
@@ -400,6 +451,10 @@ describe Service::ImportCatalog do
           {"git", "baz/baz", "mirror", bar_id},
           {"git", "foo/bar", "canonical", bar_id},
           {"git", "foo/foo", "canonical", foo_id},
+        ]
+        shard_categorizations(db).should eq [
+          {"bar", "", ["category"]},
+          {"foo", "", ["category"]},
         ]
       end
     end
@@ -431,6 +486,10 @@ describe Service::ImportCatalog do
         persisted_repos(db).should eq [
           {"git", "bar/bar", "canonical", bar_id},
           {"git", "foo/foo", "canonical", foo_id},
+        ]
+        shard_categorizations(db).should eq [
+          {"bar", "", ["bar"]},
+          {"foo", "", ["foo"]},
         ]
       end
     end

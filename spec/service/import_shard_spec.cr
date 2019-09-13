@@ -22,6 +22,18 @@ private def persisted_repos(db)
         SQL
 end
 
+private def shard_categorizations(db)
+  db.connection.query_all <<-SQL, as: {String, String, Array(String)?}
+    SELECT
+      name::text, qualifier::text,
+      (SELECT array_agg(categories.slug::text) FROM categories WHERE shards.categories @> ARRAY[categories.id])
+    FROM
+      shards
+    ORDER BY
+      name, qualifier
+    SQL
+end
+
 describe Service::ImportShard do
   mock_resolver = MockResolver.new
   mock_resolver.register("0.1.0", Factory.build_revision_info, <<-SPEC)
@@ -35,13 +47,38 @@ describe Service::ImportShard do
     service = Service::ImportShard.new(repo_ref)
 
     transaction do |db|
-      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref), description: "foo description")
+      shard_id = service.import_shard(db,
+        Repo::Resolver.new(mock_resolver, repo_ref),
+        Catalog::Entry.new(repo_ref, description: "foo description")
+      )
 
       persisted_shards(db).should eq [{"test", "", "foo description"}]
       persisted_repos(db).should eq [{"git", "mock:test", "canonical", "test"}]
 
       repo_id = db.find_repo(repo_ref).id
       find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
+
+      shard_categorizations(db).should eq [
+        {"test", "", nil},
+      ]
+    end
+  end
+
+  it "adds categories" do
+    repo_ref = Repo::Ref.new("git", "mock:test")
+    service = Service::ImportShard.new(repo_ref)
+
+    transaction do |db|
+      Factory.create_category(db, "foo")
+
+      shard_id = service.import_shard(db,
+        Repo::Resolver.new(mock_resolver, repo_ref),
+        Catalog::Entry.new(repo_ref, description: "foo description", categories: ["foo"])
+      )
+
+      shard_categorizations(db).should eq [
+        {"test", "", ["foo"]},
+      ]
     end
   end
 
@@ -105,7 +142,10 @@ describe Service::ImportShard do
       shard_id = Factory.create_shard(db, "test", description: "foo description")
       repo_id = Factory.create_repo(db, repo_ref, shard_id)
 
-      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref), description: "bar description")
+      shard_id = service.import_shard(db,
+        Repo::Resolver.new(mock_resolver, repo_ref),
+        Catalog::Entry.new(repo_ref, description: "bar description")
+      )
 
       persisted_shards(db).should eq [{"test", "", "bar description"}]
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]

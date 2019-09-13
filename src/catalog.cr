@@ -42,9 +42,9 @@ module Catalog
     property description : String?
     getter mirror : Array(Repo::Ref)
     getter legacy : Array(Repo::Ref)
-    getter categories : Array(String) = [] of String
+    getter categories : Array(String)
 
-    def initialize(@repo_ref : Repo::Ref, @description : String? = nil, @mirror = [] of Repo::Ref, @legacy = [] of Repo::Ref)
+    def initialize(@repo_ref : Repo::Ref, @description : String? = nil, @mirror = [] of Repo::Ref, @legacy = [] of Repo::Ref, @categories = [] of String)
     end
 
     def to_yaml(builder : YAML::Nodes::Builder)

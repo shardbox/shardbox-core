@@ -23,23 +23,23 @@ struct Service::ImportShard
     import_shard(db, Repo::Resolver.new(@repo_ref))
   end
 
-  def import_shard(db : ShardsDB, resolver : Repo::Resolver, **data)
+  def import_shard(db : ShardsDB, resolver : Repo::Resolver, entry : Catalog::Entry? = nil)
     repo_id = create_repo(db)
-    shard_id = create_shard(db, resolver, repo_id, **data)
+    shard_id = create_shard(db, resolver, repo_id, entry)
 
     Service::SyncRepo.new(resolver.repo_ref).perform_later
 
     shard_id
   end
 
-  def import_shard(db : ShardsDB, repo_id : Int64, **data)
-    import_shard(db, repo_id, Repo::Resolver.new(@repo_ref), **data)
+  def import_shard(db : ShardsDB, repo_id : Int64, entry : Catalog::Entry? = nil)
+    import_shard(db, repo_id, Repo::Resolver.new(@repo_ref), entry)
   end
 
-  def import_shard(db : ShardsDB, repo_id : Int64, resolver : Repo::Resolver, **data)
+  def import_shard(db : ShardsDB, repo_id : Int64, resolver : Repo::Resolver, entry : Catalog::Entry? = nil)
     Raven.tags_context repo: @repo_ref.to_s, repo_id: repo_id
 
-    shard_id = create_shard(db, resolver, repo_id, **data)
+    shard_id = create_shard(db, resolver, repo_id, entry)
 
     Raven.tags_context shard_id: shard_id
 
@@ -50,7 +50,7 @@ struct Service::ImportShard
     shard_id
   end
 
-  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo_id, description : String? = nil)
+  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo_id, entry : Catalog::Entry? = nil)
     begin
       spec_raw = resolver.fetch_raw_spec
     rescue exc : Repo::Resolver::RepoUnresolvableError
@@ -67,7 +67,7 @@ struct Service::ImportShard
 
     spec = Shards::Spec.from_yaml(spec_raw)
 
-    shard_id = find_or_create_shard_by_name(db, spec.name, description)
+    shard_id = find_or_create_shard_by_name(db, spec.name, entry)
 
     db.connection.exec <<-SQL, repo_id, shard_id
       UPDATE
@@ -84,7 +84,7 @@ struct Service::ImportShard
     shard_id
   end
 
-  def find_or_create_shard_by_name(db, shard_name, description) : Int64
+  def find_or_create_shard_by_name(db, shard_name, entry) : Int64
     if shard_id = db.get_shard_id?(shard_name, nil)
       # There is already a shard by that name. Need to check if it's the same one.
 
@@ -99,7 +99,7 @@ struct Service::ImportShard
         # Repo already linked, don't need to create it
 
         # Update metadata
-        db.connection.exec <<-SQL, description, shard_id
+        db.connection.exec <<-SQL, entry.try(&.description), shard_id
           UPDATE
             shards
           SET
@@ -121,12 +121,18 @@ struct Service::ImportShard
         # create shard with qualifier
         qualifier = find_qualifier(db, shard_name)
 
-        return db.create_shard(Shard.new(shard_name, qualifier, description: description))
+        shard_id = db.create_shard(Shard.new(shard_name, qualifier, description: entry.try(&.description)))
       end
     else
       # No other shard by that name, let's create it:
-      return db.create_shard(Shard.new(shard_name, description: description))
+      shard_id = db.create_shard(Shard.new(shard_name, description: entry.try(&.description)))
     end
+
+    if entry && !entry.categories.empty?
+      db.update_categorization(shard_id, entry.categories)
+    end
+
+    shard_id
   end
 
   private def create_repo(db)

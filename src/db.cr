@@ -308,15 +308,25 @@ class ShardsDB
   end
 
   def update_categorization(repo_ref : Repo::Ref, categories : Array(String))
-    sql = <<-SQL % sql_array(categories)
+    connection.exec <<-SQL % sql_array(categories), repo_ref.resolver, repo_ref.url
+     UPDATE
+       shards
+     SET
+       categories = coalesce((SELECT array_agg(id) FROM categories WHERE slug = ANY(ARRAY[%s]::text[])), ARRAY[]::bigint[])
+     WHERE
+       id = (SELECT shard_id FROM repos WHERE resolver = $1 AND url = $2)
+     SQL
+  end
+
+  def update_categorization(shard_id : Int64, categories : Array(String))
+    connection.exec <<-SQL % sql_array(categories), shard_id
       UPDATE
         shards
       SET
         categories = coalesce((SELECT array_agg(id) FROM categories WHERE slug = ANY(ARRAY[%s]::text[])), ARRAY[]::bigint[])
       WHERE
-        id = (SELECT shard_id FROM repos WHERE resolver = $1 AND url = $2)
+        id = $1
       SQL
-    connection.exec sql, repo_ref.resolver, repo_ref.url
   end
 
   def delete_categorizations(repo_refs : Array(Repo::Ref))

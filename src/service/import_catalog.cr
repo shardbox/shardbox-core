@@ -120,7 +120,7 @@ struct Service::ImportCatalog
   end
 
   private def create_shard(db, entry, repo_id)
-    Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id, description: entry.description)
+    Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id, entry)
   end
 
   private def update_shard(db, entry, shard_id)
