@@ -1,0 +1,66 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: crystallang/crystal:0.30.1
+        environment:
+          TEST_DATABASE_URL: postgres://shardbox@localhost/shardbox
+
+      - image: circleci/postgres:11.5-alpine-ram
+        environment:
+          POSTGRES_USER: shardbox
+          POSTGRES_DB: shardbox
+
+    steps:
+      - run: crystal --version
+
+      - checkout
+
+      # Restore cache
+      - restore_cache:
+          keys:
+            - shardbox-core-{{ checksum "shard.yml" }}
+            - shardbox-core-
+
+      - run:
+          name: Install shards
+          command: shards check || shards install
+
+      - run: apt update && apt install --yes postgresql-client cmake
+
+      - run:
+          name: Build libgit2
+          command: |
+            if [ ! -f "~/lib/libgit2" ]; then
+              scripts/build_libgit2.sh ~ maint/v0.27
+            fi
+            echo "export LIBRARY_PATH=$LIBRARY_PATH:~/lib" >> $BASH_ENV
+            echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/lib" >> $BASH_ENV
+
+      # Store cache
+      - save_cache:
+          key: shardbox-core-{{ checksum "shard.yml" }}
+          paths:
+            - lib
+            - ~/.cache/shards/
+            - ~/lib
+
+      - run:
+          name: Create test database
+          command: make test_db
+
+      - run:
+          name: Run specs
+          command: crystal spec -s
+
+      - run:
+          name: Build worker
+          command: make bin/worker
+
+      - run:
+          name: Test worker
+          command: bin/worker sync_repos && bin/worker update_metrics
+
+      - run:
+          name: Formatter
+          command: crystal tool format src spec
