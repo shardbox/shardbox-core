@@ -3,7 +3,12 @@ require "./repo"
 
 module Catalog
   def self.each_category(catalog_location)
+    unless File.directory?(catalog_location)
+      raise "Can't read catalog at #{catalog_location}, directory does not exist."
+    end
+    found_a_file = false
     Dir.glob(File.join(catalog_location, "*.yml")).each do |filename|
+      found_a_file = true
       File.open(filename) do |file|
         begin
           category = Category.from_yaml(file)
@@ -13,6 +18,9 @@ module Catalog
 
         yield category, File.basename(filename, ".yml")
       end
+    end
+    unless found_a_file
+      raise "Catalog at #{catalog_location} is empty."
     end
   end
 
@@ -34,9 +42,9 @@ module Catalog
     property description : String?
     getter mirror : Array(Repo::Ref)
     getter legacy : Array(Repo::Ref)
-    getter categories : Array(String) = [] of String
+    getter categories : Array(String)
 
-    def initialize(@repo_ref : Repo::Ref, @description : String? = nil, @mirror = [] of Repo::Ref, @legacy = [] of Repo::Ref)
+    def initialize(@repo_ref : Repo::Ref, @description : String? = nil, @mirror = [] of Repo::Ref, @legacy = [] of Repo::Ref, @categories = [] of String)
     end
 
     def to_yaml(builder : YAML::Nodes::Builder)

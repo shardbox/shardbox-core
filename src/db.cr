@@ -47,12 +47,32 @@ class ShardsDB
     connection.query_one?("SELECT MAX(created_at) FROM shard_metrics_current", as: Time)
   end
 
-  def find_shard_id?(name : String)
+  def get_shard_id?(name : String, qualifier : Nil)
     connection.query_one? <<-SQL, name, as: {Int64}
       SELECT id
       FROM shards
       WHERE
         name = $1
+      LIMIT 1
+      SQL
+  end
+
+  def get_shard_id?(name : String, qualifier : String = "")
+    connection.query_one? <<-SQL, name, qualifier, as: {Int64}
+      SELECT id
+      FROM shards
+      WHERE
+        name = $1 AND qualifier = $2
+      LIMIT 1
+      SQL
+  end
+
+  def get_shard_id(name : String, qualifier : String = "")
+    connection.query_one <<-SQL, name, qualifier, as: {Int64}
+      SELECT id
+      FROM shards
+      WHERE
+        name = $1 AND qualifier = $2
       LIMIT 1
       SQL
   end
@@ -276,7 +296,7 @@ class ShardsDB
       SQL
   end
 
-  private def sql_array(array)
+  def sql_array(array)
     String.build do |io|
       array.each_with_index do |category, i|
         io << ", " unless i == 0
@@ -288,15 +308,25 @@ class ShardsDB
   end
 
   def update_categorization(repo_ref : Repo::Ref, categories : Array(String))
-    sql = <<-SQL % sql_array(categories)
+    connection.exec <<-SQL % sql_array(categories), repo_ref.resolver, repo_ref.url
+     UPDATE
+       shards
+     SET
+       categories = coalesce((SELECT array_agg(id) FROM categories WHERE slug = ANY(ARRAY[%s]::text[])), ARRAY[]::bigint[])
+     WHERE
+       id = (SELECT shard_id FROM repos WHERE resolver = $1 AND url = $2)
+     SQL
+  end
+
+  def update_categorization(shard_id : Int64, categories : Array(String))
+    connection.exec <<-SQL % sql_array(categories), shard_id
       UPDATE
         shards
       SET
         categories = coalesce((SELECT array_agg(id) FROM categories WHERE slug = ANY(ARRAY[%s]::text[])), ARRAY[]::bigint[])
       WHERE
-        id = (SELECT shard_id FROM repos WHERE resolver = $1 AND url = $2)
+        id = $1
       SQL
-    connection.exec sql, repo_ref.resolver, repo_ref.url
   end
 
   def delete_categorizations(repo_refs : Array(Repo::Ref))

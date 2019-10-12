@@ -3,8 +3,21 @@ module Factory
     db.create_repo Repo.new(ref, shard_id, role)
   end
 
-  def self.create_shard(db, name = "shard", qualifier = "", description = nil)
-    db.create_shard Shard.new(name, qualifier, description)
+  def self.create_shard(db, name = "shard", qualifier = "", description = nil, categories : Array(String)? = nil)
+    shard_id = db.create_shard Shard.new(name, qualifier, description)
+
+    if categories
+      db.connection.exec <<-SQL % db.sql_array(categories), shard_id
+        UPDATE
+          shards
+        SET
+          categories = coalesce((SELECT array_agg(id) FROM categories WHERE slug = ANY(ARRAY[%s]::text[])), ARRAY[]::bigint[])
+        WHERE
+          id = $1
+        SQL
+    end
+
+    shard_id
   end
 
   def self.create_release(db, shard_id = nil, version = "0.1.0", released_at = Time.utc_now,
@@ -44,5 +57,9 @@ module Factory
 
   def self.build_revision_info(tag = "v0.0.0", hash = "12345678")
     Release::RevisionInfo.new Factory.build_tag(tag), Factory.build_commit(hash)
+  end
+
+  def self.create_category(db, slug, name = slug)
+    db.create_or_update_category(Category.new(slug, name))
   end
 end

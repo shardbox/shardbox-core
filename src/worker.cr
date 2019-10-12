@@ -5,6 +5,7 @@ require "./service/sync_repos"
 require "./service/update_shard_metrics"
 require "./service/worker_loop"
 require "./raven"
+require "uri"
 
 # Disable git asking for credentials when cloning a repository. It's probably been deleted.
 # TODO: Remove this workaround (probably use libgit2 bindings instead)
@@ -24,6 +25,10 @@ end
 case command = ARGV.shift?
 when "import_catalog"
   catalog_path = ARGV.shift? || "./catalog"
+  uri = URI.parse(catalog_path)
+  if uri.scheme
+    catalog_path = Service::ImportCatalog.checkout_catalog(uri)
+  end
   Service::ImportCatalog.new(catalog_path).perform_later
 when "sync_repos"
   hours = 24

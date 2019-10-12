@@ -1,5 +1,6 @@
 require "../catalog"
 require "./import_shard"
+require "./update_shard"
 require "taskmaster"
 
 struct Service::ImportCatalog
@@ -40,14 +41,15 @@ struct Service::ImportCatalog
         repos.role <> 'canonical'
       SQL
 
-    mirrors = [] of Repo::Ref
+    all_repo_refs = [] of Repo::Ref
 
     # 1. Insert all canonical repos
     entries.each do |entry|
       canonical_statement.exec(entry.repo_ref.resolver, entry.repo_ref.url)
 
-      mirrors.concat(entry.mirror)
-      mirrors.concat(entry.legacy)
+      all_repo_refs << entry.repo_ref
+      all_repo_refs.concat(entry.mirror)
+      all_repo_refs.concat(entry.legacy)
     end
 
     mirror_statement = db.connection.build(<<-SQL)
@@ -82,7 +84,9 @@ struct Service::ImportCatalog
       repo_id, shard_id = result.read Int64, Int64?
       result.close
 
-      unless shard_id
+      if shard_id
+        update_shard(db, entry, shard_id)
+      else
         shard_id = create_shard(db, entry, repo_id)
 
         # If a shard could not be created, simply skip this one. The reason should
@@ -90,18 +94,15 @@ struct Service::ImportCatalog
         next unless shard_id
       end
 
-      mirrors = [] of Repo::Ref
       entry.mirror.each do |item|
         mirror_statement.exec item.resolver, item.url, "mirror", shard_id
-        mirrors << item
       end
       entry.legacy.each do |item|
         mirror_statement.exec item.resolver, item.url, "legacy", shard_id
-        mirrors << item
       end
-      unlink_removed_mirrors(db, mirrors, shard_id)
     end
 
+    unlink_removed_repos(db, all_repo_refs)
     delete_unreferenced_shards(db)
   end
 
@@ -119,30 +120,57 @@ struct Service::ImportCatalog
   end
 
   private def create_shard(db, entry, repo_id)
-    Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id)
+    Service::ImportShard.new(entry.repo_ref).import_shard(db, repo_id, entry)
   end
 
-  private def unlink_removed_mirrors(db, valid_refs, shard_id)
-    args = [] of String
-    unless valid_refs.empty?
-      sql_rows = Array(String).new(valid_refs.size)
-      valid_refs.each_with_index do |repo_ref, index|
-        args << repo_ref.resolver
-        args << repo_ref.url
-        sql_rows << "($#{index * 2 + 1}::repo_resolver, $#{index * 2 + 2}::citext)"
-      end
-      sql_where = "AND ROW(resolver, url) <> ALL(ARRAY[#{sql_rows.join(',')}])"
+  private def update_shard(db, entry, shard_id)
+    Service::UpdateShard.new(shard_id, description: entry.description).perform(db)
+  end
+
+  private def unlink_removed_repos(db, valid_refs)
+    resolvers = Array(String).new(valid_refs.size)
+    urls = Array(String).new(valid_refs.size)
+    valid_refs.each do |repo_ref|
+      resolvers << repo_ref.resolver
+      urls << repo_ref.url
     end
 
-    db.connection.exec <<-SQL, args
+    # The following query is a bit complex.
+    # It sets a repo to 'obsolete' state when it has been removed from the catalog.
+    # If any of the following conditions is met, the repo is not obsolete:
+    # 1) It's mentioned as canonical, mirror or legacy repo in the catalog (
+    #    these are all collected in `valid_refs`)
+    # 2) The referenced shard has no categories. Those repos have been discoverd
+    #    as recursive dependencies. They need to be categorized, not obsoleted.
+    # 3) It does not reference a shard. The repo entry has probably just been
+    #    inserted from a dependency and waits for sync. After that it would meet
+    #    condition 2).
+
+    db.connection.exec <<-SQL, resolvers, urls
       UPDATE
         repos
       SET
         role = 'obsolete',
         shard_id = NULL
       WHERE
-        role <> 'canonical'
-        #{sql_where}
+        id IN
+          (
+            WITH valid_refs AS (
+              SELECT *
+              FROM
+                unnest($1::repo_resolver[], $2::citext[]) AS valid_refs (resolver, url)
+            )
+            SELECT
+              repos.id
+            FROM
+              repos
+            LEFT JOIN
+              valid_refs v ON v.resolver = repos.resolver AND v.url = repos.url
+            JOIN
+              shards ON repos.shard_id = shards.id
+            WHERE
+              v.resolver IS NULL AND array_length(shards.categories, 1) > 0
+          )
       SQL
   end
 
@@ -186,5 +214,23 @@ struct Service::ImportCatalog
 
   def delete_obsolete_categorizations(db, repos)
     db.delete_categorizations(repos.map &.repo_ref)
+  end
+
+  def self.checkout_catalog(uri)
+    checkout_catalog(uri, "./catalog")
+  end
+
+  def self.checkout_catalog(uri, checkout_path)
+    if File.directory?(checkout_path)
+      if Process.run("git", ["-C", checkout_path.to_s, "pull", uri.to_s], output: :inherit, error: :inherit).success?
+        return checkout_path.to_s
+      else
+        abort "Can't checkout catalog from #{uri}: checkout path #{checkout_path.inspect} exists, but is not a git repository"
+      end
+    end
+
+    Process.run("git", ["clone", uri.to_s, checkout_path.to_s], output: :inherit, error: :inherit)
+
+    Path[checkout_path, "catalog"].to_s
   end
 end
