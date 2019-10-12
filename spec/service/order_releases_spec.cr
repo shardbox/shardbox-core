@@ -10,7 +10,7 @@ describe Service::OrderReleases do
       versions = {"0.1.0", "0.2.0", "5.333.1", "5.2.1", "0.2", "0.2.0.1", "5.8", "0.0.0.11"}
 
       versions.each_with_index do |version, index|
-        Factory.create_release(db, shard_id, version, Time.utc_now, position: index)
+        Factory.create_release(db, shard_id, version, Time.utc, position: index)
       end
 
       service = Service::OrderReleases.new(shard_id)

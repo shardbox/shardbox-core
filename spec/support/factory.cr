@@ -20,7 +20,7 @@ module Factory
     shard_id
   end
 
-  def self.create_release(db, shard_id = nil, version = "0.1.0", released_at = Time.utc_now,
+  def self.create_release(db, shard_id = nil, version = "0.1.0", released_at = Time.utc,
                           spec = JSON.parse("{}"), revision_info = JSON.parse("{}"),
                           position = nil, latest = nil, yanked_at = nil)
     shard_id ||= create_shard(db)
@@ -45,13 +45,13 @@ module Factory
   end
 
   def self.build_tag(name, message = "tag #{name}", tagger = "mock tagger")
-    tagger = Release::Signature.new(tagger, "", Time.utc_now.at_beginning_of_second) unless tagger.is_a?(Release::Signature)
+    tagger = Release::Signature.new(tagger, "", Time.utc.at_beginning_of_second) unless tagger.is_a?(Release::Signature)
     Release::Tag.new(name, message, tagger)
   end
 
-  def self.build_commit(sha, time = Time.utc_now, author = "mock author", committer = "mock comitter", message = "commit #{sha}")
-    author = Release::Signature.new(author, "", Time.utc_now.at_beginning_of_second) unless author.is_a?(Release::Signature)
-    committer = Release::Signature.new(committer, "", Time.utc_now.at_beginning_of_second) unless committer.is_a?(Release::Signature)
+  def self.build_commit(sha, time = Time.utc, author = "mock author", committer = "mock comitter", message = "commit #{sha}")
+    author = Release::Signature.new(author, "", Time.utc.at_beginning_of_second) unless author.is_a?(Release::Signature)
+    committer = Release::Signature.new(committer, "", Time.utc.at_beginning_of_second) unless committer.is_a?(Release::Signature)
     Release::Commit.new(sha, time.at_beginning_of_second, author, committer, message)
   end
 
