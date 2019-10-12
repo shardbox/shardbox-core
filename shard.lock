@@ -1,12 +1,12 @@
 version: 1.0
 shards:
   any_hash:
-    github: sija/any_hash.cr
-    commit: 1907068cdbfc3ef9759954194472b82f9f19c6e4
+    github: Sija/any_hash.cr
+    version: 0.2.3
 
   db:
     github: crystal-lang/crystal-db
-    version: 0.6.0
+    version: 0.7.0
 
   git:
     github: smacker/libgit2.cr
@@ -18,15 +18,15 @@ shards:
 
   pg:
     github: will/crystal-pg
-    version: 0.18.1
+    version: 0.19.0
 
   raven:
     github: Sija/raven.cr
-    version: 1.5.0
+    version: 1.5.1
 
   shards:
     github: crystal-lang/shards
-    commit: 81ea69333b0b020eccdfd6c8f6f427e9724e135a
+    commit: a60c6947efbf436e0fde8532ae808e5b97795dda
 
   taskmaster:
     github: straight-shoota/taskmaster
