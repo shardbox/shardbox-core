@@ -20,11 +20,12 @@ test_db: TEST_DATABASE_URL
 db: DATABASE_URL
 	@psql $(DATABASE_NAME) -c "SELECT 1" > /dev/null 2>&1 || \
 	createdb -U $(PG_USER) $(DATABASE_NAME)
-	psql -U $(PG_USER) $(DATABASE_NAME) < db/schema.sql
+	psql -U $(PG_USER) $(DATABASE_NAME) -c "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;"
+	dbmate up
 
 .PHONY: db/dump
 db/dump: DATABASE_URL
-	pg_dump -U $(PG_USER) -d $(DATABASE_NAME) -a > db/dump/$(shell date +'%Y-%m-%d-%H%M').sql
+	pg_dump -U $(PG_USER) -d $(DATABASE_NAME) -a -Tschema_migrations --disable-triggers > db/dump/$(shell date +'%Y-%m-%d-%H%M').sql
 
 .PHONY: db/dump_schema
 db/dump_schema: DATABASE_URL
