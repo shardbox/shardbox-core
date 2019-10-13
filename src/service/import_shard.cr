@@ -67,7 +67,15 @@ struct Service::ImportShard
 
     spec = Shards::Spec.from_yaml(spec_raw)
 
-    shard_id = find_or_create_shard_by_name(db, spec.name, entry)
+    create_shard(db, repo_id, spec.name, entry)
+  end
+
+  def create_shard(db, repo_id, shard_name, entry)
+    shard_id = find_or_create_shard_by_name(db, shard_name, entry)
+
+    if (categories = entry.try(&.categories)) && !categories.empty?
+      db.update_categorization(shard_id, categories)
+    end
 
     db.connection.exec <<-SQL, repo_id, shard_id
       UPDATE
@@ -121,18 +129,17 @@ struct Service::ImportShard
         # create shard with qualifier
         qualifier = find_qualifier(db, shard_name)
 
-        shard_id = db.create_shard(Shard.new(shard_name, qualifier, description: entry.try(&.description)))
+        return db.create_shard build_shard(shard_name, qualifier, entry)
       end
     else
       # No other shard by that name, let's create it:
-      shard_id = db.create_shard(Shard.new(shard_name, description: entry.try(&.description)))
+      return db.create_shard build_shard(shard_name, "", entry)
     end
+  end
 
-    if entry && !entry.categories.empty?
-      db.update_categorization(shard_id, entry.categories)
-    end
+  private def build_shard(shard_name, qualifier, entry)
 
-    shard_id
+    Shard.new(shard_name, qualifier, description: entry.try(&.description))
   end
 
   private def create_repo(db)

@@ -44,23 +44,8 @@ struct Service::ImportCatalog
 
   private def create_shard(db, entry, repo_id)
     if mock_create_shard
-      shard_id = db.create_shard(Shard.new(entry.repo_ref.name))
-
-      db.connection.exec <<-SQL, repo_id, shard_id
-        UPDATE
-          repos
-        SET
-          shard_id = $2,
-          sync_failed_at = NULL
-        WHERE
-          id = $1 AND shard_id IS NULL
-        SQL
-
-      unless entry.categories.empty?
-        db.update_categorization(shard_id, entry.categories)
-      end
-
-      shard_id
+      # This avoids parsing shard spec
+      Service::ImportShard.new(entry.repo_ref).create_shard(db, repo_id, entry.repo_ref.name, entry)
     else
       previous_def
     end
