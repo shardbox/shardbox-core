@@ -41,17 +41,6 @@ struct Service::ImportCatalog
         repos.role <> 'canonical'
       SQL
 
-    all_repo_refs = [] of Repo::Ref
-
-    # 1. Insert all canonical repos
-    entries.each do |entry|
-      canonical_statement.exec(entry.repo_ref.resolver, entry.repo_ref.url)
-
-      all_repo_refs << entry.repo_ref
-      all_repo_refs.concat(entry.mirror)
-      all_repo_refs.concat(entry.legacy)
-    end
-
     mirror_statement = db.connection.build(<<-SQL)
       INSERT INTO repos
         (resolver, url, role, shard_id)
@@ -64,7 +53,6 @@ struct Service::ImportCatalog
       WHERE repos.role <> $3 OR repos.shard_id <> $4
       SQL
 
-    # 2. Query ids for all canonical repos
     ids = db.connection.build <<-SQL
       SELECT
         id, shard_id
@@ -74,7 +62,17 @@ struct Service::ImportCatalog
         resolver = $1 AND url = $2
       SQL
 
+    all_repo_refs = [] of Repo::Ref
+
     entries.each do |entry|
+      # 1. Insert canonical repo
+      canonical_statement.exec(entry.repo_ref.resolver, entry.repo_ref.url)
+
+      all_repo_refs << entry.repo_ref
+      all_repo_refs.concat(entry.mirror)
+      all_repo_refs.concat(entry.legacy)
+
+      # 2. Query id of canonical repo
       result = ids.query(entry.repo_ref.resolver, entry.repo_ref.url)
       unless result.move_next
         result.close
@@ -84,6 +82,7 @@ struct Service::ImportCatalog
       repo_id, shard_id = result.read Int64, Int64?
       result.close
 
+      # 3. If shard_id exists, update shard, otherwise create a new one
       if shard_id
         update_shard(db, entry, shard_id)
       else
@@ -94,6 +93,7 @@ struct Service::ImportCatalog
         next unless shard_id
       end
 
+      # 4. Insert mirror and legacy repos
       entry.mirror.each do |item|
         mirror_statement.exec item.resolver, item.url, "mirror", shard_id
       end
