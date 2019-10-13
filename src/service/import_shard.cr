@@ -131,8 +131,12 @@ struct Service::ImportShard
   end
 
   private def build_shard(shard_name, qualifier, entry)
+    archived_at = nil
+    if entry.try &.archived?
+      archived_at = Time.utc
+    end
 
-    Shard.new(shard_name, qualifier, description: entry.try(&.description))
+    Shard.new(shard_name, qualifier, description: entry.try(&.description), archived_at: archived_at)
   end
 
   private def create_repo(db)

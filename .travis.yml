@@ -30,6 +30,7 @@ before_script:
 
 script:
 - crystal spec
+- make test/migration
 - make bin/worker
 - |
   export DATABASE_URL=$TEST_DATABASE_URL

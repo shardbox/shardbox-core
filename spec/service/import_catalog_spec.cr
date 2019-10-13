@@ -337,6 +337,52 @@ describe Service::ImportCatalog do
     end
   end
 
+  it "handles shards marked as archived in catalog" do
+    with_tempdir("import_catalog-mirrors") do |catalog_path|
+      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+        name: Category
+        shards:
+        - git: foo/foo
+          state: archived
+        - git: foo/bar
+          state: archived
+        - git: foo/baz
+        - git: foo/qux
+          state: archived
+        YAML
+
+      transaction do |db|
+        # existing shard, gets archived
+        foo_id = Factory.create_shard(db, "foo")
+        Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id)
+        # existing archived shard, gets unarchived
+        baz_id = Factory.create_shard(db, "baz", archived_at: Time.utc)
+        Factory.create_repo(db, Repo::Ref.new("git", "foo/baz"), shard_id: baz_id)
+        # existing archived shard, stays archived
+        qux_archived_at = Time.utc(2019, 10, 12, 13, 13)
+        qux_id = Factory.create_shard(db, "qux", archived_at: qux_archived_at)
+        Factory.create_repo(db, Repo::Ref.new("git", "foo/qux"), shard_id: qux_id)
+
+        service = Service::ImportCatalog.new(catalog_path)
+        service.mock_create_shard = true
+        service.import_catalog(db)
+
+        bar_id = db.get_shard_id("bar")
+        persisted_repos(db).should eq [
+          {"git", "foo/bar", "canonical", bar_id},
+          {"git", "foo/baz", "canonical", baz_id},
+          {"git", "foo/foo", "canonical", foo_id},
+          {"git", "foo/qux", "canonical", qux_id},
+        ]
+
+        db.find_shard(foo_id).archived_at.not_nil!.should be_close(Time.utc, 1.second)
+        db.find_shard(bar_id).archived_at.not_nil!.should be_close(Time.utc, 1.second)
+        db.find_shard(baz_id).archived_at.should be_nil
+        db.find_shard(qux_id).archived_at.should eq qux_archived_at
+      end
+    end
+  end
+
   it "deletes unreferenced shard and moves repo to mirror" do
     with_tempdir("import_catalog-mirrors") do |catalog_path|
       File.write(File.join(catalog_path, "category.yml"), <<-YAML)

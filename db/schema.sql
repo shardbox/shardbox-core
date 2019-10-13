@@ -684,6 +684,7 @@ CREATE TABLE public.shards (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     categories bigint[] DEFAULT '{}'::bigint[] NOT NULL,
+    archived_at timestamp with time zone,
     CONSTRAINT shards_name_check CHECK ((name OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}$'::text)),
     CONSTRAINT shards_qualifier_check CHECK ((qualifier OPERATOR(public.~) '^[A-Za-z0-9_\-.]{0,100}$'::public.citext))
 );
@@ -1055,4 +1056,5 @@ ALTER TABLE ONLY public.sync_log
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('1');
+    ('1'),
+    ('20191012163928');

@@ -3,8 +3,8 @@ module Factory
     db.create_repo Repo.new(ref, shard_id, role)
   end
 
-  def self.create_shard(db, name = "shard", qualifier = "", description = nil, categories : Array(String)? = nil)
-    shard_id = db.create_shard Shard.new(name, qualifier, description)
+  def self.create_shard(db, name = "shard", qualifier = "", description = nil, categories : Array(String)? = nil, archived_at : Time? = nil)
+    shard_id = db.create_shard Shard.new(name, qualifier, description, archived_at)
 
     if categories
       db.connection.exec <<-SQL % db.sql_array(categories), shard_id

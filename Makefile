@@ -54,3 +54,12 @@ test_db/drop_sync: test_db/drop
 .PHONY: test_db/drop
 test_db/drop:
 	dropdb -U $(PG_USER) $(TEST_DATABASE_NAME) || true
+
+$(BIN)/dbmate: $(BIN)
+	wget -qO $(BIN)/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
+	chmod +x $(BIN)/dbmate
+
+.PHONY: test/migration
+test/migration: $(BIN)/dbmate
+	$(BIN)/dbmate -e TEST_DATABASE_URL rollback
+	$(BIN)/dbmate -e TEST_DATABASE_URL migrate

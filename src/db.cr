@@ -57,6 +57,18 @@ class ShardsDB
       SQL
   end
 
+  def find_shard(shard_id : Int64)
+    result = connection.query_one <<-SQL, shard_id, as: {Int64, String, String, String?, Time?}
+      SELECT id, name::text, qualifier::text, description, archived_at
+      FROM shards
+      WHERE
+        id = $1
+      SQL
+
+    id, name, qualifier, description, archived_at = result
+    Shard.new(name, qualifier, description, archived_at, id: id)
+  end
+
   def get_shard_id?(name : String, qualifier : String = "")
     connection.query_one? <<-SQL, name, qualifier, as: {Int64}
       SELECT id
@@ -154,11 +166,11 @@ class ShardsDB
   end
 
   def create_shard(shard : Shard)
-    shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, as: Int64
+    shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, shard.archived_at, as: Int64
       INSERT INTO shards
-        (name, qualifier, description)
+        (name, qualifier, description, archived_at)
       VALUES
-        ($1, $2, $3)
+        ($1, $2, $3, $4)
       RETURNING id;
       SQL
   end

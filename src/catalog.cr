@@ -45,8 +45,15 @@ module Catalog
     getter mirror : Array(Repo::Ref)
     getter legacy : Array(Repo::Ref)
     getter categories : Array(String)
+    property state : String?
 
-    def initialize(@repo_ref : Repo::Ref, @description : String? = nil, @mirror = [] of Repo::Ref, @legacy = [] of Repo::Ref, @categories = [] of String)
+    def initialize(@repo_ref : Repo::Ref, @description : String? = nil,
+                   @mirror = [] of Repo::Ref, @legacy = [] of Repo::Ref,
+                   @state : String? = nil, @categories = [] of String)
+    end
+
+    def archived? : Bool
+      state == "archived"
     end
 
     def to_yaml(builder : YAML::Nodes::Builder)
@@ -61,6 +68,11 @@ module Catalog
 
         mirror_to_yaml(builder, mirror, "mirror")
         mirror_to_yaml(builder, legacy, "legacy")
+
+        if state = @state
+          builder.scalar "state"
+          builder.scalar state
+        end
       end
     end
 
@@ -87,6 +99,8 @@ module Catalog
       repo_ref = nil
       mirror = [] of Repo::Ref
       legacy = [] of Repo::Ref
+      state = nil
+
       YAML::Schema::Core.each(node) do |key, value|
         key = String.new(ctx, key)
         case key
@@ -102,6 +116,12 @@ module Catalog
             raise "expected sequence for key `legacy` in Category::Entry mapping"
           end
           legacy = parse_mirror_or_legacy(ctx, value)
+        when "state"
+          if value.is_a?(YAML::Nodes::Scalar) && value.value == "archived"
+            state = value.value
+          else
+            raise %(unexpected value for key `state` in Category::Entry mapping, allowed values: "archived")
+          end
         else
           repo_ref = parse_repo_ref(ctx, key, value)
 
@@ -115,7 +135,7 @@ module Catalog
         node.raise "missing required repo reference"
       end
 
-      new(repo_ref, description, mirror, legacy)
+      new(repo_ref, description, mirror, legacy, state)
     end
 
     private def self.parse_mirror_or_legacy(ctx, node)
