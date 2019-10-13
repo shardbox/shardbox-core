@@ -38,6 +38,8 @@ module Catalog
   end
 
   struct Entry
+    include JSON::Serializable
+
     getter repo_ref : Repo::Ref
     property description : String?
     getter mirror : Array(Repo::Ref)

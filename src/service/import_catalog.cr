@@ -124,7 +124,7 @@ struct Service::ImportCatalog
   end
 
   private def update_shard(db, entry, shard_id)
-    Service::UpdateShard.new(shard_id, description: entry.description).perform(db)
+    Service::UpdateShard.new(shard_id, entry).perform(db)
   end
 
   private def unlink_removed_repos(db, valid_refs)

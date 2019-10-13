@@ -107,14 +107,7 @@ struct Service::ImportShard
         # Repo already linked, don't need to create it
 
         # Update metadata
-        db.connection.exec <<-SQL, entry.try(&.description), shard_id
-          UPDATE
-            shards
-          SET
-            description = $1
-          WHERE
-            id = $2
-          SQL
+        Service::UpdateShard.new(shard_id, entry).perform(db)
 
         return shard_id
       else
