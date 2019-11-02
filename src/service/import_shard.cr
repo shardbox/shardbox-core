@@ -87,7 +87,7 @@ struct Service::ImportShard
         id = $1 AND shard_id IS NULL
       SQL
 
-    db.log_activity "sync_repo:synced", repo_id: repo_id, metadata: {"action" => "import_shard"}
+    db.log_activity "import_shard:created", repo_id: repo_id, shard_id: shard_id
 
     shard_id
   end

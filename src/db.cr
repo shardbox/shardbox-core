@@ -4,6 +4,7 @@ require "./shard"
 require "./release"
 require "./category"
 require "./repo"
+require "./log_activity"
 
 class ShardsDB
   class Error < Exception
@@ -87,6 +88,17 @@ class ShardsDB
         name = $1 AND qualifier = $2
       LIMIT 1
       SQL
+  end
+
+  def get_repo_id(resolver : String, url : String)
+    connection.query_one <<-SQL, resolver, url, as: Int64
+          SELECT
+            id
+          FROM
+            repos
+          WHERE
+            resolver = $1 AND url = $2
+          SQL
   end
 
   def get_repo_shard_id(resolver : String, url : String)
@@ -223,15 +235,27 @@ class ShardsDB
       SQL
   end
 
-  def create_or_update_category(category : Category)
-    category_id = connection.exec <<-SQL, category.slug, category.name, category.description
+  def create_category(category : Category)
+    connection.exec <<-SQL, category.slug, category.name, category.description
       INSERT INTO categories
         (slug, name, description)
       VALUES
         ($1, $2, $3)
-      ON CONFLICT ON CONSTRAINT categories_slug_uniq
-      DO UPDATE SET
+      SQL
+  end
+
+  def update_category(category : Category)
+    category_id = connection.exec <<-SQL, category.slug, category.name, category.description
+      UPDATE categories
+      SET
         name = $2, description = $3
+      SQL
+  end
+
+  def remove_category(slug : String)
+    connection.exec <<-SQL, slug
+      DELETE FROM categories
+      WHERE slug = $1
       SQL
   end
 
@@ -301,13 +325,6 @@ class ShardsDB
     results
   end
 
-  def remove_categories(category_slugs : Array(String))
-    connection.exec <<-SQL % sql_array(category_slugs)
-      DELETE FROM categories
-      WHERE slug != ALL(ARRAY[%s]::text[])
-      SQL
-  end
-
   def sql_array(array)
     String.build do |io|
       array.each_with_index do |category, i|
@@ -356,6 +373,16 @@ class ShardsDB
         (
           $1, $2, $3, $4
         )
+      SQL
+  end
+
+  def last_activities
+    connection.query_all <<-SQL, as: LogActivity
+      SELECT
+        id, event, repo_id, shard_id, metadata, created_at
+      FROM
+        activity_log
+      ORDER BY created_at DESC
       SQL
   end
 end

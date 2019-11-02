@@ -18,13 +18,14 @@ struct Service::ImportCatalog
   def import_catalog(db)
     categories, repos = read_catalog
 
-    create_or_update_categories(db, categories)
-    delete_obsolete_categories(db, categories)
+    category_stats = update_categories(db, categories)
 
     update_categorizations(db, repos)
     delete_obsolete_categorizations(db, repos)
 
     import_repos(db, repos)
+
+    db.log_activity "import_catalog:done", metadata: category_stats
   end
 
   def import_repos(db, entries)
@@ -173,12 +174,12 @@ struct Service::ImportCatalog
   end
 
   def read_catalog
-    categories = Array(Category).new
+    categories = Hash(String, Category).new
     repos = {} of Repo::Ref => Catalog::Entry
 
     Catalog.each_category(@catalog_location) do |yaml_category, slug|
       category = Category.new(slug, yaml_category.name, yaml_category.description)
-      categories << category
+      categories[category.slug] = category
       yaml_category.shards.each do |shard|
         if stored_entry = repos[shard.repo_ref]?
           stored_entry.mirrors.concat(shard.mirrors)
@@ -193,14 +194,44 @@ struct Service::ImportCatalog
     return categories, repos.values
   end
 
-  def create_or_update_categories(db, categories)
-    categories.each do |category|
-      db.create_or_update_category(category)
-    end
-  end
+  def update_categories(db, categories)
+    all_categories = db.connection.query_all <<-SQL, categories.keys, as: {String?, String?, String?, String?}
+      SELECT
+        categories.slug::text, target_categories.slug, name::text, description
+      FROM
+        categories
+      FULL OUTER JOIN
+        (
+          SELECT unnest($1::text[]) AS slug
+        ) AS target_categories
+        ON categories.slug = target_categories.slug
+      SQL
 
-  def delete_obsolete_categories(db, categories)
-    db.remove_categories(categories.map(&.slug))
+    deleted_categories = [] of String
+    new_categories = [] of String
+    updated_categories = [] of String
+    all_categories.each do |existing_slug, new_slug, name, description|
+      if existing_slug.nil?
+        category = categories[new_slug]
+        db.create_category(category)
+        new_categories << new_slug.not_nil!
+      elsif new_slug.nil?
+        db.remove_category(existing_slug.not_nil!)
+        deleted_categories << existing_slug.not_nil!
+      else
+        category = categories[existing_slug]
+        if category.name != name || category.description != description
+          db.update_category(category)
+          updated_categories << category.slug
+        end
+      end
+    end
+
+    {
+      "deleted_categories" => deleted_categories,
+      "new_categories"     => new_categories,
+      "updated_categories" => updated_categories,
+    }
   end
 
   def update_categorizations(db, repos)

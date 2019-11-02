@@ -60,6 +60,6 @@ module Factory
   end
 
   def self.create_category(db, slug, name = slug)
-    db.create_or_update_category(Category.new(slug, name))
+    db.create_category(Category.new(slug, name))
   end
 end

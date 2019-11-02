@@ -73,6 +73,18 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"foo", "", ["foo"]},
         ]
+
+        repo_id = db.get_repo_id("git", "foo")
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", repo_id, shard_id, nil},
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["foo"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
+        ]
       end
     end
   end
@@ -107,6 +119,19 @@ describe Service::ImportCatalog do
           {"bar", "", ["bar", "foo"]},
           {"baz", "", ["bar"]},
           {"foo", "", ["foo"]},
+        ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", db.get_repo_id("git", "https://example.com/foo/baz.git"), db.get_shard_id("baz"), nil},
+          {"import_shard:created", db.get_repo_id("git", "https://example.com/foo/bar.git"), db.get_shard_id("bar"), nil},
+          {"import_shard:created", db.get_repo_id("github", "foo/foo"), db.get_shard_id("foo"), nil},
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["foo", "bar"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
         ]
       end
     end
@@ -151,6 +176,18 @@ describe Service::ImportCatalog do
           {"bar", "", ["category"]},
           {"foo", "", ["category"]},
         ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", db.get_repo_id("git", "foo/foo"), foo_id, nil},
+          {"import_shard:created", db.get_repo_id("git", "bar/bar"), bar_id, nil},
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
+        ]
       end
     end
   end
@@ -193,6 +230,16 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"foo", "", ["category1", "category2"]},
         ]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", db.get_repo_id("git", "foo/foo"), shard_id, nil},
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category1", "category2"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
+        ]
       end
     end
   end
@@ -229,6 +276,16 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
         ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
+        ]
       end
     end
   end
@@ -259,6 +316,16 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"bar", "", ["category"]},
           {"foo", "", ["category"]},
+        ]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", db.get_repo_id("git", "foo/bar"), bar_shard_id, nil},
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
         ]
       end
     end
@@ -301,6 +368,15 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
         ]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category"],
+              "deleted_categories" => ["bar"],
+              "updated_categories" => [] of String,
+            },
+          },
+        ]
       end
     end
   end
@@ -334,6 +410,16 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"baz", "", nil},
           {"foo", "", ["category"]},
+        ]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", db.get_repo_id("git", "foo/foo"), db.get_shard_id("foo"), nil},
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category"],
+              "deleted_categories" => ["foo"],
+              "updated_categories" => [] of String,
+            },
+          },
         ]
       end
     end
@@ -381,6 +467,17 @@ describe Service::ImportCatalog do
         db.find_shard(bar_id).archived_at.not_nil!.should be_close(Time.utc, 1.second)
         db.find_shard(baz_id).archived_at.should be_nil
         db.find_shard(qux_id).archived_at.should eq qux_archived_at
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", db.get_repo_id("git", "foo/bar"), bar_id, nil},
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
+        ]
       end
     end
   end
@@ -422,6 +519,16 @@ describe Service::ImportCatalog do
         ]
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
+        ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {
+            "import_catalog:done", nil, nil, {
+              "new_categories"     => ["category"],
+              "deleted_categories" => [] of String,
+              "updated_categories" => [] of String,
+            },
+          },
         ]
       end
     end
