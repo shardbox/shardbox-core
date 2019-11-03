@@ -82,6 +82,7 @@ struct Service::ImportShard
         repos
       SET
         shard_id = $2,
+        role = 'canonical',
         sync_failed_at = NULL
       WHERE
         id = $1 AND shard_id IS NULL
