@@ -467,7 +467,7 @@ $$;
 
 SET default_tablespace = '';
 
-SET default_with_oids = false;
+SET default_table_access_method = heap;
 
 --
 -- Name: categories; Type: TABLE; Schema: public; Owner: -
@@ -921,49 +921,49 @@ CREATE INDEX shards_categories ON public.shards USING gin (categories);
 -- Name: shards categories_entries_count; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER categories_entries_count AFTER INSERT OR DELETE OR UPDATE OF categories ON public.shards FOR EACH ROW EXECUTE PROCEDURE public.shards_categories_trigger();
+CREATE TRIGGER categories_entries_count AFTER INSERT OR DELETE OR UPDATE OF categories ON public.shards FOR EACH ROW EXECUTE FUNCTION public.shards_categories_trigger();
 
 
 --
 -- Name: releases releases_only_one_latest_release; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER releases_only_one_latest_release BEFORE INSERT OR UPDATE OF latest ON public.releases FOR EACH ROW WHEN ((new.latest = true)) EXECUTE PROCEDURE public.ensure_only_one_latest_release_trigger();
+CREATE TRIGGER releases_only_one_latest_release BEFORE INSERT OR UPDATE OF latest ON public.releases FOR EACH ROW WHEN ((new.latest = true)) EXECUTE FUNCTION public.ensure_only_one_latest_release_trigger();
 
 
 --
 -- Name: releases set_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.releases FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.releases FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
 -- Name: shards set_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.shards FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.shards FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
 -- Name: dependencies set_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.dependencies FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.dependencies FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
 -- Name: repos set_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE PROCEDURE public.trigger_set_timestamp();
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
 -- Name: shard_metrics shard_metrics_current; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER shard_metrics_current AFTER INSERT OR DELETE OR UPDATE ON public.shard_metrics FOR EACH ROW EXECUTE PROCEDURE public.shard_metrics_current_trigger();
+CREATE TRIGGER shard_metrics_current AFTER INSERT OR DELETE OR UPDATE ON public.shard_metrics FOR EACH ROW EXECUTE FUNCTION public.shard_metrics_current_trigger();
 
 
 --
