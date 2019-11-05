@@ -69,8 +69,9 @@ struct Service::ImportCatalog
       canonical_statement.exec(entry.repo_ref.resolver, entry.repo_ref.url)
 
       all_repo_refs << entry.repo_ref
-      all_repo_refs.concat(entry.mirror)
-      all_repo_refs.concat(entry.legacy)
+      entry.mirrors.each do |mirror|
+        all_repo_refs << mirror.repo_ref
+      end
 
       # 2. Query id of canonical repo
       result = ids.query(entry.repo_ref.resolver, entry.repo_ref.url)
@@ -93,12 +94,9 @@ struct Service::ImportCatalog
         next unless shard_id
       end
 
-      # 4. Insert mirror and legacy repos
-      entry.mirror.each do |item|
-        mirror_statement.exec item.resolver, item.url, "mirror", shard_id
-      end
-      entry.legacy.each do |item|
-        mirror_statement.exec item.resolver, item.url, "legacy", shard_id
+      # 4. Insert mirror repos
+      entry.mirrors.each do |item|
+        mirror_statement.exec item.repo_ref.resolver, item.repo_ref.url, item.role, shard_id
       end
     end
 
@@ -138,7 +136,7 @@ struct Service::ImportCatalog
     # The following query is a bit complex.
     # It sets a repo to 'obsolete' state when it has been removed from the catalog.
     # If any of the following conditions is met, the repo is not obsolete:
-    # 1) It's mentioned as canonical, mirror or legacy repo in the catalog (
+    # 1) It's mentioned as canonical or mirror repo in the catalog (
     #    these are all collected in `valid_refs`)
     # 2) The referenced shard has no categories. Those repos have been discoverd
     #    as recursive dependencies. They need to be categorized, not obsoleted.
@@ -183,8 +181,7 @@ struct Service::ImportCatalog
       categories << category
       yaml_category.shards.each do |shard|
         if stored_entry = repos[shard.repo_ref]?
-          stored_entry.mirror.concat(shard.mirror)
-          stored_entry.legacy.concat(shard.legacy)
+          stored_entry.mirrors.concat(shard.mirrors)
           stored_entry.categories << slug
         else
           shard.categories << slug

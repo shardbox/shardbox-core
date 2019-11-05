@@ -118,14 +118,16 @@ describe Service::ImportCatalog do
         name: Category
         shards:
         - git: foo/foo
-          mirror:
+          mirrors:
           - git: bar/foo
-          legacy:
           - git: baz/foo
+            role: legacy
           - git: qux/foo
+            role: legacy
         - git: bar/bar
-          legacy:
+          mirrors:
           - git: foo/bar
+            role: legacy
         YAML
 
       transaction do |db|
@@ -159,19 +161,19 @@ describe Service::ImportCatalog do
         name: Category
         shards:
         - git: foo/foo
-          mirror:
+          mirrors:
           - git: bar/foo
-          legacy:
           - git: baz/foo
+            role: legacy
         YAML
       File.write(File.join(catalog_path, "category2.yml"), <<-YAML)
         name: Category2
         shards:
         - git: foo/foo
-          mirror:
+          mirrors:
           - git: bar/bar
-          legacy:
           - git: qux/foo
+            role: legacy
         YAML
 
       transaction do |db|
@@ -201,10 +203,10 @@ describe Service::ImportCatalog do
         name: Category
         shards:
         - git: foo/foo
-          mirror:
+          mirrors:
           - git: bar/foo
-          legacy:
           - git: baz/foo
+            role: legacy
         YAML
 
       transaction do |db|
@@ -389,7 +391,7 @@ describe Service::ImportCatalog do
         name: Category
         shards:
         - git: foo/foo
-          mirror:
+          mirrors:
           - git: foo/bar
         YAML
 
@@ -464,10 +466,10 @@ describe Service::ImportCatalog do
         name: Category
         shards:
         - git: foo/foo
-          mirror:
+          mirrors:
           - git: baz/baz
         - git: foo/bar
-          mirror:
+          mirrors:
           - git: baz/baz
         YAML
 

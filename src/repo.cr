@@ -19,6 +19,10 @@ class Repo
     def to_s
       super.downcase
     end
+
+    def to_yaml(builder : YAML::Nodes::Builder)
+      builder.scalar to_s
+    end
   end
 
   # Returns a reference to the shard hosted in this repo.
