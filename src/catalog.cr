@@ -40,19 +40,20 @@ module Catalog
   struct Mirror
     include JSON::Serializable
 
-    enum State
-      MIRROR
-      LEGACY
-    end
-
     getter repo_ref : Repo::Ref
-    property? state : State
+    getter role : Repo::Role = :mirror
 
-    def initialize(@repo_ref : Repo::Ref, @state : State = :mirror)
+    def initialize(@repo_ref : Repo::Ref, role : Repo::Role = :mirror)
+      self.role = role
     end
 
     def legacy?
-      state.legacy?
+      role.legacy?
+    end
+
+    def role=(role : Repo::Role)
+      raise "Invalid role for Catalog::Mirror: #{role}" if role.canonical?
+      @role = role
     end
 
     def to_yaml(builder)
@@ -61,7 +62,7 @@ module Catalog
         builder.scalar repo_ref.url.to_s
 
         if legacy?
-          builder.scalar "state"
+          builder.scalar "role"
           role.to_yaml(builder)
         end
       end
@@ -73,14 +74,14 @@ module Catalog
       end
 
       repo_ref = nil
-      state = nil
+      role = nil
 
       YAML::Schema::Core.each(node) do |key, value|
         key = String.new(ctx, key)
         case key
-        when "state"
-          unless value.is_a?(YAML::Nodes::Scalar) && (state = State.parse?(value.value))
-            raise %(unexpected value for key `state` in Category::Mirror mapping, allowed values: #{State.values})
+        when "role"
+          unless value.is_a?(YAML::Nodes::Scalar) && (role = Repo::Role.parse?(value.value)) && !role.canonical?
+            raise %(unexpected value for key `role` in Category::Mirror mapping, allowed values: #{Repo::Role.values.delete(Repo::Role::CANONICAL)})
           end
         else
           repo_ref = Entry.parse_repo_ref(ctx, key, value)
@@ -95,8 +96,8 @@ module Catalog
         node.raise "missing required repo reference"
       end
 
-      state ||= State::MIRROR
-      new(repo_ref, state)
+      role ||= Repo::Role::MIRROR
+      new(repo_ref, role)
     end
   end
 
