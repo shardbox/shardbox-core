@@ -27,6 +27,11 @@ before_script:
   export LIBRARY_PATH=$LIBRARY_PATH:~/lib
   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/lib
 - make test_db
+- |
+  mkdir -p vendor/bin
+  wget -qO vendor/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
+  chmod +x vendor/bin/dbmate
+  export PATH="$PATH:$(pwd)/vendor/bin"
 
 script:
 - crystal spec

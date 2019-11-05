@@ -2,6 +2,7 @@ DATABASE_NAME ?= $(shell echo $(DATABASE_URL) | grep -o -P '[^/]+$$')
 TEST_DATABASE_NAME ?= $(shell echo $(TEST_DATABASE_URL) | grep -o -P '[^/]+$$')
 PG_USER ?= postgres
 BIN ?= bin
+DBMATE := dbmate
 
 .PHONY: DATABASE_URL
 DATABASE_URL:
@@ -55,11 +56,14 @@ test_db/drop_sync: test_db/drop
 test_db/drop:
 	dropdb -U $(PG_USER) $(TEST_DATABASE_NAME) || true
 
-$(BIN)/dbmate: $(BIN)
-	wget -qO $(BIN)/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
-	chmod +x $(BIN)/dbmate
-
 .PHONY: test/migration
-test/migration: $(BIN)/dbmate
-	$(BIN)/dbmate -e TEST_DATABASE_URL rollback
-	$(BIN)/dbmate -e TEST_DATABASE_URL migrate
+test/migration: test_db/rollback test_db/migrate
+	git diff --exit-code db/schema.sql
+
+.PHONY: test_db/migrate
+test_db/migrate:
+	$(DBMATE) -e TEST_DATABASE_URL migrate
+
+.PHONY: test_db/rollback
+test_db/rollback:
+	$(DBMATE) -e TEST_DATABASE_URL rollback
