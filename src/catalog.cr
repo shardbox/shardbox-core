@@ -123,13 +123,12 @@ module Catalog
 
     getter repo_ref : Repo::Ref
     property description : String?
-    getter mirror : Array(Repo::Ref)
-    getter legacy : Array(Repo::Ref)
+    getter mirrors : Array(Mirror)
     getter categories : Array(String)
     property state : State
 
     def initialize(@repo_ref : Repo::Ref, @description : String? = nil,
-                   @mirror = [] of Repo::Ref, @legacy = [] of Repo::Ref,
+                   @mirrors = [] of Mirror,
                    @state : State = :active, @categories = [] of String)
     end
 
@@ -147,23 +146,14 @@ module Catalog
           builder.scalar description
         end
 
-        mirror_to_yaml(builder, mirror, "mirror")
-        mirror_to_yaml(builder, legacy, "legacy")
+        unless mirrors.empty?
+          builder.scalar "mirrors"
+          mirrors.to_yaml builder
+        end
 
         if archived?
           builder.scalar "state"
           state.to_yaml(builder)
-        end
-      end
-    end
-
-    private def mirror_to_yaml(builder, list, name)
-      unless list.empty?
-        builder.scalar name
-        builder.sequence do
-          list.each do |ref|
-            ref.to_json(builder)
-          end
         end
       end
     end
@@ -175,8 +165,7 @@ module Catalog
 
       description = nil
       repo_ref = nil
-      mirror = [] of Repo::Ref
-      legacy = [] of Repo::Ref
+      mirrors = [] of Mirror
       state = nil
 
       YAML::Schema::Core.each(node) do |key, value|
@@ -184,10 +173,18 @@ module Catalog
         case key
         when "description"
           description = String.new(ctx, value)
+        when "mirrors"
+          mirrors += Array(Mirror).new(ctx, value)
         when "mirror"
-          mirror = Array(Mirror).new(ctx, value).map(&.repo_ref)
+          # Legacy fields, use `mirrors` instead
+          # TODO: Remove compatibility later
+          mirrors += Array(Mirror).new(ctx, value)
         when "legacy"
-          legacy = Array(Mirror).new(ctx, value).map(&.repo_ref)
+          # Legacy fields, use `mirrors` instead
+          # TODO: Remove compatibility later
+          array = Array(Mirror).new(ctx, value)
+          array.map! { |mirror| mirror.role = :LEGACY; mirror }
+          mirrors += array
         when "state"
           unless value.is_a?(YAML::Nodes::Scalar) && (state = State.parse?(value.value))
             raise %(unexpected value for key `state` in Category::Entry mapping, allowed values: #{State.values})
@@ -206,7 +203,7 @@ module Catalog
       end
 
       state ||= State::ACTIVE
-      new(repo_ref, description, mirror, legacy, state)
+      new(repo_ref, description, mirrors, state)
     end
 
     def self.parse_repo_ref(ctx : YAML::ParseContext, key, value)
