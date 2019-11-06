@@ -589,7 +589,9 @@ CREATE TABLE public.repos (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     sync_failed_at timestamp with time zone,
-    CONSTRAINT repos_resolvers_service_url CHECK (((NOT (resolver = ANY (ARRAY['github'::public.repo_resolver, 'gitlab'::public.repo_resolver, 'bitbucket'::public.repo_resolver]))) OR ((url OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}/[A-Za-z0-9_\-.]{1,100}$'::public.citext) AND (url OPERATOR(public.!~~) '%.git'::public.citext))))
+    CONSTRAINT repos_obsolete_role_shard_id_null CHECK (((role <> 'obsolete'::public.repo_role) OR (shard_id IS NULL))),
+    CONSTRAINT repos_resolvers_service_url CHECK (((NOT (resolver = ANY (ARRAY['github'::public.repo_resolver, 'gitlab'::public.repo_resolver, 'bitbucket'::public.repo_resolver]))) OR ((url OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}/[A-Za-z0-9_\-.]{1,100}$'::public.citext) AND (url OPERATOR(public.!~~) '%.git'::public.citext)))),
+    CONSTRAINT repos_shard_id_null_role CHECK (((shard_id IS NOT NULL) OR (role = 'canonical'::public.repo_role) OR (role = 'obsolete'::public.repo_role)))
 );
 
 
@@ -1067,4 +1069,5 @@ ALTER TABLE ONLY public.shard_metrics
 INSERT INTO public.schema_migrations (version) VALUES
     ('1'),
     ('20191012163928'),
-    ('20191102100059');
+    ('20191102100059'),
+    ('20191106093828');
