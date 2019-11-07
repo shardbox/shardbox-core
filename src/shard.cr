@@ -1,9 +1,9 @@
 class Shard
   getter name : String
   getter qualifier : String
-  getter description : String?
+  property description : String?
   getter! id : Int64
-  getter archived_at : Time?
+  property archived_at : Time?
 
   def initialize(@name : String, @qualifier : String = "", @description : String? = nil, @archived_at : Time? = nil, @id : Int64? = nil)
   end

@@ -484,8 +484,10 @@ describe Service::ImportCatalog do
 
         bar_repo_id = db.get_repo_id("git", "foo/bar")
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"update_shard:archived", nil, foo_id, nil},
           {"import_catalog:repo:created", bar_repo_id, nil, nil},
           {"import_shard:created", bar_repo_id, bar_id, nil},
+          {"update_shard:unarchived", nil, baz_id, nil},
         ]
         import_stats.should eq({
           "new_categories"     => ["category"],
