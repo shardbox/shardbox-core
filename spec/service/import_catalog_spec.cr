@@ -34,6 +34,8 @@ private def shard_categorizations(db)
       (SELECT array_agg(categories.slug::text ORDER BY slug) FROM categories WHERE shards.categories @> ARRAY[categories.id])
     FROM
       shards
+    WHERE
+      archived_at IS NULL OR categories <> '{}'
     ORDER BY
       name, qualifier
     SQL
@@ -347,7 +349,7 @@ describe Service::ImportCatalog do
     end
   end
 
-  it "deletes unreferenced shard" do
+  it "archives unreferenced shard" do
     with_tempdir("import_catalog-mirrors") do |catalog_path|
       File.write(File.join(catalog_path, "category.yml"), <<-YAML)
         name: Category
@@ -360,7 +362,7 @@ describe Service::ImportCatalog do
         Factory.create_category(db, "bar")
         bar_shard_id = Factory.create_shard(db, "bar", categories: %w[bar])
         Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_shard_id)
-        Factory.create_repo(db, Repo::Ref.new("git", "foo/bar"), shard_id: bar_shard_id)
+        bar_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/bar"), shard_id: bar_shard_id)
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
@@ -377,7 +379,10 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
         ]
-        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.empty?.should be_true
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_catalog:repo:obsoleted", bar_repo_id, bar_shard_id, nil},
+          {"import_catalog:shard:archived", nil, bar_shard_id, nil},
+        ]
 
         import_stats.should eq({
           "new_categories"     => ["category"],
@@ -402,7 +407,7 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("git", "baz/baz"), shard_id: baz_id)
         Factory.create_category(db, "foo")
         qux_id = Factory.create_shard(db, "qux", categories: %w[foo])
-        Factory.create_repo(db, Repo::Ref.new("git", "qux/qux"), shard_id: qux_id)
+        qux_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "qux/qux"), shard_id: qux_id)
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
@@ -422,6 +427,8 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", foo_repo_id, nil, nil},
           {"import_shard:created", foo_repo_id, db.get_shard_id("foo"), nil},
+          {"import_catalog:repo:obsoleted", qux_repo_id, qux_id, nil},
+          {"import_catalog:shard:archived", nil, qux_id, nil},
         ]
         import_stats.should eq({
           "new_categories"     => ["category"],
@@ -489,7 +496,7 @@ describe Service::ImportCatalog do
     end
   end
 
-  it "deletes unreferenced shard and moves repo to mirror" do
+  it "archives unreferenced shard and moves repo to mirror" do
     with_tempdir("import_catalog-mirrors") do |catalog_path|
       File.write(File.join(catalog_path, "category.yml"), <<-YAML)
         name: Category
@@ -521,6 +528,16 @@ describe Service::ImportCatalog do
           {"foo", "", ["category"]},
         ]
 
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {
+            "import_catalog:mirror:switched", db.get_repo_id("git", "foo/bar"), foo_shard_id, {
+              "role"         => "mirror",
+              "old_role"     => "canonical",
+              "old_shard_id" => bar_shard_id,
+            },
+          },
+          {"import_catalog:shard:archived", nil, bar_shard_id, nil},
+        ]
         import_stats.should eq({
           "new_categories"     => ["category"],
           "deleted_categories" => [] of String,
@@ -530,15 +547,15 @@ describe Service::ImportCatalog do
     end
   end
 
-  it "#delete_unreferenced_shards" do
+  it "#archive_unreferenced_shards" do
     transaction do |db|
       bar_id = Factory.create_shard(db, "bar")
       Factory.create_release(db, bar_id)
       foo_id = Factory.create_shard(db, "foo")
-      Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id)
+      foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id)
 
       service = Service::ImportCatalog.new("")
-      service.delete_unreferenced_shards(db)
+      service.archive_unreferenced_shards(db)
 
       db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
         {foo_id, "foo"},
@@ -550,9 +567,13 @@ describe Service::ImportCatalog do
         FROM
           releases
         SQL
-      releases_count.should eq 0
+      # Doesn't delete releases
+      releases_count.should eq 1
       shard_categorizations(db).should eq [
         {"foo", "", nil},
+      ]
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"import_catalog:shard:archived", nil, bar_id, nil},
       ]
     end
   end

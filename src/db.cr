@@ -78,6 +78,8 @@ class ShardsDB
         id, name::text, qualifier::text, description, archived_at
       FROM
         shards
+      WHERE
+        archived_at IS NULL OR categories <> '{}'
       SQL
 
     results.map do |result|

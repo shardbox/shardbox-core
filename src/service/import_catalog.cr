@@ -45,7 +45,7 @@ struct Service::ImportCatalog
     end
 
     obsolete_removed_repos(db, entries.map &.repo_ref)
-    delete_unreferenced_shards(db)
+    archive_unreferenced_shards(db)
   end
 
   def import_repo(db, entry, entries)
@@ -258,9 +258,11 @@ struct Service::ImportCatalog
     end
   end
 
-  def delete_unreferenced_shards(db)
-    db.connection.exec <<-SQL
-      DELETE FROM
+  def archive_unreferenced_shards(db)
+    unreferenced_shards = db.connection.query_all <<-SQL, as: Int64
+      SELECT
+        id
+      FROM
         shards
       WHERE NOT EXISTS (
         SELECT 1
@@ -269,6 +271,19 @@ struct Service::ImportCatalog
         WHERE shard_id = shards.id
         )
       SQL
+
+    unreferenced_shards.each do |shard_id|
+      db.log_activity("import_catalog:shard:archived", nil, shard_id)
+      db.connection.exec <<-SQL, shard_id
+        UPDATE
+          shards
+        SET
+          archived_at = NOW(),
+          categories = '{}'
+        WHERE
+          id = $1
+        SQL
+    end
   end
 
   private def create_shard(db, entry, repo_id)
@@ -298,34 +313,38 @@ struct Service::ImportCatalog
     #    inserted from a dependency and waits for sync. After that it would meet
     #    condition 2).
 
-    db.connection.exec <<-SQL, resolvers, urls
-      UPDATE
+    dangling_repos = db.connection.query_all <<-SQL, resolvers, urls, as: {Int64, Int64?}
+      WITH valid_refs AS (
+        SELECT *
+        FROM
+          unnest($1::repo_resolver[], $2::citext[]) AS valid_refs (resolver, url)
+      )
+      SELECT
+        repos.id, repos.shard_id
+      FROM
         repos
-      SET
-        role = 'obsolete',
-        shard_id = NULL
+      LEFT JOIN
+        valid_refs v ON v.resolver = repos.resolver AND v.url = repos.url
+      JOIN
+        shards ON repos.shard_id = shards.id
       WHERE
-        id IN
-          (
-            WITH valid_refs AS (
-              SELECT *
-              FROM
-                unnest($1::repo_resolver[], $2::citext[]) AS valid_refs (resolver, url)
-            )
-            SELECT
-              repos.id
-            FROM
-              repos
-            LEFT JOIN
-              valid_refs v ON v.resolver = repos.resolver AND v.url = repos.url
-            JOIN
-              shards ON repos.shard_id = shards.id
-            WHERE
-              repos.role = 'canonical' AND
-              v.resolver IS NULL AND
-              array_length(shards.categories, 1) > 0
-          )
+        repos.role = 'canonical' AND
+        v.resolver IS NULL AND
+        array_length(shards.categories, 1) > 0
       SQL
+
+    dangling_repos.each do |repo_id, shard_id|
+      db.log_activity "import_catalog:repo:obsoleted", repo_id, shard_id
+      db.connection.exec <<-SQL, repo_id
+        UPDATE
+          repos
+        SET
+          role = 'obsolete',
+          shard_id = NULL
+        WHERE
+          id = $1
+        SQL
+    end
   end
 
   def update_categories(db, categories)
