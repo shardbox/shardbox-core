@@ -7,7 +7,9 @@ module Catalog
       raise "Can't read catalog at #{catalog_location}, directory does not exist."
     end
     found_a_file = false
-    Dir.glob(File.join(catalog_location, "*.yml")).each do |filename|
+
+    filenames = Dir.glob(File.join(catalog_location, "*.yml")).sort
+    filenames.each do |filename|
       found_a_file = true
       File.open(filename) do |file|
         begin
