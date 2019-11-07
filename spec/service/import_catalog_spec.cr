@@ -470,10 +470,10 @@ describe Service::ImportCatalog do
           {"git", "foo/qux", "canonical", qux_id},
         ]
 
-        db.find_shard(foo_id).archived_at.not_nil!.should be_close(Time.utc, 1.second)
-        db.find_shard(bar_id).archived_at.not_nil!.should be_close(Time.utc, 1.second)
-        db.find_shard(baz_id).archived_at.should be_nil
-        db.find_shard(qux_id).archived_at.should eq qux_archived_at
+        db.get_shard(foo_id).archived_at.not_nil!.should be_close(Time.utc, 1.second)
+        db.get_shard(bar_id).archived_at.not_nil!.should be_close(Time.utc, 1.second)
+        db.get_shard(baz_id).archived_at.should be_nil
+        db.get_shard(qux_id).archived_at.should eq qux_archived_at
 
         bar_repo_id = db.get_repo_id("git", "foo/bar")
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [

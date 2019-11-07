@@ -58,10 +58,12 @@ class ShardsDB
       SQL
   end
 
-  def find_shard(shard_id : Int64)
+  def get_shard(shard_id : Int64)
     result = connection.query_one <<-SQL, shard_id, as: {Int64, String, String, String?, Time?}
-      SELECT id, name::text, qualifier::text, description, archived_at
-      FROM shards
+      SELECT
+        id, name::text, qualifier::text, description, archived_at
+      FROM
+        shards
       WHERE
         id = $1
       SQL
