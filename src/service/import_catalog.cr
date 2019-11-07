@@ -116,6 +116,7 @@ struct Service::ImportCatalog
             # listed as legacy in the catalog
             set_role(db, canonical_repo, "obsolete")
             set_role(db, repo_id, "canonical")
+            db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo_id, shard_id: shard_id, metadata: {"old_repo" => canonical_repo}
             update_shard(db, entry, shard_id)
             # send_notification("obsolete repo")
           end
@@ -190,19 +191,10 @@ struct Service::ImportCatalog
     end
 
     new_mirrors.each do |mirror|
-      result = db.connection.query_one? <<-SQL, mirror.repo_ref.resolver, mirror.repo_ref.url, as: {Int64, String, Int64?}
-        SELECT
-          id, role::text, shard_id
-        FROM
-          repos
-        WHERE
-          resolver = $1 AND url = $2
-        SQL
+      repo = db.get_repo?(mirror.repo_ref)
 
-      if result
-        repo_id, old_role, old_shard_id = result
-
-        db.connection.exec <<-SQL, repo_id, mirror.role, shard_id
+      if repo
+        db.connection.exec <<-SQL, repo.id, mirror.role, shard_id
           UPDATE
             repos
           SET
@@ -211,37 +203,58 @@ struct Service::ImportCatalog
           WHERE
             id = $1
           SQL
+
+        db.log_activity "import_catalog:mirror:switched", repo_id: repo.id, shard_id: shard_id, metadata: {
+          "role"         => mirror.role,
+          "old_shard_id" => repo.shard_id,
+          "old_role"     => repo.role,
+        }
       else
-        db.connection.exec(<<-SQL, mirror.repo_ref.resolver, mirror.repo_ref.url, mirror.role, shard_id)
+        repo_id = db.connection.query_one(<<-SQL, mirror.repo_ref.resolver, mirror.repo_ref.url, mirror.role, shard_id, as: Int64)
           INSERT INTO repos
             (resolver, url, role, shard_id)
           VALUES
             ($1, $2, $3, $4)
+          RETURNING id
           SQL
+
+        db.log_activity "import_catalog:mirror:created", repo_id: repo_id, shard_id: shard_id, metadata: {
+          "role" => mirror.role,
+        }
       end
     end
 
     removed_mirrors.each do |mirror|
-      db.connection.exec <<-SQL, mirror.repo_ref.resolver, mirror.repo_ref.url, shard_id
+      repo = db.get_repo(mirror.repo_ref)
+      db.connection.exec <<-SQL, repo.id
         UPDATE
           repos
         SET
           role = 'obsolete',
           shard_id = NULL
         WHERE
-          resolver = $1 AND url = $2 AND shard_id = $3
+          id = $1
         SQL
+
+      db.log_activity "import_catalog:mirror:obsoleted", repo_id: repo.id, shard_id: shard_id, metadata: {
+        "old_role" => repo.role,
+      }
     end
 
     updated_mirrors.each do |mirror|
-      db.connection.exec <<-SQL, mirror.repo_ref.resolver, mirror.repo_ref.url, shard_id, mirror.role
+      repo = db.get_repo(mirror.repo_ref)
+      db.connection.exec <<-SQL, repo.id, mirror.role
         UPDATE
           repos
         SET
-          role = $4
+          role = $2
         WHERE
-          resolver = $1 AND url = $2 AND shard_id = $3
+          id = $1
         SQL
+      db.log_activity "import_catalog:mirror:role_changed", repo_id: repo.id, shard_id: shard_id, metadata: {
+        "role"     => mirror.role,
+        "old_role" => repo.role,
+      }
     end
   end
 
