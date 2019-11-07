@@ -70,6 +70,20 @@ class ShardsDB
     Shard.new(name, qualifier, description, archived_at, id: id)
   end
 
+  def get_shards
+    results = connection.query_all <<-SQL, as: {Int64, String, String, String?, Time?}
+      SELECT
+        id, name::text, qualifier::text, description, archived_at
+      FROM
+        shards
+      SQL
+
+    results.map do |result|
+      id, name, qualifier, description, archived_at = result
+      Shard.new(name, qualifier, description, archived_at, id: id)
+    end
+  end
+
   def get_shard_id?(name : String, qualifier : String = "")
     connection.query_one? <<-SQL, name, qualifier, as: {Int64}
       SELECT id

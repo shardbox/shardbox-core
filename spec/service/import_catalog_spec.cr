@@ -371,14 +371,7 @@ describe Service::ImportCatalog do
           {"git", "foo/foo", "canonical", foo_shard_id},
         ]
 
-        results = db.connection.query_all <<-SQL, as: {Int64, String}
-          SELECT
-            id, name::text
-          FROM
-            shards
-          ORDER BY name
-          SQL
-        results.should eq [
+        db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
           {foo_shard_id, "foo"},
         ]
         shard_categorizations(db).should eq [
@@ -521,14 +514,7 @@ describe Service::ImportCatalog do
           {"git", "foo/foo", "canonical", foo_shard_id},
         ]
 
-        results = db.connection.query_all <<-SQL, as: {Int64, String}
-          SELECT
-            id, name::text
-          FROM
-            shards
-          ORDER BY name
-          SQL
-        results.should eq [
+        db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
           {foo_shard_id, "foo"},
         ]
         shard_categorizations(db).should eq [
@@ -554,13 +540,7 @@ describe Service::ImportCatalog do
       service = Service::ImportCatalog.new("")
       service.delete_unreferenced_shards(db)
 
-      results = db.connection.query_all <<-SQL, as: {Int64, String}
-        SELECT
-          id, name::text
-        FROM
-          shards
-        SQL
-      results.should eq [
+      db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
         {foo_id, "foo"},
       ]
 
