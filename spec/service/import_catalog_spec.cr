@@ -64,7 +64,7 @@ describe Service::ImportCatalog do
       transaction do |db|
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         shard_id = db.get_shard_id("foo")
         persisted_repos(db).should eq [
@@ -78,14 +78,12 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", repo_id, nil, nil},
           {"import_shard:created", repo_id, shard_id, nil},
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["foo"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
         ]
+        import_stats.should eq({
+          "new_categories"     => ["foo"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -109,7 +107,7 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("github", "foo/foo"))
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         persisted_repos(db).should eq [
           {"github", "foo/foo", "canonical", db.get_shard_id("foo")},
@@ -130,14 +128,12 @@ describe Service::ImportCatalog do
           {"import_catalog:repo:created", bar_repo_id, nil, nil},
           {"import_shard:created", bar_repo_id, db.get_shard_id("bar"), nil},
           {"import_shard:created", db.get_repo_id("github", "foo/foo"), db.get_shard_id("foo"), nil},
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["foo", "bar"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
         ]
+        import_stats.should eq({
+          "new_categories"     => ["foo", "bar"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -164,7 +160,7 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("git", "bar/foo"))
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         foo_id = db.get_shard_id("foo")
         bar_id = db.get_shard_id("bar")
@@ -189,14 +185,12 @@ describe Service::ImportCatalog do
           {"import_shard:created", foo_repo_id, foo_id, nil},
           {"import_catalog:repo:created", bar_repo_id, nil, nil},
           {"import_shard:created", bar_repo_id, bar_id, nil},
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
         ]
+        import_stats.should eq({
+          "new_categories"     => ["category"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -225,7 +219,7 @@ describe Service::ImportCatalog do
       transaction do |db|
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         shard_id = db.get_shard_id("foo")
 
@@ -243,14 +237,12 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", foo_repo_id, nil, nil},
           {"import_shard:created", foo_repo_id, shard_id, nil},
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category1", "category2"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
         ]
+        import_stats.should eq({
+          "new_categories"     => ["category1", "category2"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -275,7 +267,7 @@ describe Service::ImportCatalog do
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         persisted_repos(db).should eq [
           {"git", "bar/bar", "obsolete", nil},
@@ -288,15 +280,13 @@ describe Service::ImportCatalog do
           {"foo", "", ["category"]},
         ]
 
-        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
-        ]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.empty?.should be_true
+
+        import_stats.should eq({
+          "new_categories"     => ["category"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -317,7 +307,7 @@ describe Service::ImportCatalog do
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         bar_shard_id = db.get_shard_id("bar")
         persisted_repos(db).should eq [
@@ -332,14 +322,12 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:reactivated", foo_repo_id, nil, nil},
           {"import_shard:created", foo_repo_id, bar_shard_id, nil},
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
         ]
+        import_stats.should eq({
+          "new_categories"     => ["category"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -361,7 +349,7 @@ describe Service::ImportCatalog do
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         persisted_repos(db).should eq [
           {"git", "foo/bar", "obsolete", nil},
@@ -381,15 +369,13 @@ describe Service::ImportCatalog do
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
         ]
-        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category"],
-              "deleted_categories" => ["bar"],
-              "updated_categories" => [] of String,
-            },
-          },
-        ]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.empty?.should be_true
+
+        import_stats.should eq({
+          "new_categories"     => ["category"],
+          "deleted_categories" => ["bar"],
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -412,7 +398,7 @@ describe Service::ImportCatalog do
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         persisted_repos(db).should eq [
           {"git", "bar/bar", "canonical", nil},
@@ -428,14 +414,12 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", foo_repo_id, nil, nil},
           {"import_shard:created", foo_repo_id, db.get_shard_id("foo"), nil},
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category"],
-              "deleted_categories" => ["foo"],
-              "updated_categories" => [] of String,
-            },
-          },
         ]
+        import_stats.should eq({
+          "new_categories"     => ["category"],
+          "deleted_categories" => ["foo"],
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -468,7 +452,7 @@ describe Service::ImportCatalog do
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         bar_id = db.get_shard_id("bar")
         persisted_repos(db).should eq [
@@ -487,14 +471,12 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", bar_repo_id, nil, nil},
           {"import_shard:created", bar_repo_id, bar_id, nil},
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
         ]
+        import_stats.should eq({
+          "new_categories"     => ["category"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -517,7 +499,7 @@ describe Service::ImportCatalog do
 
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         persisted_repos(db).should eq [
           {"git", "foo/bar", "mirror", foo_shard_id},
@@ -538,15 +520,11 @@ describe Service::ImportCatalog do
           {"foo", "", ["category"]},
         ]
 
-        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-          {
-            "import_catalog:done", nil, nil, {
-              "new_categories"     => ["category"],
-              "deleted_categories" => [] of String,
-              "updated_categories" => [] of String,
-            },
-          },
-        ]
+        import_stats.should eq({
+          "new_categories"     => ["category"],
+          "deleted_categories" => [] of String,
+          "updated_categories" => [] of String,
+        })
       end
     end
   end
@@ -600,7 +578,7 @@ describe Service::ImportCatalog do
       transaction do |db|
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
 
         foo_id = db.get_shard_id("foo")
         bar_id = db.get_shard_id("bar")
@@ -635,7 +613,7 @@ describe Service::ImportCatalog do
       transaction do |db|
         service = Service::ImportCatalog.new(catalog_path)
         service.mock_create_shard = true
-        service.import_catalog(db)
+        import_stats = service.import_catalog(db)
         db.all_categories.map { |cat| {cat.name, cat.description} }.should eq [{"Bar", "bardesc"}, {"Foo", "foodesc"}]
 
         foo_id = db.get_shard_id("foo")
@@ -648,6 +626,11 @@ describe Service::ImportCatalog do
           {"bar", "", ["bar"]},
           {"foo", "", ["foo"]},
         ]
+        import_stats.should eq({
+          "deleted_categories" => [] of String,
+          "new_categories"     => ["foo", "bar"],
+          "updated_categories" => [] of String,
+        })
       end
     end
   end

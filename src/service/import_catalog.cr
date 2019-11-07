@@ -11,7 +11,9 @@ struct Service::ImportCatalog
 
   def perform
     ShardsDB.transaction do |db|
-      import_catalog(db)
+      import_stats = import_catalog(db)
+
+      db.log_activity "import_catalog:done", metadata: import_stats
     end
   rescue exc
     begin
@@ -34,7 +36,7 @@ struct Service::ImportCatalog
 
     import_repos(db, entries)
 
-    db.log_activity "import_catalog:done", metadata: category_stats
+    category_stats
   end
 
   def import_repos(db, entries)
