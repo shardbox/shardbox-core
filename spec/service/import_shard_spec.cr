@@ -1,6 +1,7 @@
 require "spec"
 require "../support/raven"
 require "../../src/service/import_shard"
+require "../../src/catalog"
 require "../support/db"
 require "../support/jobs"
 require "../support/mock_resolver"
@@ -61,6 +62,11 @@ describe Service::ImportShard do
       shard_categorizations(db).should eq [
         {"test", "", nil},
       ]
+
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"import_shard:repo:created", repo_id, nil, nil},
+        {"import_shard:created", repo_id, shard_id, nil},
+      ]
     end
   end
 
@@ -78,6 +84,12 @@ describe Service::ImportShard do
 
       shard_categorizations(db).should eq [
         {"test", "", ["foo"]},
+      ]
+
+      repo_id = db.find_repo(repo_ref).id
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"import_shard:repo:created", repo_id, nil, nil},
+        {"import_shard:created", repo_id, shard_id, nil},
       ]
     end
   end
@@ -151,6 +163,13 @@ describe Service::ImportShard do
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
       find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]
+
+      repo_id = db.find_repo(repo_ref).id
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"update_shard:description_changed", nil, shard_id, {
+          "old_value" => "foo description",
+        }},
+      ]
     end
   end
 
@@ -168,6 +187,10 @@ describe Service::ImportShard do
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
       find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]
+
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"import_shard:created", repo_id, shard_id, nil},
+      ]
     end
   end
 

@@ -3,6 +3,7 @@ require "../db"
 require "../repo"
 require "../repo/resolver"
 require "./sync_repo"
+require "./update_shard"
 require "../shard"
 
 struct Service::ImportShard
@@ -71,7 +72,7 @@ struct Service::ImportShard
   end
 
   def create_shard(db, repo_id, shard_name, entry)
-    shard_id = find_or_create_shard_by_name(db, shard_name, entry)
+    shard_id = find_or_create_shard_by_name(db, repo_id, shard_name, entry)
 
     if (categories = entry.try(&.categories)) && !categories.empty?
       db.update_categorization(shard_id, categories)
@@ -88,12 +89,10 @@ struct Service::ImportShard
         id = $1 AND shard_id IS NULL
       SQL
 
-    db.log_activity "import_shard:created", repo_id: repo_id, shard_id: shard_id
-
     shard_id
   end
 
-  def find_or_create_shard_by_name(db, shard_name, entry) : Int64
+  def find_or_create_shard_by_name(db, repo_id, shard_name, entry) : Int64
     if shard_id = db.get_shard_id?(shard_name, nil)
       # There is already a shard by that name. Need to check if it's the same one.
 
@@ -122,13 +121,16 @@ struct Service::ImportShard
 
         # create shard with qualifier
         qualifier = find_qualifier(db, shard_name)
-
-        return db.create_shard build_shard(shard_name, qualifier, entry)
       end
     else
-      # No other shard by that name, let's create it:
-      return db.create_shard build_shard(shard_name, "", entry)
+      # No other shard by that name, let's create it
+      qualifier = ""
     end
+
+    shard_id = db.create_shard build_shard(shard_name, qualifier, entry)
+    db.log_activity "import_shard:created", repo_id: repo_id, shard_id: shard_id
+
+    shard_id
   end
 
   private def build_shard(shard_name, qualifier, entry)
@@ -145,7 +147,9 @@ struct Service::ImportShard
       repo.id
     else
       repo = Repo.new(@repo_ref, nil, :canonical)
-      db.create_repo(repo)
+      repo_id = db.create_repo(repo)
+      db.log_activity "import_shard:repo:created", repo_id
+      repo_id
     end
   end
 
