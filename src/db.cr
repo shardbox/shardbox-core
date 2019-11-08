@@ -40,7 +40,7 @@ class ShardsDB
   getter connection
 
   def last_repo_sync : Time?
-    connection.query_one?("SELECT MAX(created_at) FROM sync_log", as: Time)
+    connection.query_one?("SELECT MAX(created_at) FROM activity_log", as: Time)
   end
 
   def last_metrics_calc : Time?
@@ -346,15 +346,15 @@ class ShardsDB
   end
 
   # LOGGING
-  def sync_log(repo_id : Int64, event : String, metadata)
-    connection.exec <<-SQL, repo_id, event, metadata.to_json
-        INSERT INTO sync_log
+  def log_activity(event : String, repo_id : Int64? = nil, shard_id : Int64? = nil, metadata = nil)
+    connection.exec <<-SQL, event, repo_id, shard_id, metadata.to_json
+        INSERT INTO activity_log
         (
-          repo_id, event, metadata
+          event, repo_id, shard_id, metadata
         )
         VALUES
         (
-          $1, $2, $3
+          $1, $2, $3, $4
         )
       SQL
   end

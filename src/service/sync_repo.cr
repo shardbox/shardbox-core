@@ -117,7 +117,7 @@ struct Service::SyncRepo
         id = $1
       SQL
 
-    db.sync_log repo.id, "synced", nil
+    db.log_activity "sync_repo:synced", repo_id: repo.id
   end
 
   def self.sync_failed(db, repo : Repo, event, exc = nil)
@@ -137,7 +137,7 @@ struct Service::SyncRepo
         "message"   => exc.message,
       }
     end
-    db.sync_log repo.id, event, metadata
+    db.log_activity "sync_repo:#{event}", repo_id: repo.id, metadata: metadata
 
     Raven.send_event Raven::Event.new(
       level: :warning,

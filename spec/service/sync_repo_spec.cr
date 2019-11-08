@@ -4,12 +4,12 @@ require "../support/db"
 require "../support/mock_resolver"
 require "../support/raven"
 
-def last_synclog_entry(db)
+def last_activity(db)
   db.connection.query_one? <<-SQL, as: {Int64, String}
     SELECT
       repo_id, event, created_at
     FROM
-      sync_log
+      activity_log
     ORDER BY created_at DESC
     LIMIT 1
     SQL
@@ -26,7 +26,7 @@ describe Service::SyncRepo do
 
         resolver = Repo::Resolver.new(MockResolver.new, repo_ref)
 
-        last_synclog_entry(db).should eq(nil)
+        last_activity(db).should eq(nil)
 
         service.sync_repo(db, resolver)
 
@@ -34,9 +34,7 @@ describe Service::SyncRepo do
         repo.sync_failed_at.should be_nil
         repo.synced_at.should_not be_nil
 
-        last_synclog_entry(db).should eq({repo_id, "synced"})
-
-        db.connection.exec("TRUNCATE sync_log")
+        last_activity(db).should eq({repo_id, "sync_repo:synced"})
 
         service.sync_repo(db, resolver)
       end
@@ -55,7 +53,7 @@ describe Service::SyncRepo do
         repo.sync_failed_at.should_not be_nil
         repo.synced_at.should be_nil
 
-        last_synclog_entry(db).should eq({repo_id, "fetch_spec_failed"})
+        last_activity(db).should eq({repo_id, "sync_repo:fetch_spec_failed"})
       end
     end
   end

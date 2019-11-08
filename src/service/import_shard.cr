@@ -87,7 +87,7 @@ struct Service::ImportShard
         id = $1 AND shard_id IS NULL
       SQL
 
-    db.sync_log repo_id, "synced", {"action" => "new_shard"}
+    db.log_activity "sync_repo:synced", repo_id: repo_id, metadata: {"action" => "import_shard"}
 
     shard_id
   end
@@ -156,7 +156,7 @@ struct Service::ImportShard
     when "git"
       qualifier_parts = [url.host, File.dirname(url.path || "").gsub(/[^A-Za-z_\-.]+/, '-')].compact
     else
-      raise "Unregcognized resolver #{@repo_ref.resolver}"
+      raise "Unrecognized resolver #{@repo_ref.resolver}"
     end
 
     found = db.connection.query_one <<-SQL, shard_name, qualifier_parts[0], as: Int64
