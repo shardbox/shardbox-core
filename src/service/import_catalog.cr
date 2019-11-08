@@ -404,7 +404,7 @@ struct Service::ImportCatalog
   def self.checkout_catalog(uri, checkout_path)
     if File.directory?(checkout_path)
       if Process.run("git", ["-C", checkout_path.to_s, "pull", uri.to_s], output: :inherit, error: :inherit).success?
-        return checkout_path.to_s
+        return Path[checkout_path, "catalog"].to_s
       else
         abort "Can't checkout catalog from #{uri}: checkout path #{checkout_path.inspect} exists, but is not a git repository"
       end
