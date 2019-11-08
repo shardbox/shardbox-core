@@ -72,6 +72,7 @@ module Catalog
 
   class Category
     include YAML::Serializable
+    include YAML::Serializable::Strict
 
     getter name : String
 
