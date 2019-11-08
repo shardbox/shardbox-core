@@ -11,20 +11,20 @@ module Catalog
     entries = {} of Repo::Ref => Entry
     mirrors = Set(Repo::Ref).new
 
-    each_category(catalog_location) do |yaml_category, slug|
-      category = ::Category.new(slug, yaml_category.name, yaml_category.description)
+    each_category(catalog_location) do |yaml_category|
+      category = ::Category.new(yaml_category.slug, yaml_category.name, yaml_category.description)
       categories[category.slug] = category
       yaml_category.shards.each do |shard|
         if stored_entry = entries[shard.repo_ref]?
           stored_entry.mirrors.concat(shard.mirrors)
-          stored_entry.categories << slug
+          stored_entry.categories << yaml_category.slug
         else
-          shard.categories << slug
+          shard.categories << yaml_category.slug
           entries[shard.repo_ref] = shard
         end
 
         if duplicate_repo = duplicate_mirror?(shard, mirrors, entries)
-          raise Error.new("duplicate mirror #{duplicate_repo} in #{slug}")
+          raise Error.new("duplicate mirror #{duplicate_repo} in #{yaml_category.slug}")
         end
       end
     end
@@ -60,7 +60,9 @@ module Catalog
           raise Error.new("Failure reading catalog #{filename}", cause: exc)
         end
 
-        yield category, File.basename(filename, ".yml")
+        category.slug = File.basename(filename, ".yml")
+
+        yield category
       end
     end
     unless found_a_file
@@ -76,6 +78,9 @@ module Catalog
     getter description : String?
 
     getter shards : Array(Entry) = [] of Catalog::Entry
+
+    @[YAML::Field(ignore: true)]
+    property! slug : String?
 
     def initialize(@name : String, @description : String? = nil)
     end
