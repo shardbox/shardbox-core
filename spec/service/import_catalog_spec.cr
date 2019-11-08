@@ -577,39 +577,6 @@ describe Service::ImportCatalog do
     end
   end
 
-  it "handles duplicate mirrors" do
-    with_tempdir("import_catalog-mirrors") do |catalog_path|
-      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
-        name: Category
-        shards:
-        - git: foo/foo
-          mirrors:
-          - git: baz/baz
-        - git: foo/bar
-          mirrors:
-          - git: baz/baz
-        YAML
-
-      transaction do |db|
-        service = Service::ImportCatalog.new(catalog_path)
-        service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
-
-        foo_id = db.get_shard_id("foo")
-        bar_id = db.get_shard_id("bar")
-        persisted_repos(db).should eq [
-          {"git", "baz/baz", "mirror", bar_id},
-          {"git", "foo/bar", "canonical", bar_id},
-          {"git", "foo/foo", "canonical", foo_id},
-        ]
-        shard_categorizations(db).should eq [
-          {"bar", "", ["category"]},
-          {"foo", "", ["category"]},
-        ]
-      end
-    end
-  end
-
   it "creates categories" do
     with_tempdir("import_catalog") do |catalog_path|
       File.write(File.join(catalog_path, "bar.yml"), <<-YAML)

@@ -27,7 +27,7 @@ struct Service::ImportCatalog
   end
 
   def import_catalog(db)
-    categories, entries = read_catalog
+    categories, entries = Catalog.read(@catalog_location)
 
     category_stats = update_categories(db, categories)
 
@@ -326,27 +326,6 @@ struct Service::ImportCatalog
               array_length(shards.categories, 1) > 0
           )
       SQL
-  end
-
-  def read_catalog
-    categories = Hash(String, Category).new
-    repos = {} of Repo::Ref => Catalog::Entry
-
-    Catalog.each_category(@catalog_location) do |yaml_category, slug|
-      category = Category.new(slug, yaml_category.name, yaml_category.description)
-      categories[category.slug] = category
-      yaml_category.shards.each do |shard|
-        if stored_entry = repos[shard.repo_ref]?
-          stored_entry.mirrors.concat(shard.mirrors)
-          stored_entry.categories << slug
-        else
-          shard.categories << slug
-          repos[shard.repo_ref] = shard
-        end
-      end
-    end
-
-    return categories, repos.values
   end
 
   def update_categories(db, categories)
