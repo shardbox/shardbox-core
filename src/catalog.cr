@@ -1,19 +1,63 @@
 require "yaml"
 require "./repo"
+require "./category"
 
 module Catalog
+  class Error < Exception
+  end
+
+  def self.read(catalog_location)
+    categories = Hash(String, ::Category).new
+    entries = {} of Repo::Ref => Entry
+    mirrors = Set(Repo::Ref).new
+
+    each_category(catalog_location) do |yaml_category, slug|
+      category = ::Category.new(slug, yaml_category.name, yaml_category.description)
+      categories[category.slug] = category
+      yaml_category.shards.each do |shard|
+        if stored_entry = entries[shard.repo_ref]?
+          stored_entry.mirrors.concat(shard.mirrors)
+          stored_entry.categories << slug
+        else
+          shard.categories << slug
+          entries[shard.repo_ref] = shard
+        end
+
+        if duplicate_repo = duplicate_mirror?(shard, mirrors, entries)
+          raise Error.new("duplicate mirror #{duplicate_repo} in #{slug}")
+        end
+      end
+    end
+
+    return categories, entries.values
+  end
+
+  def self.duplicate_mirror?(shard, mirrors, entries)
+    return shard.repo_ref if mirrors.includes?(shard.repo_ref)
+
+    shard.mirrors.each do |mirror|
+      if entries.has_key?(mirror.repo_ref) || !mirrors.add?(mirror.repo_ref)
+        return mirror.repo_ref
+      end
+    end
+
+    nil
+  end
+
   def self.each_category(catalog_location)
     unless File.directory?(catalog_location)
-      raise "Can't read catalog at #{catalog_location}, directory does not exist."
+      raise Error.new "Can't read catalog at #{catalog_location}, directory does not exist."
     end
     found_a_file = false
-    Dir.glob(File.join(catalog_location, "*.yml")).each do |filename|
+
+    filenames = Dir.glob(File.join(catalog_location, "*.yml")).sort
+    filenames.each do |filename|
       found_a_file = true
       File.open(filename) do |file|
         begin
           category = Category.from_yaml(file)
         rescue exc
-          raise Exception.new("Failure reading catalog #{filename}", cause: exc)
+          raise Error.new("Failure reading catalog #{filename}", cause: exc)
         end
 
         yield category, File.basename(filename, ".yml")

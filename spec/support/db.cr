@@ -15,3 +15,18 @@ def transaction
     transaction.rollback
   end
 end
+
+class ShardsDB
+  def last_repo_activity
+    connection.query_one? <<-SQL, as: {Int64, String}
+      SELECT
+        repo_id, event, created_at
+      FROM
+        activity_log
+      WHERE
+        repo_id IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+      SQL
+  end
+end

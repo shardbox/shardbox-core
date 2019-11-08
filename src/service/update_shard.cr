@@ -20,25 +20,29 @@ struct Service::UpdateShard
   def update_shard(db, shard_id, entry)
     return unless entry
 
-    # Update metadata
-    archived_at = nil
-    if entry.try(&.archived?)
-      archived_at = Time.utc
+    shard = db.get_shard(shard_id)
+
+    if shard.archived? && !entry.archived?
+      # unarchive
+      shard.archived_at = nil
+      db.log_activity("update_shard:unarchived", nil, shard_id)
+    elsif !shard.archived? && entry.archived?
+      # archive
+      shard.archived_at = Time.utc
+      db.log_activity("update_shard:archived", nil, shard_id)
     end
 
-    db.connection.exec <<-SQL, shard_id, entry.try(&.description), archived_at
+    if entry.description != shard.description
+      db.log_activity("update_shard:description_changed", nil, shard_id, metadata: {"old_value": shard.description})
+      shard.description = entry.description
+    end
+
+    db.connection.exec <<-SQL, shard_id, shard.description, shard.archived_at
       UPDATE
         shards
       SET
         description = $2,
-        -- don't override archived_at if already set
-        --    old: TS1   TS1   NIL   NIL
-        --    new: TS2   NIL   TS2   NIL
-        -- result: TS1   NIL   TS2   NIL
-        archived_at = CASE
-          WHEN archived_at IS NULL OR $3::timestamptz IS NULL THEN $3
-          ELSE archived_at
-          END
+        archived_at = $3
       WHERE
         id = $1
       SQL

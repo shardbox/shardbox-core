@@ -23,6 +23,10 @@ class Repo
     def to_yaml(builder : YAML::Nodes::Builder)
       builder.scalar to_s
     end
+
+    def to_json(builder : JSON::Builder)
+      builder.string to_s
+    end
   end
 
   # Returns a reference to the shard hosted in this repo.

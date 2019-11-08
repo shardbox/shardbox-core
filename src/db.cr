@@ -4,6 +4,7 @@ require "./shard"
 require "./release"
 require "./category"
 require "./repo"
+require "./log_activity"
 
 class ShardsDB
   class Error < Exception
@@ -40,7 +41,7 @@ class ShardsDB
   getter connection
 
   def last_repo_sync : Time?
-    connection.query_one?("SELECT MAX(created_at) FROM sync_log", as: Time)
+    connection.query_one?("SELECT MAX(created_at) FROM activity_log", as: Time)
   end
 
   def last_metrics_calc : Time?
@@ -57,16 +58,34 @@ class ShardsDB
       SQL
   end
 
-  def find_shard(shard_id : Int64)
+  def get_shard(shard_id : Int64)
     result = connection.query_one <<-SQL, shard_id, as: {Int64, String, String, String?, Time?}
-      SELECT id, name::text, qualifier::text, description, archived_at
-      FROM shards
+      SELECT
+        id, name::text, qualifier::text, description, archived_at
+      FROM
+        shards
       WHERE
         id = $1
       SQL
 
     id, name, qualifier, description, archived_at = result
     Shard.new(name, qualifier, description, archived_at, id: id)
+  end
+
+  def get_shards
+    results = connection.query_all <<-SQL, as: {Int64, String, String, String?, Time?}
+      SELECT
+        id, name::text, qualifier::text, description, archived_at
+      FROM
+        shards
+      WHERE
+        archived_at IS NULL OR categories <> '{}'
+      SQL
+
+    results.map do |result|
+      id, name, qualifier, description, archived_at = result
+      Shard.new(name, qualifier, description, archived_at, id: id)
+    end
   end
 
   def get_shard_id?(name : String, qualifier : String = "")
@@ -89,6 +108,17 @@ class ShardsDB
       SQL
   end
 
+  def get_repo_id(resolver : String, url : String)
+    connection.query_one <<-SQL, resolver, url, as: Int64
+          SELECT
+            id
+          FROM
+            repos
+          WHERE
+            resolver = $1 AND url = $2
+          SQL
+  end
+
   def get_repo_shard_id(resolver : String, url : String)
     connection.query_one <<-SQL, resolver, url, as: Int64
           SELECT
@@ -109,6 +139,31 @@ class ShardsDB
           WHERE
             resolver = $1 AND url = $2
           SQL
+  end
+
+  def get_repo(repo_ref : Repo::Ref)
+    id, shard_id, role, metadata, synced_at = connection.query_one <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64, Int64?, String, String, Time?}
+      SELECT id, shard_id, role::text, metadata::text, synced_at
+      FROM repos
+      WHERE
+        resolver = $1 AND url = $2
+      SQL
+
+    Repo.new(repo_ref, shard_id, Repo::Role.parse(role), Repo::Metadata.from_json(metadata), synced_at, id: id)
+  end
+
+  def get_repo?(repo_ref : Repo::Ref)
+    result = connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64, Int64?, String, String, Time?}
+      SELECT id, shard_id, role::text, metadata::text, synced_at
+      FROM repos
+      WHERE
+        resolver = $1 AND url = $2
+      SQL
+
+    return unless result
+    id, shard_id, role, metadata, synced_at = result
+
+    Repo.new(repo_ref, shard_id, Repo::Role.parse(role), Repo::Metadata.from_json(metadata), synced_at, id: id)
   end
 
   def find_canonical_repo(shard_id : Int64)
@@ -223,15 +278,27 @@ class ShardsDB
       SQL
   end
 
-  def create_or_update_category(category : Category)
-    category_id = connection.exec <<-SQL, category.slug, category.name, category.description
+  def create_category(category : Category)
+    connection.exec <<-SQL, category.slug, category.name, category.description
       INSERT INTO categories
         (slug, name, description)
       VALUES
         ($1, $2, $3)
-      ON CONFLICT ON CONSTRAINT categories_slug_uniq
-      DO UPDATE SET
+      SQL
+  end
+
+  def update_category(category : Category)
+    category_id = connection.exec <<-SQL, category.slug, category.name, category.description
+      UPDATE categories
+      SET
         name = $2, description = $3
+      SQL
+  end
+
+  def remove_category(slug : String)
+    connection.exec <<-SQL, slug
+      DELETE FROM categories
+      WHERE slug = $1
       SQL
   end
 
@@ -301,13 +368,6 @@ class ShardsDB
     results
   end
 
-  def remove_categories(category_slugs : Array(String))
-    connection.exec <<-SQL % sql_array(category_slugs)
-      DELETE FROM categories
-      WHERE slug != ALL(ARRAY[%s]::text[])
-      SQL
-  end
-
   def sql_array(array)
     String.build do |io|
       array.each_with_index do |category, i|
@@ -346,16 +406,26 @@ class ShardsDB
   end
 
   # LOGGING
-  def sync_log(repo_id : Int64, event : String, metadata)
-    connection.exec <<-SQL, repo_id, event, metadata.to_json
-        INSERT INTO sync_log
+  def log_activity(event : String, repo_id : Int64? = nil, shard_id : Int64? = nil, metadata = nil)
+    connection.exec <<-SQL, event, repo_id, shard_id, metadata.to_json
+        INSERT INTO activity_log
         (
-          repo_id, event, metadata
+          event, repo_id, shard_id, metadata
         )
         VALUES
         (
-          $1, $2, $3
+          $1, $2, $3, $4
         )
+      SQL
+  end
+
+  def last_activities
+    connection.query_all <<-SQL, as: LogActivity
+      SELECT
+        id, event, repo_id, shard_id, metadata, created_at
+      FROM
+        activity_log
+      ORDER BY created_at DESC
       SQL
   end
 end
