@@ -8,9 +8,34 @@ struct Service::WorkerLoop
   getter sync_interval = 60
   getter metrics_schedule = 4 # hour of day
 
+  @[JSON::Field(ignore: true)]
   getter? running : Bool = false
 
+  @[JSON::Field(ignore: true)]
+  @channel = Channel(String).new
+
+  @[JSON::Field(ignore: true)]
+  @processes = [] of Process
+
+  @[JSON::Field(ignore: true)]
+  @notify_connection : PG::ListenConnection?
+
   def initialize
+  end
+
+  def stop
+    return unless running?
+
+    puts "Shutting down."
+    @running = false
+
+    @notify_connection.try &.close
+
+    @processes.each do |process|
+      process.kill(Signal::INT) unless process.terminated?
+    end
+
+    @channel.send "shutdown"
   end
 
   def perform
@@ -22,6 +47,8 @@ struct Service::WorkerLoop
     unless last_repo_sync
       last_repo_sync = Time.utc - sync_interval.minutes
     end
+
+    @notify_connection = listen_for_notifications
 
     scheduled(last_repo_sync) do
       execute("sync_repos")
@@ -59,5 +86,15 @@ struct Service::WorkerLoop
 
   def execute(action)
     Process.run(PROGRAM_NAME, [action], output: :inherit, error: :inherit)
+  end
+
+  def listen_for_notifications
+    ShardsDB.listen_for_jobs do |notification|
+      if notification.payload == "import_catalog"
+        execute("import_catalog")
+      else
+        puts "Received unrecognized notification: #{notification.payload}"
+      end
+    end
   end
 end

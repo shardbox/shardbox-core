@@ -40,6 +40,18 @@ class ShardsDB
 
   getter connection
 
+  JOBS_CHANNEL = "jobs"
+
+  def self.listen_for_jobs(&block : PQ::Notification ->)
+    PG.connect_listen(database_url, JOBS_CHANNEL, &block)
+  end
+
+  def send_job_notification(message)
+    connection.exec <<-SQL, JOBS_CHANNEL, message
+      SELECT pg_notify($1, $2)
+    SQL
+  end
+
   def last_repo_sync : Time?
     connection.query_one?("SELECT MAX(created_at) FROM activity_log", as: Time)
   end

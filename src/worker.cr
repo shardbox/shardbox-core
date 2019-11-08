@@ -24,7 +24,10 @@ end
 
 case command = ARGV.shift?
 when "import_catalog"
-  catalog_path = ARGV.shift? || "./catalog"
+  catalog_path = ARGV.shift? || ENV["SHARDBOX_CATALOG"]?
+  unless catalog_path
+    abort "No catalog path specified. Either provide program argument or environment variable SHARDBOX_CATALOG"
+  end
   uri = URI.parse(catalog_path)
   if uri.scheme
     catalog_path = Service::ImportCatalog.checkout_catalog(uri)
