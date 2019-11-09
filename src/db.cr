@@ -53,11 +53,11 @@ class ShardsDB
   end
 
   def last_repo_sync : Time?
-    connection.query_one?("SELECT MAX(created_at) FROM activity_log", as: Time)
+    connection.query_one("SELECT MAX(created_at) FROM activity_log WHERE event LIKE 'sync_repo:%'", as: Time?)
   end
 
   def last_metrics_calc : Time?
-    connection.query_one?("SELECT MAX(created_at) FROM shard_metrics_current", as: Time)
+    connection.query_one("SELECT MAX(created_at) FROM shard_metrics_current", as: Time?)
   end
 
   def get_shard_id?(name : String, qualifier : Nil)
