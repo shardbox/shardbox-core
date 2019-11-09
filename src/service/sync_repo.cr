@@ -31,7 +31,7 @@ struct Service::SyncRepo
   end
 
   def sync_repo(db, resolver : Repo::Resolver)
-    repo = db.find_repo(resolver.repo_ref)
+    repo = db.get_repo(resolver.repo_ref)
     shard_id = repo.shard_id
 
     unless shard_id

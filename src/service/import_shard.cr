@@ -143,7 +143,7 @@ struct Service::ImportShard
   end
 
   private def create_repo(db)
-    if repo = db.find_repo?(@repo_ref)
+    if repo = db.get_repo?(@repo_ref)
       repo.id
     else
       repo = Repo.new(@repo_ref, nil, :canonical)

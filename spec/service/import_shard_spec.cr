@@ -56,7 +56,7 @@ describe Service::ImportShard do
       persisted_shards(db).should eq [{"test", "", "foo description"}]
       persisted_repos(db).should eq [{"git", "mock:test", "canonical", "test"}]
 
-      repo_id = db.find_repo(repo_ref).id
+      repo_id = db.get_repo(repo_ref).id
       find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
 
       shard_categorizations(db).should eq [
@@ -86,7 +86,7 @@ describe Service::ImportShard do
         {"test", "", ["foo"]},
       ]
 
-      repo_id = db.find_repo(repo_ref).id
+      repo_id = db.get_repo(repo_ref).id
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
         {"import_shard:repo:created", repo_id, nil, nil},
         {"import_shard:created", repo_id, shard_id, nil},
@@ -164,7 +164,7 @@ describe Service::ImportShard do
 
       find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]
 
-      repo_id = db.find_repo(repo_ref).id
+      repo_id = db.get_repo(repo_ref).id
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
         {"update_shard:description_changed", nil, shard_id, {
           "old_value" => "foo description",

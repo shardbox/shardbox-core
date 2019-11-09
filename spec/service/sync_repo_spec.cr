@@ -19,7 +19,7 @@ describe Service::SyncRepo do
 
         service.sync_repo(db, resolver)
 
-        repo = db.find_repo(repo_ref)
+        repo = db.get_repo(repo_ref)
         repo.sync_failed_at.should be_nil
         repo.synced_at.should_not be_nil
 
@@ -38,7 +38,7 @@ describe Service::SyncRepo do
         resolver = Repo::Resolver.new(MockResolver.unresolvable, repo_ref)
         service.sync_repo(db, resolver)
 
-        repo = db.find_repo(repo_ref)
+        repo = db.get_repo(repo_ref)
         repo.sync_failed_at.should_not be_nil
         repo.synced_at.should be_nil
 
