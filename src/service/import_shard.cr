@@ -25,60 +25,62 @@ struct Service::ImportShard
   end
 
   def import_shard(db : ShardsDB, resolver : Repo::Resolver, entry : Catalog::Entry? = nil)
-    repo_id = create_repo(db)
-    shard_id = create_shard(db, resolver, repo_id, entry)
+    repo = create_repo(db)
+    shard_id = create_shard(db, resolver, repo, entry)
 
     Service::SyncRepo.new(resolver.repo_ref).perform_later
 
     shard_id
   end
 
-  def import_shard(db : ShardsDB, repo_id : Int64, entry : Catalog::Entry? = nil)
-    import_shard(db, repo_id, Repo::Resolver.new(@repo_ref), entry)
+  def import_shard(db : ShardsDB, repo : Repo, entry : Catalog::Entry? = nil)
+    import_shard(db, repo, Repo::Resolver.new(@repo_ref), entry)
   end
 
-  def import_shard(db : ShardsDB, repo_id : Int64, resolver : Repo::Resolver, entry : Catalog::Entry? = nil)
-    Raven.tags_context repo: @repo_ref.to_s, repo_id: repo_id
+  def import_shard(db : ShardsDB, repo : Repo, resolver : Repo::Resolver, entry : Catalog::Entry? = nil)
+    shard_id = repo.shard_id
 
-    shard_id = create_shard(db, resolver, repo_id, entry)
+    unless shard_id
+      Raven.tags_context repo: @repo_ref.to_s, repo_id: repo.id
 
-    Raven.tags_context shard_id: shard_id
+      shard_id = create_shard(db, resolver, repo, entry)
+
+      Raven.tags_context repo: nil, repo_id: nil, shard_id: nil
+    end
 
     Service::SyncRepo.new(@repo_ref).perform_later
-
-    Raven.tags_context repo: nil, repo_id: nil, shard_id: nil
 
     shard_id
   end
 
-  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo_id, entry : Catalog::Entry? = nil)
+  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo : Repo, entry : Catalog::Entry? = nil)
     begin
       spec_raw = resolver.fetch_raw_spec
     rescue exc : Repo::Resolver::RepoUnresolvableError
-      SyncRepo.sync_failed(db, Repo.new(resolver.repo_ref, nil, id: repo_id), "fetch_spec_failed", exc.cause)
+      SyncRepo.sync_failed(db, repo, "fetch_spec_failed", exc.cause)
 
       return
     end
 
     unless spec_raw
-      SyncRepo.sync_failed(db, Repo.new(resolver.repo_ref, nil, id: repo_id), "spec_missing")
+      SyncRepo.sync_failed(db, repo, "spec_missing")
 
       return
     end
 
     spec = Shards::Spec.from_yaml(spec_raw)
 
-    create_shard(db, repo_id, spec.name, entry)
+    create_shard(db, repo, spec.name, entry)
   end
 
-  def create_shard(db, repo_id, shard_name, entry)
-    shard_id = find_or_create_shard_by_name(db, repo_id, shard_name, entry)
+  def create_shard(db, repo, shard_name, entry)
+    shard_id = find_or_create_shard_by_name(db, repo, shard_name, entry)
 
     if (categories = entry.try(&.categories)) && !categories.empty?
       db.update_categorization(shard_id, categories)
     end
 
-    db.connection.exec <<-SQL, repo_id, shard_id
+    db.connection.exec <<-SQL, repo.id, shard_id
       UPDATE
         repos
       SET
@@ -92,7 +94,16 @@ struct Service::ImportShard
     shard_id
   end
 
-  def find_or_create_shard_by_name(db, repo_id, shard_name, entry) : Int64
+  def find_or_create_shard_by_name(db, repo, shard_name, entry) : Int64
+    if shard_id = repo.shard_id
+      # The repo already existed and has a shard reference.
+
+      # Update metadata
+      Service::UpdateShard.new(shard_id, entry).perform(db)
+
+      return shard_id
+    end
+
     if shard_id = db.get_shard_id?(shard_name, nil)
       # There is already a shard by that name. Need to check if it's the same one.
 
@@ -128,7 +139,7 @@ struct Service::ImportShard
     end
 
     shard_id = db.create_shard build_shard(shard_name, qualifier, entry)
-    db.log_activity "import_shard:created", repo_id: repo_id, shard_id: shard_id
+    db.log_activity "import_shard:created", repo_id: repo.id, shard_id: shard_id
 
     shard_id
   end
@@ -144,12 +155,13 @@ struct Service::ImportShard
 
   private def create_repo(db)
     if repo = db.get_repo?(@repo_ref)
-      repo.id
+      repo
     else
       repo = Repo.new(@repo_ref, nil, :canonical)
       repo_id = db.create_repo(repo)
-      db.log_activity "import_shard:repo:created", repo_id
-      repo_id
+      repo.id = repo_id
+      db.log_activity "import_shard:repo:created", repo.id
+      repo
     end
   end
 

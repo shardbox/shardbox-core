@@ -46,7 +46,7 @@ class Repo
 
   getter sync_failed_at : Time?
 
-  getter! id : Int64?
+  property! id : Int64?
 
   def initialize(
     @ref : Ref, @shard_id : Int64?,

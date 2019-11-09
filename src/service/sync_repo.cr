@@ -27,7 +27,7 @@ struct Service::SyncRepo
     shard_id = repo.shard_id
 
     unless shard_id
-      shard_id = ImportShard.new(resolver.repo_ref).create_shard(db, resolver, repo.id)
+      shard_id = ImportShard.new(resolver.repo_ref).create_shard(db, resolver, repo)
 
       return unless shard_id
     end

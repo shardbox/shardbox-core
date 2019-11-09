@@ -131,6 +131,20 @@ class ShardsDB
     Repo.new(resolver, url, shard_id, "canonical", Repo::Metadata.from_json(metadata), synced_at)
   end
 
+  def get_repo(repo_id : Int64)
+    result = connection.query_one <<-SQL, repo_id, as: {String, String, Int64?, String, String, Time?, Time?}
+      SELECT
+        resolver::text, url::text, shard_id, role::text, metadata::text, synced_at, sync_failed_at
+      FROM
+        repos
+      WHERE
+        id = $1
+      SQL
+
+    resolver, url, shard_id, role, metadata, synced_at, sync_failed_at = result
+    Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: repo_id)
+  end
+
   def get_repo(repo_ref : Repo::Ref)
     result = connection.query_one <<-SQL, repo_ref.resolver, repo_ref.url, as: {Int64, Int64?, String, String, Time?, Time?}
       SELECT
