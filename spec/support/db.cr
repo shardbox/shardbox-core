@@ -29,4 +29,15 @@ class ShardsDB
       LIMIT 1
       SQL
   end
+
+  def get_repo_id(resolver : String, url : String)
+    connection.query_one <<-SQL, resolver, url, as: Int64
+          SELECT
+            id
+          FROM
+            repos
+          WHERE
+            resolver = $1 AND url = $2
+          SQL
+  end
 end

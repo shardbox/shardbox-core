@@ -70,6 +70,26 @@ class ShardsDB
       SQL
   end
 
+  def get_shard_id?(name : String, qualifier : String = "")
+    connection.query_one? <<-SQL, name, qualifier, as: {Int64}
+      SELECT id
+      FROM shards
+      WHERE
+        name = $1 AND qualifier = $2
+      LIMIT 1
+      SQL
+  end
+
+  def get_shard_id(name : String, qualifier : String = "")
+    connection.query_one <<-SQL, name, qualifier, as: {Int64}
+      SELECT id
+      FROM shards
+      WHERE
+        name = $1 AND qualifier = $2
+      LIMIT 1
+      SQL
+  end
+
   def get_shard(shard_id : Int64)
     result = connection.query_one <<-SQL, shard_id, as: {Int64, String, String, String?, Time?}
       SELECT
@@ -98,59 +118,6 @@ class ShardsDB
       id, name, qualifier, description, archived_at = result
       Shard.new(name, qualifier, description, archived_at, id: id)
     end
-  end
-
-  def get_shard_id?(name : String, qualifier : String = "")
-    connection.query_one? <<-SQL, name, qualifier, as: {Int64}
-      SELECT id
-      FROM shards
-      WHERE
-        name = $1 AND qualifier = $2
-      LIMIT 1
-      SQL
-  end
-
-  def get_shard_id(name : String, qualifier : String = "")
-    connection.query_one <<-SQL, name, qualifier, as: {Int64}
-      SELECT id
-      FROM shards
-      WHERE
-        name = $1 AND qualifier = $2
-      LIMIT 1
-      SQL
-  end
-
-  def get_repo_id(resolver : String, url : String)
-    connection.query_one <<-SQL, resolver, url, as: Int64
-          SELECT
-            id
-          FROM
-            repos
-          WHERE
-            resolver = $1 AND url = $2
-          SQL
-  end
-
-  def get_repo_shard_id(resolver : String, url : String)
-    connection.query_one <<-SQL, resolver, url, as: Int64
-          SELECT
-            shard_id
-          FROM
-            repos
-          WHERE
-            resolver = $1 AND url = $2
-          SQL
-  end
-
-  def get_repo_shard_id?(resolver : String, url : String)
-    connection.query_one? <<-SQL, resolver, url, as: Int64
-          SELECT
-            shard_id
-          FROM
-            repos
-          WHERE
-            resolver = $1 AND url = $2
-          SQL
   end
 
   def find_canonical_repo(shard_id : Int64)
@@ -212,16 +179,6 @@ class ShardsDB
         ($1, $2, $3, $4)
       RETURNING id
       SQL
-  end
-
-  def repo_exists?(repo_ref : Repo::Ref) : Bool
-    result = connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url.to_s, as: Int32
-      SELECT 1
-      FROM repos
-      WHERE
-        resolver = $1 AND url = $2
-      SQL
-    !result.nil?
   end
 
   def self.create_release(shard_id : Int64, release : Release, position = nil)
