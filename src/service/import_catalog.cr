@@ -49,44 +49,32 @@ struct Service::ImportCatalog
   end
 
   def import_repo(db, entry, entries)
-    repo_id, shard_id, role = db.connection.query_one?(<<-SQL, entry.repo_ref.resolver, entry.repo_ref.url, as: {Int64, Int64?, String}) || {nil, nil, nil}
-      SELECT
-        id, shard_id, role::text
-      FROM
-        repos
-      WHERE
-        resolver = $1 AND url = $2
-      SQL
+    repo = db.get_repo?(entry.repo_ref)
 
-    if !shard_id
-      # No shard associated with this repo
-      if repo_id
-        # Repo exists but has no shard associated.
-        # It's either an obsolete repo or canonical waiting for shard creation.
-        if role == "obsolete"
-          db.log_activity "import_catalog:repo:reactivated", repo_id: repo_id
-        end
-      else
-        # Repo does not yet exist, insert canonical repo
-        repo = Repo.new(entry.repo_ref, nil, :canonical)
-        repo_id = db.create_repo(repo)
+    shard_id = repo.try(&.shard_id)
+    if !repo
+      # Repo does not yet exist, insert canonical repo
+      repo = Repo.new(entry.repo_ref, nil, :canonical)
+      repo.id = db.create_repo(repo)
 
-        db.log_activity "import_catalog:repo:created", repo_id: repo_id
+      db.log_activity "import_catalog:repo:created", repo_id: repo.id
+
+      shard_id = create_shard(db, entry, repo)
+    elsif !shard_id
+      # Repo exists but has no shard associated.
+      # It's either an obsolete repo or canonical waiting for shard creation.
+      if repo.role.obsolete?
+        db.log_activity "import_catalog:repo:reactivated", repo_id: repo.id
       end
-
-      shard_id = create_shard(db, entry, repo_id)
-    elsif role == "canonical"
-      # We're not using Repo::Role here because `obsolete` is not a valid value
-      # but may exist in the database.
-
+      shard_id = create_shard(db, entry, repo)
+    elsif repo.role.canonical?
       # Is already canonical repo, do update
       update_shard(db, entry, shard_id)
     else
       # Repo exists
-      repo_id = repo_id.not_nil!
       # Is not canonical repo, need to check whether it's the same shard or a new one
 
-      result = db.connection.query_one? <<-SQL, shard_id, as: {String, String}
+      canonical_repo = db.connection.query_one? <<-SQL, repo.shard_id, as: Repo::Ref
         SELECT
           resolver::text, url::text
         FROM
@@ -94,36 +82,35 @@ struct Service::ImportCatalog
         WHERE
           shard_id = $1 AND role = 'canonical'
         SQL
-      if result
-        # There is a canonical repo
-        canonical_repo = Repo::Ref.new(*result)
+      if canonical_repo
         if mirror = entry.mirrors.find { |mirror| mirror.repo_ref == canonical_repo }
           # Same shard, switched canonical repo
           set_role(db, mirror.repo_ref, mirror.role)
-          set_role(db, repo_id, "canonical")
-          db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo_id, shard_id: shard_id, metadata: {"old_repo" => mirror.repo_ref}
+          set_role(db, repo.ref, :canonical)
+          db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo.id, shard_id: repo.shard_id, metadata: {"old_repo" => mirror.repo_ref}
           update_shard(db, entry, shard_id)
         else
           canonical_entry = entries.find do |entry|
             entry.repo_ref == canonical_repo || entry.mirrors.find { |mirror| mirror.repo_ref == canonical_repo }
           end
+
           if canonical_entry
             # Separated old mirror to new shard
-            shard_id = create_shard(db, entry, repo_id)
+            shard_id = create_shard(db, entry, repo)
           else
             # Old canonical is removed. Taking over existing shard
             # NOTE: This should not happen. Old canonicals should usually be
             # listed as legacy in the catalog
-            set_role(db, canonical_repo, "obsolete")
-            set_role(db, repo_id, "canonical")
-            db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo_id, shard_id: shard_id, metadata: {"old_repo" => canonical_repo}
+            set_role(db, canonical_repo, :obsolete)
+            set_role(db, repo.ref, :canonical)
+            db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo.id, shard_id: shard_id, metadata: {"old_repo" => canonical_repo}
             update_shard(db, entry, shard_id)
             # send_notification("obsolete repo")
           end
         end
       else
         # There is no canonical repo, taking over
-        set_role(db, repo_id, "canonical")
+        set_role(db, repo.ref, :canonical)
         update_shard(db, entry, shard_id)
       end
     end
@@ -131,33 +118,23 @@ struct Service::ImportCatalog
     update_mirrors(db, entry, shard_id)
   end
 
-  def set_role(db, repo_ref : Repo::Ref, role)
-    db.connection.exec <<-SQL, repo_ref.resolver, repo_ref.url, role
-      UPDATE repos
-      SET
-        role = $3
-      WHERE
-        resolver = $1 AND url = $2
-      SQL
-  end
-
-  def set_role(db, repo_id : Int64, role)
-    if role == "obsolete"
-      db.connection.exec <<-SQL, repo_id, role
+  def set_role(db, repo_ref : Repo::Ref, role : Repo::Role)
+    if role.obsolete?
+      db.connection.exec <<-SQL, repo_ref.resolver, repo_ref.url, role
         UPDATE repos
         SET
-          role = $2,
+          role = $3,
           shard_id = NULL
         WHERE
-          repo_id = $1
+          resolver = $1 AND url = $2
         SQL
     else
-      db.connection.exec <<-SQL, repo_id, role
+      db.connection.exec <<-SQL, repo_ref.resolver, repo_ref.url, role
         UPDATE repos
         SET
-          role = $2
+          role = $3
         WHERE
-          repo_id = $1
+          resolver = $1 AND url = $2
         SQL
     end
   end
@@ -286,11 +263,11 @@ struct Service::ImportCatalog
     end
   end
 
-  private def create_shard(db, entry, repo_id)
-    Service::ImportShard.new(entry.repo_ref).import_shard(db, db.get_repo(repo_id), entry)
+  private def create_shard(db, entry, repo)
+    Service::ImportShard.new(repo.ref).import_shard(db, repo, entry)
   end
 
-  private def update_shard(db, entry, shard_id)
+  private def update_shard(db, entry, shard_id : Int64)
     Service::UpdateShard.new(shard_id, entry).perform(db)
   end
 
@@ -303,7 +280,7 @@ struct Service::ImportCatalog
     end
 
     # The following query is a bit complex.
-    # It sets a repo to 'obsolete' state when it has been removed from the catalog.
+    # It selects obsolete repos that have been removed from the catalog.
     # If any of the following conditions is met, the repo is not obsolete:
     # 1) It's mentioned as canonical or mirror repo in the catalog (
     #    these are all collected in `valid_refs`)

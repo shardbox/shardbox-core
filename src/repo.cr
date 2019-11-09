@@ -11,6 +11,8 @@ class Repo
     MIRROR
     # A previously used repository, associated with the shard.
     LEGACY
+    # An unused repository, not associated with a shard.
+    OBSOLETE
 
     def to_s(io : IO)
       io << to_s
