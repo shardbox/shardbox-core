@@ -23,7 +23,7 @@ struct Service::SyncRepos
   end
 
   def sync_repos(db)
-    repos = db.connection.query_all <<-SQL, @older_than, @ratio, as: Int64
+    repo_refs = db.connection.query_all <<-SQL, @older_than, @ratio, as: Repo::Ref
       WITH repos_update AS (
         SELECT
           id, resolver, url, shard_id, synced_at, sync_failed_at
@@ -34,7 +34,8 @@ struct Service::SyncRepos
           AND (sync_failed_at IS NULL OR sync_failed_at < $1)
           AND role <> 'obsolete'
       )
-      SELECT id
+      SELECT
+        resolver::text, url::text
       FROM
         repos_update
       ORDER BY
@@ -44,8 +45,8 @@ struct Service::SyncRepos
       LIMIT (SELECT COUNT(*) FROM repos_update) * $2::real
       SQL
 
-    repos.each do |id|
-      Service::SyncRepo.new(id).perform_later
+    repo_refs.each do |repo_ref|
+      Service::SyncRepo.new(repo_ref).perform_later
     end
   end
 end

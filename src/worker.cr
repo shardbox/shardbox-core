@@ -49,11 +49,8 @@ when "help"
   show_help(STDOUT)
 when "sync_repo"
   arg = ARGV.shift
-  if repo_id = arg.to_i64?
-    Service::SyncRepo.new(repo_id).perform_later
-  else
-    Service::SyncRepo.new(Repo::Ref.parse(arg)).perform_later
-  end
+
+  Service::SyncRepo.new(Repo::Ref.parse(arg)).perform_later
 when "update_metrics"
   Service::UpdateShardMetrics.new.perform_later
 when "loop"

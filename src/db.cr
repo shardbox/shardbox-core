@@ -194,19 +194,6 @@ class ShardsDB
     Repo.new(repo_ref, shard_id, Repo::Role.parse(role), Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: id)
   end
 
-  def find_repo_ref(id : Int64)
-    result = connection.query_one <<-SQL, id, as: {String, String}
-      SELECT
-        resolver::text, url::text
-      FROM
-        repos
-      WHERE
-        id = $1
-      SQL
-
-    Repo::Ref.new(*result)
-  end
-
   def create_shard(shard : Shard)
     shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, shard.archived_at, as: Int64
       INSERT INTO shards

@@ -9,14 +9,6 @@ require "./order_releases"
 struct Service::SyncRepo
   include Taskmaster::Job
 
-  def self.new(repo_id : Int64)
-    instance = nil
-    ShardsDB.transaction do |db|
-      instance = new(db.find_repo_ref(repo_id))
-    end
-    instance.not_nil!
-  end
-
   def initialize(@repo_ref : Repo::Ref)
   end
 
