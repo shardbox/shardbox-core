@@ -24,7 +24,7 @@ class Release
   property? yanked_at : Time?
   getter spec : Hash(String, JSON::Any)
   getter? latest : Bool
-  getter! id : Int64
+  property! id : Int64
 
   def self.new(
     version : String,

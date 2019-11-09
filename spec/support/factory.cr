@@ -21,18 +21,14 @@ module Factory
   end
 
   def self.create_release(db, shard_id = nil, version = "0.1.0", released_at = Time.utc,
-                          spec = JSON.parse("{}"), revision_info = JSON.parse("{}"),
-                          position = nil, latest = nil, yanked_at = nil)
+                          revision_info = nil, spec = {} of String => JSON::Any,
+                          yanked_at = nil, latest = false, position = nil)
     shard_id ||= create_shard(db)
-    position_sql = position ? position.to_s : "(SELECT MAX(position) FROM releases WHERE shard_id = $1)"
-    db.connection.query_one <<-SQL,
-        INSERT INTO releases
-          (shard_id, version, released_at, spec, revision_info, latest, yanked_at, position)
-        VALUES
-          ($1, $2, $3, $4, $5, $6, $7, #{position_sql})
-        RETURNING id
-        SQL
-      shard_id, version, released_at.at_beginning_of_second, spec, revision_info, latest, yanked_at.try(&.at_beginning_of_second), as: {Int64}
+    revision_info ||= build_revision_info
+
+    release = Release.new(version, released_at, revision_info, spec, yanked_at, latest)
+
+    db.create_release(shard_id, release, position)
   end
 
   def self.create_dependency(db, release_id : Int64, name : String, spec : JSON::Any = JSON.parse("{}"), repo_id : Int64? = nil, scope = Dependency::Scope::RUNTIME)

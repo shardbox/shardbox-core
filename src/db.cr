@@ -181,20 +181,44 @@ class ShardsDB
       SQL
   end
 
-  def self.create_release(shard_id : Int64, release : Release, position = nil)
+  def create_release(shard_id : Int64, release : Release, position = nil)
     position_sql = position ? position.to_s : "(SELECT MAX(position) FROM releases WHERE shard_id = $1)"
     sql = <<-SQL
       INSERT INTO releases
-        (shard_id, version, released_at, spec, revision_info, latest, yanked_at, position)
+        (
+          shard_id, version, released_at,
+          revision_info, spec, latest,
+          yanked_at, position
+        )
       VALUES
-        ($1, $2, $3, $4, $5, $6, $7, #{position_sql})
+        ($1, $2, $3, $4::json, $5::json, $6, $7, #{position_sql})
       RETURNING id
       SQL
+    revision_info = release.revision_info.try(&.to_json) || "{}"
+
     connection.query_one sql,
       shard_id, release.version, release.released_at.at_beginning_of_second,
-      release.spec, release.revision_info, release.latest? || nil,
-      yanked_at.try(&.at_beginning_of_second),
+      revision_info, release.spec.to_json, release.latest? || nil,
+      release.yanked_at?.try(&.at_beginning_of_second),
       as: {Int64}
+  end
+
+  def update_release(release : Release)
+    sql = <<-SQL
+      UPDATE releases
+      SET
+        released_at = $2,
+        revision_info = $3::jsonb,
+        spec = $4::jsonb,
+        yanked_at = $5
+      WHERE
+        id = $1
+      SQL
+
+    revision_info = release.revision_info.try(&.to_json) || "{}"
+    connection.exec sql,
+      release.id, release.released_at.at_beginning_of_second, revision_info,
+      release.spec.to_json, release.yanked_at?.try(&.at_beginning_of_second)
   end
 
   def upsert_dependency(release_id : Int64, dependency : Dependency, repo_id = nil)

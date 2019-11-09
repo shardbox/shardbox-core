@@ -80,26 +80,11 @@ class Service::SyncRelease
 
     if release_id
       # update
-      sql = <<-SQL
-        UPDATE releases
-        SET
-          released_at = $2, revision_info = $3::jsonb, spec = $4::jsonb, yanked_at = NULL
-        WHERE
-          id = $1
-        SQL
-
-      db.connection.exec sql, release_id, release.released_at, release.revision_info.to_json, release.spec.to_json
+      release.id = release_id
+      db.update_release(release)
     else
       # insert
-      sql = <<-SQL
-        INSERT INTO releases
-          (shard_id, version, released_at, revision_info, spec)
-        VALUES
-          ($1, $2, $3, $4::jsonb, $5::jsonb)
-        RETURNING id
-        SQL
-
-      release_id = db.connection.scalar(sql, shard_id, release.version, release.released_at, release.revision_info.to_json, release.spec.to_json).as(Int64)
+      release_id = db.create_release(shard_id, release)
     end
 
     release_id
