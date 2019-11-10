@@ -23,7 +23,7 @@ struct Service::SyncRepos
   end
 
   def sync_repos(db)
-    repo_refs = db.connection.query_all <<-SQL, @older_than, @ratio, as: Repo::Ref
+    repo_refs = db.connection.query_all <<-SQL, @older_than, @ratio, as: {String, String}
       WITH repos_update AS (
         SELECT
           id, resolver, url, shard_id, synced_at, sync_failed_at
@@ -46,6 +46,7 @@ struct Service::SyncRepos
       SQL
 
     repo_refs.each do |repo_ref|
+      repo_ref = Repo::Ref.new(*repo_ref)
       Service::SyncRepo.new(repo_ref).perform_later
     end
   end

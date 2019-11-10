@@ -74,7 +74,7 @@ struct Service::ImportCatalog
       # Repo exists
       # Is not canonical repo, need to check whether it's the same shard or a new one
 
-      canonical_repo = db.connection.query_one? <<-SQL, repo.shard_id, as: Repo::Ref
+      canonical_repo = db.connection.query_one? <<-SQL, repo.shard_id, as: {String, String}
         SELECT
           resolver::text, url::text
         FROM
@@ -82,7 +82,9 @@ struct Service::ImportCatalog
         WHERE
           shard_id = $1 AND role = 'canonical'
         SQL
+
       if canonical_repo
+        canonical_repo = Repo::Ref.new(*canonical_repo)
         if mirror = entry.mirrors.find { |mirror| mirror.repo_ref == canonical_repo }
           # Same shard, switched canonical repo
           set_role(db, mirror.repo_ref, mirror.role)
