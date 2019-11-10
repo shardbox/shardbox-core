@@ -131,6 +131,20 @@ class ShardsDB
     Repo.new(resolver, url, shard_id, "canonical", Repo::Metadata.from_json(metadata), synced_at)
   end
 
+  def find_canonical_ref?(shard_id)
+    result = connection.query_one? <<-SQL, shard_id, as: {String, String}
+      SELECT
+        resolver::text, url::text
+      FROM
+        repos
+      WHERE
+        shard_id = $1 AND role = 'canonical'
+      SQL
+
+    return unless result
+    Repo::Ref.new(*result)
+  end
+
   def get_repo(repo_id : Int64)
     result = connection.query_one <<-SQL, repo_id, as: {String, String, Int64?, String, String, Time?, Time?}
       SELECT

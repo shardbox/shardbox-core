@@ -186,6 +186,10 @@ module Catalog
       state.archived?
     end
 
+    def mirror?(repo_ref : Repo::Ref) : Mirror?
+      mirrors.find { |mirror| mirror.repo_ref == repo_ref }
+    end
+
     def to_yaml(builder : YAML::Nodes::Builder)
       builder.mapping do
         builder.scalar repo_ref.resolver

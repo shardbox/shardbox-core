@@ -549,6 +549,139 @@ describe Service::ImportCatalog do
     end
   end
 
+  it "reactivates obsolete repo" do
+    with_tempdir("import_catalog-reactivate") do |catalog_path|
+      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+        name: Category
+        shards:
+        - git: foo/foo
+        YAML
+
+      transaction do |db|
+        #foo_id = Factory.create_shard(db, "foo")
+        foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: nil, role: :obsolete)
+
+        service = Service::ImportCatalog.new(catalog_path)
+        service.mock_create_shard = true
+        import_stats = service.import_catalog(db)
+
+        shard_categorizations(db).should eq [
+          {"foo", "", ["category"]},
+        ]
+        foo_id = db.get_shard_id("foo")
+        persisted_repos(db).should eq [
+          {"git", "foo/foo", "canonical", foo_id},
+        ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_catalog:repo:reactivated", foo_repo_id, nil, nil},
+          {"import_shard:created", foo_repo_id, foo_id, nil},
+        ]
+      end
+    end
+  end
+
+  it "takes over mirror repo from same shard, old canonical obsoleted" do
+    with_tempdir("import_catalog-reactivate") do |catalog_path|
+      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+        name: Category
+        shards:
+        - git: foo/foo
+        YAML
+
+      transaction do |db|
+        foo_id = Factory.create_shard(db, "foo")
+        bar_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "bar/foo"), shard_id: foo_id, role: :canonical)
+        foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id, role: :mirror)
+
+        service = Service::ImportCatalog.new(catalog_path)
+        service.mock_create_shard = true
+        import_stats = service.import_catalog(db)
+
+        shard_categorizations(db).should eq [
+          {"foo", "", ["category"]},
+        ]
+        persisted_repos(db).should eq [
+          {"git", "bar/foo", "obsolete", nil},
+          {"git", "foo/foo", "canonical", foo_id},
+        ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_catalog:shard:canonical_switched", foo_repo_id, foo_id, {"old_repo" => "git:bar/foo"}},
+        ]
+      end
+    end
+  end
+
+  it "takes over mirror repo from other shard" do
+    with_tempdir("import_catalog-reactivate") do |catalog_path|
+      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+        name: Category
+        shards:
+        - git: foo/foo
+        - git: foo/bar
+        YAML
+
+      transaction do |db|
+        bar_id = Factory.create_shard(db, "bar")
+        Factory.create_repo(db, Repo::Ref.new("git", "foo/bar"), shard_id: bar_id, role: :canonical)
+        foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: bar_id, role: :mirror)
+
+        service = Service::ImportCatalog.new(catalog_path)
+        service.mock_create_shard = true
+        import_stats = service.import_catalog(db)
+
+        foo_id = db.get_shard_id("foo")
+        persisted_repos(db).should eq [
+          {"git", "foo/bar", "canonical", bar_id},
+          {"git", "foo/foo", "canonical", foo_id},
+        ]
+        shard_categorizations(db).should eq [
+          {"bar", "", ["category"]},
+          {"foo", "", ["category"]},
+        ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_shard:created", foo_repo_id, foo_id, nil},
+        ]
+      end
+    end
+  end
+
+  it "takes over canonical repo" do
+    with_tempdir("import_catalog-reactivate") do |catalog_path|
+      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+        name: Category
+        shards:
+        - git: new/foo
+          mirrors:
+          - git: old/foo
+        YAML
+
+      transaction do |db|
+        foo_id = Factory.create_shard(db, "foo")
+        old_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "old/foo"), shard_id: foo_id, role: :canonical)
+        new_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "new/foo"), shard_id: foo_id, role: :mirror)
+
+        service = Service::ImportCatalog.new(catalog_path)
+        service.mock_create_shard = true
+        import_stats = service.import_catalog(db)
+
+        shard_categorizations(db).should eq [
+          {"foo", "", ["category"]},
+        ]
+        persisted_repos(db).should eq [
+          {"git", "new/foo", "canonical", foo_id},
+          {"git", "old/foo", "mirror", foo_id},
+        ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_catalog:shard:canonical_switched", new_repo_id, foo_id, {"old_repo" => "git:old/foo"}},
+        ]
+      end
+    end
+  end
+
   it "#archive_unreferenced_shards" do
     transaction do |db|
       bar_id = Factory.create_shard(db, "bar")
