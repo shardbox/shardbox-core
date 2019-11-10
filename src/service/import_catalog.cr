@@ -69,7 +69,7 @@ struct Service::ImportCatalog
         db.log_activity "import_catalog:repo:reactivated", repo_id: repo.id
       end
 
-      return create_shard(db, entry, repo)
+      return import_shard(db, entry, repo)
     end
 
     if repo.role.canonical?
@@ -100,7 +100,7 @@ struct Service::ImportCatalog
         # so this one is to be considered a new shard.
         repo = Repo.new(repo.ref, shard_id: nil, role: :canonical, id: repo.id)
         set_role(db, repo.ref, :canonical, nil)
-        shard_id = create_shard(db, entry, repo)
+        shard_id = import_shard(db, entry, repo)
       else
         # The current canonical is not referenced in the catalog,
         # so it's going obsolete.
@@ -130,7 +130,17 @@ struct Service::ImportCatalog
 
     db.log_activity "import_catalog:repo:created", repo_id: repo.id
 
-    create_shard(db, entry, repo)
+    import_shard(db, entry, repo)
+  end
+
+  private def import_shard(db, entry, repo)
+    shard_id = create_shard(db, entry, repo)
+
+    if shard_id && !entry.categories.empty?
+      db.update_categorization(shard_id, entry.categories)
+    end
+
+    shard_id
   end
 
   private def create_shard(db, entry, repo)

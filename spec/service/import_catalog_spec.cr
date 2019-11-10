@@ -558,7 +558,6 @@ describe Service::ImportCatalog do
         YAML
 
       transaction do |db|
-        #foo_id = Factory.create_shard(db, "foo")
         foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: nil, role: :obsolete)
 
         service = Service::ImportCatalog.new(catalog_path)

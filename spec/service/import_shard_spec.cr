@@ -11,6 +11,7 @@ private def persisted_shards(db)
         SELECT
           name::text, qualifier::text, description::text
         FROM shards
+        ORDER BY name, qualifier
         SQL
 end
 
@@ -63,30 +64,6 @@ describe Service::ImportShard do
         {"test", "", nil},
       ]
 
-      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-        {"import_shard:repo:created", repo_id, nil, nil},
-        {"import_shard:created", repo_id, shard_id, nil},
-      ]
-    end
-  end
-
-  it "adds categories" do
-    repo_ref = Repo::Ref.new("git", "mock:test")
-    service = Service::ImportShard.new(repo_ref)
-
-    transaction do |db|
-      Factory.create_category(db, "foo")
-
-      shard_id = service.import_shard(db,
-        Repo::Resolver.new(mock_resolver, repo_ref),
-        Catalog::Entry.new(repo_ref, description: "foo description", categories: ["foo"])
-      )
-
-      shard_categorizations(db).should eq [
-        {"test", "", ["foo"]},
-      ]
-
-      repo_id = db.get_repo(repo_ref).id
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
         {"import_shard:repo:created", repo_id, nil, nil},
         {"import_shard:created", repo_id, shard_id, nil},

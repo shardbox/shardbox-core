@@ -73,12 +73,8 @@ struct Service::ImportShard
     create_shard(db, repo, spec.name, entry)
   end
 
-  def create_shard(db, repo, shard_name, entry)
+  def create_shard(db, repo, shard_name, entry) : Int64
     shard_id = find_or_create_shard_by_name(db, repo, shard_name, entry)
-
-    if (categories = entry.try(&.categories)) && !categories.empty?
-      db.update_categorization(shard_id, categories)
-    end
 
     db.connection.exec <<-SQL, repo.id, shard_id
       UPDATE
