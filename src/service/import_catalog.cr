@@ -89,7 +89,7 @@ struct Service::ImportCatalog
           # Same shard, switched canonical repo
           set_role(db, mirror.repo_ref, mirror.role)
           set_role(db, repo.ref, :canonical)
-          db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo.id, shard_id: repo.shard_id, metadata: {"old_repo" => mirror.repo_ref}
+          db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo.id, shard_id: repo.shard_id, metadata: {"old_repo" => mirror.repo_ref.to_s}
           update_shard(db, entry, shard_id)
         else
           canonical_entry = entries.find do |entry|
@@ -101,11 +101,11 @@ struct Service::ImportCatalog
             shard_id = create_shard(db, entry, repo)
           else
             # Old canonical is removed. Taking over existing shard
-            # NOTE: This should not happen. Old canonicals should usually be
-            # listed as legacy in the catalog
+            # NOTE: This should usually not happen. Old canonicals should usually be
+            # listed as archived in the catalog
             set_role(db, canonical_repo, :obsolete)
             set_role(db, repo.ref, :canonical)
-            db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo.id, shard_id: shard_id, metadata: {"old_repo" => canonical_repo}
+            db.log_activity "import_catalog:shard:canonical_switched", repo_id: repo.id, shard_id: shard_id, metadata: {"old_repo" => canonical_repo.to_s}
             update_shard(db, entry, shard_id)
             # send_notification("obsolete repo")
           end
