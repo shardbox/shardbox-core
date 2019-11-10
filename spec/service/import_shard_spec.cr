@@ -6,15 +6,6 @@ require "../support/db"
 require "../support/jobs"
 require "../support/mock_resolver"
 
-private def persisted_shards(db)
-  db.connection.query_all <<-SQL, as: {String, String, String?}
-        SELECT
-          name::text, qualifier::text, description::text
-        FROM shards
-        ORDER BY name, qualifier
-        SQL
-end
-
 private def persisted_repos(db)
   db.connection.query_all <<-SQL, as: {String, String, String, String}
         SELECT
@@ -44,7 +35,7 @@ describe Service::ImportShard do
     version: 0.1.0
     SPEC
 
-  it "fetches new shard" do
+  it "creates new repo" do
     repo_ref = Repo::Ref.new("git", "mock:test")
     service = Service::ImportShard.new(repo_ref)
 
@@ -54,7 +45,7 @@ describe Service::ImportShard do
         Catalog::Entry.new(repo_ref, description: "foo description")
       )
 
-      persisted_shards(db).should eq [{"test", "", "foo description"}]
+      ShardsDBHelper.persisted_shards(db).should eq [{"test", "", "foo description"}]
       persisted_repos(db).should eq [{"git", "mock:test", "canonical", "test"}]
 
       repo_id = db.get_repo(repo_ref).id
@@ -71,86 +62,7 @@ describe Service::ImportShard do
     end
   end
 
-  describe "duplicate name" do
-    it "with git resolver" do
-      repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
-      service = Service::ImportShard.new(repo_ref)
-
-      transaction do |db|
-        Factory.create_shard(db, "test")
-
-        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
-
-        persisted_shards(db).should eq [{"test", "", nil}, {"test", "example.com", nil}]
-        persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
-
-        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
-      end
-    end
-
-    it "with github resolver" do
-      repo_ref = Repo::Ref.new("github", "testorg/test")
-      service = Service::ImportShard.new(repo_ref)
-
-      transaction do |db|
-        Factory.create_shard(db, "test")
-
-        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
-
-        persisted_shards(db).should eq [{"test", "", nil}, {"test", "testorg", nil}]
-        persisted_repos(db).should eq [{"github", "testorg/test", "canonical", "test"}]
-
-        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
-      end
-    end
-
-    it "with existing qualifier" do
-      repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
-      service = Service::ImportShard.new(repo_ref)
-
-      transaction do |db|
-        Factory.create_shard(db, "test")
-        Factory.create_shard(db, "test", qualifier: "example.com")
-
-        shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
-
-        persisted_shards(db).should eq [{"test", "", nil}, {"test", "example.com", nil}, {"test", "example.com-git", nil}]
-        persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
-
-        find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
-      end
-    end
-  end
-
-  it "update existing shard" do
-    repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
-
-    service = Service::ImportShard.new(repo_ref)
-
-    transaction do |db|
-      shard_id = Factory.create_shard(db, "test", description: "foo description")
-      repo_id = Factory.create_repo(db, repo_ref, shard_id)
-
-      shard_id = service.import_shard(db,
-        Repo::Resolver.new(mock_resolver, repo_ref),
-        Catalog::Entry.new(repo_ref, description: "bar description")
-      )
-
-      persisted_shards(db).should eq [{"test", "", "bar description"}]
-      persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
-
-      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]
-
-      repo_id = db.get_repo(repo_ref).id
-      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-        {"update_shard:description_changed", nil, shard_id, {
-          "old_value" => "foo description",
-        }},
-      ]
-    end
-  end
-
-  it "skips existing repo" do
+  it "uses existing repo" do
     repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
 
     service = Service::ImportShard.new(repo_ref)
@@ -160,7 +72,7 @@ describe Service::ImportShard do
 
       shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
 
-      persisted_shards(db).should eq [{"test", "", nil}]
+      ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}]
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
 
       find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]

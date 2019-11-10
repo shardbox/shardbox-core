@@ -2,7 +2,7 @@ class Shard
   getter name : String
   getter qualifier : String
   property description : String?
-  getter! id : Int64
+  property! id : Int64
   property archived_at : Time?
 
   def initialize(@name : String, @qualifier : String = "", @description : String? = nil, @archived_at : Time? = nil, @id : Int64? = nil)

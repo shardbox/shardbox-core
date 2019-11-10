@@ -38,7 +38,7 @@ class Repo
   getter ref : Ref
 
   # Returns the role of this repo for the shard (defaults to `canonical`).
-  getter role : Role
+  property role : Role
 
   getter metadata : Metadata
 

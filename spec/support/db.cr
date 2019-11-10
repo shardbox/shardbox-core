@@ -41,3 +41,14 @@ class ShardsDB
           SQL
   end
 end
+
+module ShardsDBHelper
+  def self.persisted_shards(db)
+    db.connection.query_all <<-SQL, as: {String, String, String?}
+          SELECT
+            name::text, qualifier::text, description::text
+          FROM shards
+          ORDER BY name, qualifier
+          SQL
+  end
+end

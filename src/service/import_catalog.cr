@@ -68,6 +68,8 @@ struct Service::ImportCatalog
       if repo.role.obsolete?
         db.log_activity "import_catalog:repo:reactivated", repo_id: repo.id
       end
+      repo.role = :canonical
+      set_role(db, repo.ref, :canonical)
 
       return import_shard(db, entry, repo)
     end

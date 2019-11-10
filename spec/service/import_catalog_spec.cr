@@ -1,5 +1,6 @@
 require "spec"
 require "../../src/service/import_catalog"
+require "../../src/service/create_shard"
 require "../support/jobs"
 require "../support/db"
 require "../support/raven"
@@ -44,10 +45,10 @@ end
 struct Service::ImportCatalog
   property mock_create_shard = false
 
-  private def create_shard(db, entry, repo_id)
+  private def create_shard(db, entry, repo)
     if mock_create_shard
-      # This avoids parsing shard spec
-      Service::ImportShard.new(entry.repo_ref).create_shard(db, repo_id, entry.repo_ref.name, entry)
+      # This avoids parsing shard spec in ImportShard
+      Service::CreateShard.new(db, repo, entry.repo_ref.name, entry).perform
     else
       previous_def
     end
