@@ -40,6 +40,10 @@ describe Service::SyncRelease do
       row[5].should eq 0
       row[6].should eq nil
       row[7].should eq nil
+
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"sync_release:created", nil, shard_id, {"version" => "0.1.0"}},
+      ]
     end
   end
 
@@ -72,6 +76,8 @@ describe Service::SyncRelease do
       row[5].should eq 1
       row[6].should eq true
       row[7].should eq nil
+
+      db.last_activities.should eq [] of LogActivity
     end
   end
 
@@ -115,6 +121,10 @@ describe Service::SyncRelease do
         WHERE
           release_id = $1
         SQL
+
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"sync_release:created", nil, shard_id, {"version" => "0.1.0"}},
+      ]
     end
   end
 

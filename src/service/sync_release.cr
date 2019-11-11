@@ -88,6 +88,7 @@ class Service::SyncRelease
     else
       # insert
       release_id = @db.create_release(shard_id, release)
+      @db.log_activity("sync_release:created", nil, shard_id, {"version" => release.version})
     end
 
     release_id

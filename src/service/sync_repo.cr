@@ -81,14 +81,28 @@ struct Service::SyncRepo
   end
 
   def yank_releases_with_missing_versions(shard_id, versions)
-    @db.connection.exec <<-SQL, shard_id, versions
+    yanked = @db.connection.query_all <<-SQL, shard_id, versions, as: String
+      SELECT
+        version
+      FROM
+        releases
+      WHERE
+        shard_id = $1 AND yanked_at IS NULL AND version <> ALL($2)
+      ORDER BY position
+      SQL
+
+    @db.connection.exec <<-SQL, yanked
       UPDATE
         releases
       SET
         yanked_at = NOW()
       WHERE
-        shard_id = $1 AND yanked_at IS NULL AND version <> ALL($2)
+        version = ANY($1)
       SQL
+
+    yanked.each do |version|
+      @db.log_activity("sync_repo:release:yanked", nil, shard_id, {"version" => version})
+    end
   end
 
   def sync_metadata(resolver, repo : Repo)

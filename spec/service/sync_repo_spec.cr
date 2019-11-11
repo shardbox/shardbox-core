@@ -91,6 +91,8 @@ describe Service::SyncRepo do
             "version"   => "0.1.0",
             "exception" => "Shards::ParseError",
           }},
+          {"sync_release:created", nil, shard_id, {"version" => "0.2.0"}},
+          {"sync_repo:release:yanked", nil, shard_id, {"version" => "0.1.0"}},
         ]
       end
     end
@@ -109,7 +111,10 @@ describe Service::SyncRepo do
         service.sync_releases(resolver, shard_id)
 
         db.all_releases(shard_id).map { |r| {r.version, r.yanked?} }.should eq [{"HEAD", true}, {"0.1.0", false}]
-        db.last_activities.should eq [] of LogActivity
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"sync_release:created", nil, shard_id, {"version" => "0.1.0"}},
+          {"sync_repo:release:yanked", nil, shard_id, {"version" => "HEAD"}},
+        ]
       end
     end
 
@@ -128,7 +133,10 @@ describe Service::SyncRepo do
         service.sync_releases(resolver, shard_id)
 
         db.all_releases(shard_id).map { |r| {r.version, r.yanked?} }.should eq [{"HEAD", false}, {"0.1.0", true}]
-        db.last_activities.should eq [] of LogActivity
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"sync_release:created", nil, shard_id, {"version" => "HEAD"}},
+          {"sync_repo:release:yanked", nil, shard_id, {"version" => "0.1.0"}},
+        ]
       end
     end
   end
@@ -157,6 +165,10 @@ describe Service::SyncRepo do
         SQL
 
       results.should eq [{"0.1.1", nil, false}, {"0.1.3", true, false}, {"0.1.0", nil, true}, {"0.1.2", nil, true}]
+
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"sync_repo:release:yanked", nil, shard_id, {"version" => "0.1.3"}},
+      ]
     end
   end
 
