@@ -145,6 +145,36 @@ class ShardsDB
     Repo::Ref.new(*result)
   end
 
+  def get_repo_id?(repo_ref : Repo::Ref)
+    get_repo_id?(repo_ref.resolver, repo_ref.url)
+  end
+
+  def get_repo_id?(resolver : String, url : String)
+    connection.query_one? <<-SQL, resolver, url, as: Int64
+          SELECT
+            id
+          FROM
+            repos
+          WHERE
+            resolver = $1 AND url = $2
+          SQL
+  end
+
+  def get_repo_id(repo_ref : Repo::Ref)
+    get_repo_id(repo_ref.resolver, repo_ref.url)
+  end
+
+  def get_repo_id(resolver : String, url : String)
+    connection.query_one <<-SQL, resolver, url, as: Int64
+          SELECT
+            id
+          FROM
+            repos
+          WHERE
+            resolver = $1 AND url = $2
+          SQL
+  end
+
   def get_repo(repo_id : Int64)
     result = connection.query_one <<-SQL, repo_id, as: {String, String, Int64?, String, String, Time?, Time?}
       SELECT

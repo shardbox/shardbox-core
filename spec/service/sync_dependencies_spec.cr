@@ -18,16 +18,18 @@ private def query_dependencies_with_repo(db)
 end
 
 describe Service::SyncDependencies do
-  describe "#sync_dependency" do
+  describe "#add_dependency" do
     context "non-existing repo" do
       it "creates dependency and repo" do
         transaction do |db|
-          release_id = Factory.create_release(db)
+          shard_id = Factory.create_shard(db)
+          release_version = "0.1.0"
+          release_id = Factory.create_release(db, version: release_version, shard_id: shard_id)
 
           spec = JSON.parse(%({"git":"foo"}))
 
           service = Service::SyncDependencies.new(db, release_id)
-          service.sync_dependency(Dependency.new("foo", spec))
+          service.add_dependency(Dependency.new("foo", spec))
 
           results = query_dependencies_with_repo(db)
 
@@ -36,27 +38,44 @@ describe Service::SyncDependencies do
           ]
 
           db.repos_pending_sync.map(&.ref).should eq [Repo::Ref.new("git", "foo")]
+
+          repo_id = db.get_repo_id("git", "foo")
+          db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+            {"sync_dependencies:created", repo_id, shard_id, {"name" => "foo", "scope" => "runtime", "release" => release_version}},
+          ]
         end
       end
+    end
 
-      it "updates dependency" do
+    describe "#update_dependency" do
+      it "overrides homonymous dependency name" do
         transaction do |db|
-          release_id = Factory.create_release(db)
+          shard_id = Factory.create_shard(db)
+          release_version = "0.1.0"
+          release_id = Factory.create_release(db, version: release_version, shard_id: shard_id)
 
           service = Service::SyncDependencies.new(db, release_id)
 
-          spec_foo = JSON.parse(%({"git":"foo"}))
-          service.sync_dependency(Dependency.new("foo", spec_foo))
           spec_bar = JSON.parse(%({"git":"bar"}))
-          service.sync_dependency(Dependency.new("foo", spec_bar, :development))
+          service.add_dependency(Dependency.new("foo", spec_bar, :development))
+          spec_foo = JSON.parse(%({"git":"foo"}))
+          service.add_dependency(Dependency.new("foo", spec_foo))
 
           results = query_dependencies_with_repo(db)
 
           results.should eq [
-            {"foo", spec_bar, "development", nil, "git", "bar", "canonical"},
+            {"foo", spec_foo, "runtime", nil, "git", "foo", "canonical"},
           ]
 
-          db.repos_pending_sync.map(&.ref).should eq [Repo::Ref.new("git", "foo"), Repo::Ref.new("git", "bar")]
+          db.repos_pending_sync.map(&.ref).should eq [Repo::Ref.new("git", "bar"), Repo::Ref.new("git", "foo")]
+
+          foo_repo_id = db.get_repo_id("git", "foo")
+          bar_repo_id = db.get_repo_id("git", "bar")
+          db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+            {"sync_dependencies:created", bar_repo_id, shard_id, {"name" => "foo", "scope" => "development", "release" => release_version}},
+            {"sync_dependencies:duplicate", foo_repo_id, shard_id, {"name" => "foo", "scope" => "runtime", "release" => release_version}},
+            {"sync_dependencies:updated", foo_repo_id, shard_id, {"name" => "foo", "scope" => "runtime", "release" => release_version}},
+          ]
         end
       end
     end
@@ -64,32 +83,39 @@ describe Service::SyncDependencies do
     context "existing repo" do
       it "creates dependency and links repo" do
         transaction do |db|
-          release_id = Factory.create_release(db)
-          shard_id = Factory.create_shard(db, "foo")
+          shard_id = Factory.create_shard(db)
+          release_id = Factory.create_release(db, shard_id: shard_id)
+          bar_shard_id = Factory.create_shard(db, "bar")
           repo_foo = db.create_repo Repo.new(Repo::Ref.new("git", "foo"), nil, :canonical, synced_at: Time.utc)
-          repo_bar = db.create_repo Repo.new(Repo::Ref.new("git", "bar"), shard_id, :canonical, synced_at: Time.utc)
+          repo_bar = db.create_repo Repo.new(Repo::Ref.new("git", "bar"), bar_shard_id, :canonical, synced_at: Time.utc)
 
           service = Service::SyncDependencies.new(db, release_id)
 
           spec_foo = JSON.parse(%({"git":"foo"}))
-          service.sync_dependency(Dependency.new("foo", spec_foo))
+          service.add_dependency(Dependency.new("foo", spec_foo))
           spec_bar = JSON.parse(%({"git":"bar"}))
-          service.sync_dependency(Dependency.new("bar", spec_bar))
+          service.add_dependency(Dependency.new("bar", spec_bar))
 
           results = query_dependencies_with_repo(db)
 
           results.should eq [
             {"foo", spec_foo, "runtime", nil, "git", "foo", "canonical"},
-            {"bar", spec_bar, "runtime", shard_id, "git", "bar", "canonical"},
+            {"bar", spec_bar, "runtime", bar_shard_id, "git", "bar", "canonical"},
           ]
 
           db.repos_pending_sync.should eq [] of Repo
+
+          db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+            {"sync_dependencies:created", repo_foo, shard_id, {"name" => "foo", "scope" => "runtime", "release" => "0.1.0"}},
+            {"sync_dependencies:created", repo_bar, shard_id, {"name" => "bar", "scope" => "runtime", "release" => "0.1.0"}},
+          ]
         end
       end
 
       it "updates dependency" do
         transaction do |db|
-          release_id = Factory.create_release(db)
+          home_shard = Factory.create_shard(db, "qux")
+          release_id = Factory.create_release(db, home_shard)
           shard_id = Factory.create_shard(db, "bar")
           repo_foo = db.create_repo Repo.new(Repo::Ref.new("git", "foo"), nil, :canonical, synced_at: Time.utc)
           repo_bar = db.create_repo Repo.new(Repo::Ref.new("git", "bar"), shard_id, :canonical, synced_at: Time.utc)
@@ -97,17 +123,21 @@ describe Service::SyncDependencies do
           service = Service::SyncDependencies.new(db, release_id)
 
           spec_foo = JSON.parse(%({"git":"foo"}))
-          service.sync_dependency(Dependency.new("foo", spec_foo))
+          service.add_dependency(Dependency.new("foo", spec_foo))
           spec_bar = JSON.parse(%({"git":"bar"}))
-          service.sync_dependency(Dependency.new("foo", spec_bar, :development))
+          service.update_dependency(Dependency.new("foo", spec_bar, :development))
 
           results = query_dependencies_with_repo(db)
-
           results.should eq [
             {"foo", spec_bar, "development", shard_id, "git", "bar", "canonical"},
           ]
 
           db.repos_pending_sync.should eq [] of Repo
+
+          db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+            {"sync_dependencies:created", repo_foo, home_shard, {"name" => "foo", "scope" => "runtime", "release" => "0.1.0"}},
+            {"sync_dependencies:updated", repo_bar, home_shard, {"name" => "foo", "scope" => "development", "release" => "0.1.0"}},
+          ]
         end
       end
     end
@@ -115,7 +145,8 @@ describe Service::SyncDependencies do
 
   it "#sync_dependencies" do
     transaction do |db|
-      release_id = Factory.create_release(db)
+      shard_id = Factory.create_shard(db)
+      release_id = Factory.create_release(db, shard_id: shard_id)
 
       run_spec = JSON.parse(%({"git":"run"}))
       dev_spec = JSON.parse(%({"git":"dev"}))
@@ -146,6 +177,12 @@ describe Service::SyncDependencies do
       results.should eq [
         {"run_dependency", run_spec, "runtime", nil, "git", "run", "canonical"},
         {"run_dependency2", run_spec2, "runtime", nil, "git", "run2", "canonical"},
+      ]
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"sync_dependencies:created", db.get_repo_id?("git", "run"), shard_id, {"name" => "run_dependency", "scope" => "runtime", "release" => "0.1.0"}},
+        {"sync_dependencies:created", db.get_repo_id?("git", "dev"), shard_id, {"name" => "dev_dependency", "scope" => "development", "release" => "0.1.0"}},
+        {"sync_dependencies:removed", db.get_repo_id?("git", "dev"), shard_id, {"name" => "dev_dependency", "scope" => "development", "release" => "0.1.0"}},
+        {"sync_dependencies:created", db.get_repo_id?("git", "run2"), shard_id, {"name" => "run_dependency2", "scope" => "runtime", "release" => "0.1.0"}},
       ]
     end
   end
