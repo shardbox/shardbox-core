@@ -60,6 +60,16 @@ class ShardsDB
     connection.query_one("SELECT MAX(created_at) FROM shard_metrics_current", as: Time?)
   end
 
+  def last_catalog_import : Time?
+    connection.query_one <<-SQL
+      SELECT
+        MAX(created_at)
+      FROM activity_log
+      WHERE
+        event = 'import_catalog:done'
+      SQL
+  end
+
   def get_shard_id?(name : String, qualifier : Nil)
     connection.query_one? <<-SQL, name, as: {Int64}
       SELECT id
