@@ -8,21 +8,19 @@ require "./import_shard"
 
 # This service synchronizes the information about a release in the database.
 class Service::SyncRelease
-  def initialize(@shard_id : Int64, @version : String)
+  def initialize(@db : ShardsDB, @shard_id : Int64, @version : String)
   end
 
   def perform
-    ShardsDB.transaction do |db|
-      repo = db.find_canonical_repo(@shard_id)
-      resolver = Repo::Resolver.new(repo.ref)
+    repo = @db.find_canonical_repo(@shard_id)
+    resolver = Repo::Resolver.new(repo.ref)
 
-      Raven.tags_context repo: repo.ref.to_s, version: @version
+    Raven.tags_context repo: repo.ref.to_s, version: @version
 
-      sync_release(db, resolver)
-    end
+    sync_release(resolver)
   end
 
-  def sync_release(db, resolver)
+  def sync_release(resolver)
     spec_raw = resolver.fetch_raw_spec(@version)
 
     if spec_raw
@@ -43,9 +41,9 @@ class Service::SyncRelease
     revision_info = resolver.revision_info(@version)
     release = Release.new(@version, revision_info, spec_json)
 
-    release_id = upsert_release(db, @shard_id, release)
+    release_id = upsert_release(@shard_id, release)
 
-    sync_dependencies(db, release_id, spec)
+    sync_dependencies(release_id, spec)
   end
 
   def check_version_match(tag_version, spec_version)
@@ -70,24 +68,24 @@ class Service::SyncRelease
     false
   end
 
-  def upsert_release(db, shard_id : Int64, release : Release)
-    release_id = db.connection.query_one?(<<-SQL, shard_id, release.version, as: Int64)
+  def upsert_release(shard_id : Int64, release : Release)
+    release_id = @db.connection.query_one?(<<-SQL, shard_id, release.version, as: Int64)
       SELECT id FROM releases WHERE shard_id = $1 AND version = $2
       SQL
 
     if release_id
       # update
       release.id = release_id
-      db.update_release(release)
+      @db.update_release(release)
     else
       # insert
-      release_id = db.create_release(shard_id, release)
+      release_id = @db.create_release(shard_id, release)
     end
 
     release_id
   end
 
-  def sync_dependencies(db, release_id, spec : Shards::Spec)
+  def sync_dependencies(release_id, spec : Shards::Spec)
     dependencies = [] of Dependency
     spec.dependencies.each do |spec_dependency|
       dependencies << Dependency.from_spec(spec_dependency)
@@ -97,6 +95,6 @@ class Service::SyncRelease
       dependencies << Dependency.from_spec(spec_dependency, :development)
     end
 
-    SyncDependencies.new(release_id).sync_dependencies(db, dependencies)
+    SyncDependencies.new(@db, release_id).sync_dependencies(dependencies)
   end
 end

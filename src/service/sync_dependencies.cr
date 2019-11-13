@@ -4,15 +4,15 @@ require "./sync_repo"
 
 # This service upserts a dependency.
 class Service::SyncDependencies
-  def initialize(@release_id : Int64)
+  def initialize(@db : ShardsDB, @release_id : Int64)
   end
 
-  def sync_dependencies(db, dependencies : Array(Dependency))
+  def sync_dependencies(dependencies : Array(Dependency))
     dependencies.each do |dependency|
-      sync_dependency(db, dependency)
+      sync_dependency(dependency)
     end
 
-    db.connection.exec <<-SQL, @release_id, dependencies.map(&.name)
+    @db.connection.exec <<-SQL, @release_id, dependencies.map(&.name)
       DELETE FROM
         dependencies
       WHERE
@@ -20,15 +20,15 @@ class Service::SyncDependencies
       SQL
   end
 
-  def sync_dependency(db, dependency)
+  def sync_dependency(dependency)
     repo_ref = dependency.repo_ref
 
     if repo_ref
-      if upsert_repo(db, repo_ref)
+      if upsert_repo(repo_ref)
         SyncRepo.new(repo_ref).perform_later
       end
 
-      db.connection.exec <<-SQL, @release_id, dependency.name, dependency.spec.to_json, dependency.scope, repo_ref.resolver, repo_ref.url
+      @db.connection.exec <<-SQL, @release_id, dependency.name, dependency.spec.to_json, dependency.scope, repo_ref.resolver, repo_ref.url
         WITH lookup_repo_id AS (
           SELECT id FROM repos WHERE resolver = $5 AND url = $6 LIMIT 1
         )
@@ -44,7 +44,7 @@ class Service::SyncDependencies
         SQL
     else
       # No repo ref found: either local path resolver or invalid dependency
-      db.connection.exec <<-SQL, @release_id, dependency.name, dependency.spec.to_json, dependency.scope
+      @db.connection.exec <<-SQL, @release_id, dependency.name, dependency.spec.to_json, dependency.scope
         INSERT INTO dependencies
           (release_id, name, spec, scope)
         VALUES
@@ -59,8 +59,8 @@ class Service::SyncDependencies
   end
 
   # Returns true if a new repo was inserted
-  def upsert_repo(db, repo_ref : Repo::Ref)
-    result = db.connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: Int64?
+  def upsert_repo(repo_ref : Repo::Ref)
+    result = @db.connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: Int64?
       INSERT INTO repos
         (resolver, url)
       VALUES

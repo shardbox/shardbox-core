@@ -27,8 +27,8 @@ describe Service::SyncDependencies do
 
           spec = JSON.parse(%({"git":"foo"}))
 
-          service = Service::SyncDependencies.new(release_id)
-          service.sync_dependency(db, Dependency.new("foo", spec))
+          service = Service::SyncDependencies.new(db, release_id)
+          service.sync_dependency(Dependency.new("foo", spec))
 
           results = query_dependencies_with_repo(db)
 
@@ -44,12 +44,12 @@ describe Service::SyncDependencies do
         transaction do |db|
           release_id = Factory.create_release(db)
 
-          service = Service::SyncDependencies.new(release_id)
+          service = Service::SyncDependencies.new(db, release_id)
 
           spec_foo = JSON.parse(%({"git":"foo"}))
-          service.sync_dependency(db, Dependency.new("foo", spec_foo))
+          service.sync_dependency(Dependency.new("foo", spec_foo))
           spec_bar = JSON.parse(%({"git":"bar"}))
-          service.sync_dependency(db, Dependency.new("foo", spec_bar, :development))
+          service.sync_dependency(Dependency.new("foo", spec_bar, :development))
 
           results = query_dependencies_with_repo(db)
 
@@ -73,12 +73,12 @@ describe Service::SyncDependencies do
           shard_id = Factory.create_shard(db, "foo")
           repo_bar = Factory.create_repo(db, Repo::Ref.new("git", "bar"), shard_id)
 
-          service = Service::SyncDependencies.new(release_id)
+          service = Service::SyncDependencies.new(db, release_id)
 
           spec_foo = JSON.parse(%({"git":"foo"}))
-          service.sync_dependency(db, Dependency.new("foo", spec_foo))
+          service.sync_dependency(Dependency.new("foo", spec_foo))
           spec_bar = JSON.parse(%({"git":"bar"}))
-          service.sync_dependency(db, Dependency.new("bar", spec_bar))
+          service.sync_dependency(Dependency.new("bar", spec_bar))
 
           results = query_dependencies_with_repo(db)
 
@@ -98,12 +98,12 @@ describe Service::SyncDependencies do
           shard_id = Factory.create_shard(db, "bar")
           repo_bar = Factory.create_repo(db, Repo::Ref.new("git", "bar"), shard_id)
 
-          service = Service::SyncDependencies.new(release_id)
+          service = Service::SyncDependencies.new(db, release_id)
 
           spec_foo = JSON.parse(%({"git":"foo"}))
-          service.sync_dependency(db, Dependency.new("foo", spec_foo))
+          service.sync_dependency(Dependency.new("foo", spec_foo))
           spec_bar = JSON.parse(%({"git":"bar"}))
-          service.sync_dependency(db, Dependency.new("foo", spec_bar, :development))
+          service.sync_dependency(Dependency.new("foo", spec_bar, :development))
 
           results = query_dependencies_with_repo(db)
 
@@ -128,8 +128,8 @@ describe Service::SyncDependencies do
         Dependency.new("dev_dependency", dev_spec, :development),
       ]
 
-      service = Service::SyncDependencies.new(release_id)
-      service.sync_dependencies(db, dependencies)
+      service = Service::SyncDependencies.new(db, release_id)
+      service.sync_dependencies(dependencies)
 
       results = query_dependencies_with_repo(db)
 
@@ -144,7 +144,7 @@ describe Service::SyncDependencies do
         Dependency.new("run_dependency2", run_spec2),
       ]
 
-      service.sync_dependencies(db, new_dependencies)
+      service.sync_dependencies(new_dependencies)
       results = query_dependencies_with_repo(db)
 
       results.should eq [

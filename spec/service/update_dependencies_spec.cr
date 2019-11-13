@@ -1,5 +1,5 @@
 require "spec"
-require "../../src/service/update_dependencies"
+require "../../src/service/sync_repos"
 require "../support/db"
 require "../support/factory"
 require "../support/raven"
@@ -53,7 +53,7 @@ def calculate_shard_metrics(db)
   end
 end
 
-describe Service::UpdateDependencies do
+describe "Service::SyncRepos #update_shard_dependencies" do
   it "calcs shard dependencies" do
     transaction do |db|
       foo_id = Factory.create_shard(db, "foo")
@@ -64,9 +64,9 @@ describe Service::UpdateDependencies do
 
       Factory.create_dependency(db, foo_release, "bar", repo_id: bar_repo_id)
 
-      service = Service::UpdateDependencies.new
+      service = Service::SyncRepos.new(db)
 
-      service.update_shard_dependencies(db)
+      service.update_shard_dependencies
 
       persisted_dependencies(db).should eq [
         {foo_id, bar_id, bar_repo_id, "runtime"},
@@ -93,9 +93,9 @@ describe Service::UpdateDependencies do
 
       Factory.create_dependency(db, foo_release, "bar", repo_id: bar_repo_id, scope: "development")
 
-      service = Service::UpdateDependencies.new
+      service = Service::SyncRepos.new(db)
 
-      service.update_shard_dependencies(db)
+      service.update_shard_dependencies
 
       persisted_dependencies(db).should eq [
         {foo_id, bar_id, bar_repo_id, "development"},
@@ -121,9 +121,9 @@ describe Service::UpdateDependencies do
 
       Factory.create_dependency(db, foo_release, "missing", repo_id: missing_repo_id)
 
-      service = Service::UpdateDependencies.new
+      service = Service::SyncRepos.new(db)
 
-      service.update_shard_dependencies(db)
+      service.update_shard_dependencies
 
       persisted_dependencies(db).should eq [
         {foo_id, nil, missing_repo_id, "runtime"},
@@ -151,9 +151,9 @@ describe Service::UpdateDependencies do
       Factory.create_dependency(db, foo_release, "missing", repo_id: missing_repo_id)
       Factory.create_dependency(db, foo_release, "bar", repo_id: bar_repo_id)
 
-      service = Service::UpdateDependencies.new
+      service = Service::SyncRepos.new(db)
 
-      service.update_shard_dependencies(db)
+      service.update_shard_dependencies
 
       persisted_dependencies(db).should eq [
         {foo_id, bar_id, bar_repo_id, "runtime"},
@@ -184,9 +184,9 @@ describe Service::UpdateDependencies do
       Factory.create_dependency(db, foo_release1, "bar", repo_id: bar_repo_id)
       Factory.create_dependency(db, foo_release2, "bar", repo_id: bar_repo_id)
 
-      service = Service::UpdateDependencies.new
+      service = Service::SyncRepos.new(db)
 
-      service.update_shard_dependencies(db)
+      service.update_shard_dependencies
 
       persisted_dependencies(db).should eq [
         {foo_id, bar_id, bar_repo_id, "runtime"},
@@ -218,14 +218,14 @@ describe Service::UpdateDependencies do
       qux_id = Factory.create_shard(db, "qux")
       qux_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "qux"), shard_id: qux_id)
 
-      service = Service::UpdateDependencies.new
+      service = Service::SyncRepos.new(db)
 
       Factory.create_dependency(db, foo_release, "baz", repo_id: baz_repo_id)
       Factory.create_dependency(db, foo_release, "bar", repo_id: bar_repo_id)
       Factory.create_dependency(db, baz_release, "qux", repo_id: qux_repo_id)
       Factory.create_dependency(db, bar_release, "baz", repo_id: baz_repo_id)
 
-      service.update_shard_dependencies(db)
+      service.update_shard_dependencies
 
       persisted_dependencies(db).should eq [
         {foo_id, bar_id, bar_repo_id, "runtime"},

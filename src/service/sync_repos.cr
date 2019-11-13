@@ -1,26 +1,22 @@
 require "../db"
 require "./sync_repo"
-require "./update_dependencies"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepos
-  def initialize(@older_than : Time, @ratio : Float32)
+  def initialize(@db : ShardsDB, @older_than : Time, @ratio : Float32)
   end
 
-  def self.new(age : Time::Span = 24.hours, ratio : Number = 0.1)
-    new(age.ago, ratio.to_f32)
+  def self.new(db, age : Time::Span = 24.hours, ratio : Number = 0.1)
+    new(db, age.ago, ratio.to_f32)
   end
 
   def perform
-    ShardsDB.transaction do |db|
-      sync_repos(db)
-
-      UpdateDependencies.new.perform_later
-    end
+    sync_repos
+    update_shard_dependencies
   end
 
-  def sync_repos(db)
-    repo_refs = db.connection.query_all <<-SQL, @older_than, @ratio, as: {String, String}
+  def sync_repos
+    repo_refs = @db.connection.query_all <<-SQL, @older_than, @ratio, as: {String, String}
       WITH repos_update AS (
         SELECT
           id, resolver, url, shard_id, synced_at, sync_failed_at
@@ -44,7 +40,13 @@ struct Service::SyncRepos
 
     repo_refs.each do |repo_ref|
       repo_ref = Repo::Ref.new(*repo_ref)
-      Service::SyncRepo.new(repo_ref).perform_later
+      Service::SyncRepo.new(repo_ref).perform
     end
+  end
+
+  def update_shard_dependencies
+    @db.connection.exec <<-SQL
+      SELECT shard_dependencies_materialize()
+    SQL
   end
 end

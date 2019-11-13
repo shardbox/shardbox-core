@@ -20,9 +20,9 @@ describe Service::SyncRelease do
       shard_id = Factory.create_shard(db)
       # repo_id = Factory.create_repo(db, shard_id: shard_id)
 
-      service = Service::SyncRelease.new(shard_id, "0.1.0")
+      service = Service::SyncRelease.new(db, shard_id, "0.1.0")
 
-      service.sync_release(db, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
+      service.sync_release(Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
 
       results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int64?, Bool?, Time?}
         SELECT
@@ -52,9 +52,9 @@ describe Service::SyncRelease do
         VALUES($1, '0.1.0', '2018-12-30 00:00:00 UTC', '{}', '{}', 1, true, NOW())
         SQL
 
-      service = Service::SyncRelease.new(shard_id, "0.1.0")
+      service = Service::SyncRelease.new(db, shard_id, "0.1.0")
 
-      service.sync_release(db, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
+      service.sync_release(Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
 
       results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int32?, Bool?, Time?}
         SELECT
@@ -83,10 +83,10 @@ describe Service::SyncRelease do
 
     transaction do |db|
       shard_id = Factory.create_shard(db)
-      service = Service::SyncRelease.new(shard_id, "0.1.0")
+      service = Service::SyncRelease.new(db, shard_id, "0.1.0")
       resolver = Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo"))
 
-      service.sync_release(db, resolver)
+      service.sync_release(resolver)
 
       results = db.connection.query_all <<-SQL, as: {Int64, Int64, String, Time, JSON::Any, JSON::Any, Int64?, Bool?, Time?}
         SELECT

@@ -27,7 +27,7 @@ struct Service::SyncRepo
     shard_id = repo.shard_id
 
     unless shard_id
-      shard_id = ImportShard.new(resolver.repo_ref).import_shard(db, repo, resolver: resolver)
+      shard_id = ImportShard.new(db, repo, resolver).perform
 
       return unless shard_id
     end
@@ -66,12 +66,12 @@ struct Service::SyncRepo
         next
       end
 
-      SyncRelease.new(shard_id, version).sync_release(db, resolver)
+      SyncRelease.new(db, shard_id, version).sync_release(resolver)
     end
 
     yank_releases_with_missing_versions(db, shard_id, versions)
 
-    Service::OrderReleases.new(shard_id).order_releases(db)
+    Service::OrderReleases.new(db, shard_id).perform
   end
 
   def yank_releases_with_missing_versions(db, shard_id, versions)

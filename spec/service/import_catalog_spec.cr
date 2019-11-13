@@ -45,10 +45,10 @@ end
 struct Service::ImportCatalog
   property mock_create_shard = false
 
-  private def create_shard(db, entry, repo)
+  private def create_shard(entry, repo)
     if mock_create_shard
       # This avoids parsing shard spec in ImportShard
-      Service::CreateShard.new(db, repo, entry.repo_ref.name, entry).perform
+      Service::CreateShard.new(@db, repo, entry.repo_ref.name, entry).perform
     else
       previous_def
     end
@@ -65,9 +65,9 @@ describe Service::ImportCatalog do
         YAML
 
       transaction do |db|
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         shard_id = db.get_shard_id("foo")
         persisted_repos(db).should eq [
@@ -108,9 +108,9 @@ describe Service::ImportCatalog do
 
       transaction do |db|
         Factory.create_repo(db, Repo::Ref.new("github", "foo/foo"))
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         persisted_repos(db).should eq [
           {"github", "foo/foo", "canonical", db.get_shard_id("foo")},
@@ -161,9 +161,9 @@ describe Service::ImportCatalog do
 
       transaction do |db|
         Factory.create_repo(db, Repo::Ref.new("git", "bar/foo"))
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         foo_id = db.get_shard_id("foo")
         bar_id = db.get_shard_id("bar")
@@ -224,9 +224,9 @@ describe Service::ImportCatalog do
         YAML
 
       transaction do |db|
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         foo_id = db.get_shard_id("foo")
 
@@ -277,9 +277,9 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("git", "bar/bar"), shard_id: foo_id, role: :mirror)
         Factory.create_repo(db, Repo::Ref.new("git", "baz/bar"), shard_id: foo_id, role: :legacy)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         persisted_repos(db).should eq [
           {"git", "bar/bar", "obsolete", nil},
@@ -322,9 +322,9 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_shard_id)
         Factory.create_repo(db, Repo::Ref.new("git", "foo/bar"), shard_id: foo_shard_id, role: :mirror)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         bar_shard_id = db.get_shard_id("bar")
         persisted_repos(db).should eq [
@@ -365,9 +365,9 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_shard_id)
         bar_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/bar"), shard_id: bar_shard_id)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         persisted_repos(db).should eq [
           {"git", "foo/bar", "obsolete", nil},
@@ -410,9 +410,9 @@ describe Service::ImportCatalog do
         qux_id = Factory.create_shard(db, "qux", categories: %w[foo])
         qux_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "qux/qux"), shard_id: qux_id)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         persisted_repos(db).should eq [
           {"git", "bar/bar", "canonical", nil},
@@ -466,9 +466,9 @@ describe Service::ImportCatalog do
         qux_id = Factory.create_shard(db, "qux", archived_at: qux_archived_at)
         Factory.create_repo(db, Repo::Ref.new("git", "foo/qux"), shard_id: qux_id)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         bar_id = db.get_shard_id("bar")
         persisted_repos(db).should eq [
@@ -515,9 +515,9 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_shard_id)
         Factory.create_repo(db, Repo::Ref.new("git", "foo/bar"), shard_id: bar_shard_id)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         persisted_repos(db).should eq [
           {"git", "foo/bar", "mirror", foo_shard_id},
@@ -561,9 +561,9 @@ describe Service::ImportCatalog do
       transaction do |db|
         foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: nil, role: :obsolete)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
@@ -594,9 +594,9 @@ describe Service::ImportCatalog do
         bar_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "bar/foo"), shard_id: foo_id, role: :canonical)
         foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id, role: :mirror)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
@@ -627,9 +627,9 @@ describe Service::ImportCatalog do
         Factory.create_repo(db, Repo::Ref.new("git", "foo/bar"), shard_id: bar_id, role: :canonical)
         foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: bar_id, role: :mirror)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         foo_id = db.get_shard_id("foo")
         persisted_repos(db).should eq [
@@ -663,9 +663,9 @@ describe Service::ImportCatalog do
         old_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "old/foo"), shard_id: foo_id, role: :canonical)
         new_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "new/foo"), shard_id: foo_id, role: :mirror)
 
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
 
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
@@ -689,8 +689,8 @@ describe Service::ImportCatalog do
       foo_id = Factory.create_shard(db, "foo")
       foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id)
 
-      service = Service::ImportCatalog.new("")
-      service.archive_unreferenced_shards(db)
+      service = Service::ImportCatalog.new(db, "")
+      service.archive_unreferenced_shards
 
       db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
         {foo_id, "foo"},
@@ -729,9 +729,9 @@ describe Service::ImportCatalog do
         YAML
 
       transaction do |db|
-        service = Service::ImportCatalog.new(catalog_path)
+        service = Service::ImportCatalog.new(db, catalog_path)
         service.mock_create_shard = true
-        import_stats = service.import_catalog(db)
+        import_stats = service.import_catalog
         db.all_categories.map { |cat| {cat.name, cat.description} }.should eq [{"Bar", "bardesc"}, {"Foo", "foodesc"}]
 
         foo_id = db.get_shard_id("foo")

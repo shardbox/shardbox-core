@@ -44,7 +44,11 @@ when "sync_repos"
   end
   ratio ||= 2.0 / hours
 
-  service = Service::SyncRepos.new(hours.hours, ratio)
+  ShardsDB.transaction do |db|
+    Service::SyncRepos.new(db, hours.hours, ratio).perform
+  end
+  queue.run
+  exit 0
 when "help"
   show_help(STDOUT)
   exit 0

@@ -13,8 +13,7 @@ describe Service::OrderReleases do
         Factory.create_release(db, shard_id, version, Time.utc, position: index)
       end
 
-      service = Service::OrderReleases.new(shard_id)
-      service.order_releases(db)
+      Service::OrderReleases.new(db, shard_id).perform
 
       results = db.connection.query_all <<-SQL, shard_id, as: {String}
         SELECT version

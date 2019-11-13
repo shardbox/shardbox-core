@@ -7,10 +7,11 @@ struct Service::WorkerLoop
 
   getter? running : Bool = false
 
+  @notify_connection : PG::ListenConnection?
+
   def initialize
     @channel = Channel(String).new
     @processes = [] of Process
-    @notify_connection : PG::ListenConnection?
   end
 
   def stop
