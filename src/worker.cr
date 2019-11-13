@@ -32,7 +32,7 @@ when "import_catalog"
   if uri.scheme
     catalog_path = Service::ImportCatalog.checkout_catalog(uri)
   end
-  Service::ImportCatalog.new(catalog_path).perform_later
+  service = Service::ImportCatalog.new(catalog_path)
 when "sync_repos"
   hours = 24
   ratio = nil
@@ -44,21 +44,25 @@ when "sync_repos"
   end
   ratio ||= 2.0 / hours
 
-  Service::SyncRepos.new(hours.hours, ratio).perform_later
+  service = Service::SyncRepos.new(hours.hours, ratio)
 when "help"
   show_help(STDOUT)
+  exit 0
 when "sync_repo"
   arg = ARGV.shift
 
-  Service::SyncRepo.new(Repo::Ref.parse(arg)).perform_later
+  service = Service::SyncRepo.new(Repo::Ref.parse(arg))
 when "update_metrics"
-  Service::UpdateShardMetrics.new.perform_later
+  service = Service::UpdateShardMetrics.new
 when "loop"
-  Service::WorkerLoop.new.perform_later
+  service = Service::WorkerLoop.new
 else
   STDERR.puts "unknown command #{command.inspect}"
   show_help(STDERR)
   exit 1
 end
 
+service.perform
+
+# Run pending jobs
 queue.run
