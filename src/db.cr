@@ -338,15 +338,15 @@ class ShardsDB
   def find_mirror_repos(shard_id : Int64)
     results = [] of Repo
     connection.query_all <<-SQL, shard_id do |result|
-      SELECT resolver::text, url::text, role::text, metadata::text, synced_at
+      SELECT id, resolver::text, url::text, role::text, metadata::text, synced_at
       FROM repos
       WHERE
         shard_id = $1 AND role <> 'canonical'
       ORDER BY
         role, url
       SQL
-      resolver, url, role, metadata, synced_at = result.read String, String, String, String, Time?
-      results << Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at)
+      id, resolver, url, role, metadata, synced_at = result.read Int64, String, String, String, String, Time?
+      results << Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at, id: id)
     end
     results
   end

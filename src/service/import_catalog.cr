@@ -183,34 +183,11 @@ struct Service::ImportCatalog
   end
 
   def update_mirrors(db, entry, shard_id)
-    db_mirrors = db.connection.query_all <<-SQL, shard_id, as: {String, String, String}
-      SELECT
-        resolver::text, url::text, role::text
-      FROM
-        repos
-      WHERE
-        shard_id = $1
-      AND
-        role <> 'canonical'
-      SQL
+    repos = db.find_mirror_repos(shard_id)
 
-    db_mirrors = db_mirrors.map do |resolver, url, role|
-      Catalog::Mirror.new(Repo::Ref.new(resolver, url), Repo::Role.parse(role))
-    end
+    entry.mirrors.each do |mirror|
+      next if repos.any? { |repo| repo.ref == mirror.repo_ref }
 
-    new_mirrors = entry.mirrors.reject do |mirror|
-      db_mirrors.any? { |m| m.repo_ref == mirror.repo_ref }
-    end
-
-    removed_mirrors = db_mirrors.reject do |mirror|
-      entry.mirrors.any? { |m| m.repo_ref == mirror.repo_ref }
-    end
-
-    updated_mirrors = db_mirrors.select do |mirror|
-      entry.mirrors.any? { |m| m.repo_ref == mirror.repo_ref && m.role != mirror.role }
-    end
-
-    new_mirrors.each do |mirror|
       repo = db.get_repo?(mirror.repo_ref)
 
       if repo
@@ -222,39 +199,30 @@ struct Service::ImportCatalog
           "old_role"     => repo.role,
         }
       else
-        repo_id = db.connection.query_one(<<-SQL, mirror.repo_ref.resolver, mirror.repo_ref.url, mirror.role, shard_id, as: Int64)
-          INSERT INTO repos
-            (resolver, url, role, shard_id)
-          VALUES
-            ($1, $2, $3, $4)
-          RETURNING id
-          SQL
+        repo = Repo.new(mirror.repo_ref, shard_id, mirror.role)
+        repo.id = db.create_repo(repo)
 
-        db.log_activity "import_catalog:mirror:created", repo_id: repo_id, shard_id: shard_id, metadata: {
-          "role" => mirror.role,
+        db.log_activity "import_catalog:mirror:created", repo_id: repo.id, shard_id: shard_id, metadata: {
+          "role" => repo.role,
         }
       end
     end
 
-    removed_mirrors.each do |mirror|
-      repo = db.get_repo(mirror.repo_ref)
+    repos.each do |repo|
+      if mirror = entry.mirrors.find { |m| m.repo_ref == repo.ref }
+        if mirror.role != repo.role
+          # update mirror
+          set_role(db, repo.ref, mirror.role)
 
-      set_role(db, mirror.repo_ref, :obsolete)
-
-      db.log_activity "import_catalog:mirror:obsoleted", repo_id: repo.id, shard_id: shard_id, metadata: {
-        "old_role" => repo.role,
-      }
-    end
-
-    updated_mirrors.each do |mirror|
-      repo = db.get_repo(mirror.repo_ref)
-
-      set_role(db, mirror.repo_ref, mirror.role)
-
-      db.log_activity "import_catalog:mirror:role_changed", repo_id: repo.id, shard_id: shard_id, metadata: {
-        "role"     => mirror.role,
-        "old_role" => repo.role,
-      }
+          db.log_activity "import_catalog:mirror:role_changed", repo_id: repo.id, shard_id: shard_id, metadata: {
+            "role"     => mirror.role,
+            "old_role" => repo.role,
+          }
+        end
+      else
+        # remove mirror
+        obsolete_repo(db, repo)
+      end
     end
   end
 
@@ -326,9 +294,15 @@ struct Service::ImportCatalog
       SQL
 
     dangling_repos.each do |repo_id, shard_id, resolver, url|
-      db.log_activity "import_catalog:repo:obsoleted", repo_id, shard_id
-      set_role(db, Repo::Ref.new(resolver, url), :obsolete)
+      obsolete_repo(db, Repo.new(Repo::Ref.new(resolver, url), role: :canonical, id: repo_id, shard_id: shard_id))
     end
+  end
+
+  def obsolete_repo(db, repo)
+    set_role(db, repo.ref, :obsolete)
+    db.log_activity "import_catalog:repo:obsoleted", repo.id, repo.shard_id, metadata: {
+      "old_role" => repo.role,
+    }
   end
 
   def self.checkout_catalog(uri)
