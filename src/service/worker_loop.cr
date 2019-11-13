@@ -1,26 +1,16 @@
-require "taskmaster"
 require "../db"
 
 # This service runs in the background and schedules commands.
 struct Service::WorkerLoop
-  include Taskmaster::Job
-
   getter sync_interval = 60
   getter metrics_schedule = 4 # hour of day
 
-  @[JSON::Field(ignore: true)]
   getter? running : Bool = false
 
-  @[JSON::Field(ignore: true)]
-  @channel = Channel(String).new
-
-  @[JSON::Field(ignore: true)]
-  @processes = [] of Process
-
-  @[JSON::Field(ignore: true)]
-  @notify_connection : PG::ListenConnection?
-
   def initialize
+    @channel = Channel(String).new
+    @processes = [] of Process
+    @notify_connection : PG::ListenConnection?
   end
 
   def stop

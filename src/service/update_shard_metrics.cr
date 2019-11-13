@@ -1,9 +1,6 @@
-require "taskmaster"
 require "../db"
 
 struct Service::UpdateShardMetrics
-  include Taskmaster::Job
-
   def initialize
   end
 

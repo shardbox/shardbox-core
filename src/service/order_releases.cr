@@ -1,11 +1,8 @@
-require "taskmaster"
 require "../db"
 require "../release"
 require "../util/software_version"
 
 class Service::OrderReleases
-  include Taskmaster::Job
-
   def initialize(@shard_id : Int64)
   end
 

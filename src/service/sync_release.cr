@@ -1,4 +1,3 @@
-require "taskmaster"
 require "../db"
 require "../ext/yaml/any"
 require "../repo/resolver"
@@ -9,8 +8,6 @@ require "./import_shard"
 
 # This service synchronizes the information about a release in the database.
 class Service::SyncRelease
-  include Taskmaster::Job
-
   def initialize(@shard_id : Int64, @version : String)
   end
 

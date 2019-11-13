@@ -2,11 +2,8 @@ require "../catalog"
 require "./import_categories"
 require "./import_shard"
 require "./update_shard"
-require "taskmaster"
 
 struct Service::ImportCatalog
-  include Taskmaster::Job
-
   def initialize(@catalog_location : String)
   end
 

@@ -1,9 +1,6 @@
-require "taskmaster"
 require "../db"
 
 struct Service::UpdateShard
-  include Taskmaster::Job
-
   def initialize(@shard_id : Int64, @entry : Catalog::Entry?)
   end
 

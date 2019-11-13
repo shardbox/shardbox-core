@@ -1,12 +1,9 @@
-require "taskmaster"
 require "../db"
 require "./sync_repo"
 require "./update_dependencies"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepos
-  include Taskmaster::Job
-
   def initialize(@older_than : Time, @ratio : Float32)
   end
 

@@ -1,4 +1,3 @@
-require "taskmaster"
 require "../db"
 require "../repo"
 require "../repo/resolver"
@@ -8,8 +7,6 @@ require "./create_shard"
 require "../shard"
 
 struct Service::ImportShard
-  include Taskmaster::Job
-
   def initialize(@repo_ref : Repo::Ref)
   end
 
