@@ -41,11 +41,9 @@ describe Service::ImportShard do
 
     transaction do |db|
       repo_id = Factory.create_repo(db, repo_ref, nil)
-      repo = db.get_repo(repo_id)
 
       shard_id = service.import_shard(db,
-        repo,
-        Catalog::Entry.new(repo_ref, description: "foo description"),
+        entry: Catalog::Entry.new(repo_ref, description: "foo description"),
         resolver: Repo::Resolver.new(mock_resolver, repo_ref),
       )
 
@@ -72,10 +70,8 @@ describe Service::ImportShard do
 
     transaction do |db|
       repo_id = Factory.create_repo(db, repo_ref, nil)
-      repo = db.get_repo(repo_id)
 
       shard_id = service.import_shard(db,
-        repo,
         resolver: Repo::Resolver.new(mock_resolver, repo_ref))
 
       ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}]

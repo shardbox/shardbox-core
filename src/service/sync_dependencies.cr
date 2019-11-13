@@ -1,6 +1,6 @@
 require "../db"
 require "../repo"
-require "taskmaster"
+require "./sync_repo"
 
 # This service upserts a dependency.
 class Service::SyncDependencies
@@ -25,7 +25,7 @@ class Service::SyncDependencies
 
     if repo_ref
       if upsert_repo(db, repo_ref)
-        ImportShard.new(repo_ref).perform_later
+        SyncRepo.new(repo_ref).perform_later
       end
 
       db.connection.exec <<-SQL, @release_id, dependency.name, dependency.spec.to_json, dependency.scope, repo_ref.resolver, repo_ref.url

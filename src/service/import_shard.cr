@@ -19,15 +19,12 @@ struct Service::ImportShard
     end
   end
 
-  def import_shard(db)
+  # Entry point for ImportCatalog
+  def import_shard(db : ShardsDB, repo : Repo? = nil, entry : Catalog::Entry? = nil, *, resolver = Repo::Resolver.new(@repo_ref))
     Raven.tags_context repo: @repo_ref.to_s
 
-    repo = find_or_create_repo(db)
-    import_shard(db, repo)
-  end
+    repo ||= db.get_repo(@repo_ref)
 
-  # Entry point for ImportCatalog
-  def import_shard(db : ShardsDB, repo : Repo, entry : Catalog::Entry? = nil, *, resolver = Repo::Resolver.new(@repo_ref))
     raise "Repo has already a shard associated" if repo.shard_id
     Raven.tags_context repo: @repo_ref.to_s, repo_id: repo.id
 
@@ -59,16 +56,5 @@ struct Service::ImportShard
     end
 
     Shards::Spec.from_yaml(spec_raw)
-  end
-
-  private def find_or_create_repo(db)
-    if repo = db.get_repo?(@repo_ref)
-      repo
-    else
-      repo = Repo.new(@repo_ref, nil, :canonical)
-      repo.id = db.create_repo(repo)
-      db.log_activity "import_shard:repo:created", repo.id
-      repo
-    end
   end
 end

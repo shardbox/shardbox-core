@@ -36,7 +36,7 @@ describe Service::SyncDependencies do
             {"foo", spec, "runtime", nil, "git", "foo", "canonical"},
           ]
 
-          enqueued_jobs.should eq [{"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"foo"}})}]
+          enqueued_jobs.should eq [{"Service::SyncRepo", %({"repo_ref":{"resolver":"git","url":"foo"}})}]
         end
       end
 
@@ -58,8 +58,8 @@ describe Service::SyncDependencies do
           ]
 
           enqueued_jobs.should eq [
-            {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"foo"}})},
-            {"Service::ImportShard", %({"repo_ref":{"resolver":"git","url":"bar"}})},
+            {"Service::SyncRepo", %({"repo_ref":{"resolver":"git","url":"foo"}})},
+            {"Service::SyncRepo", %({"repo_ref":{"resolver":"git","url":"bar"}})},
           ]
         end
       end
