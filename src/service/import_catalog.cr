@@ -27,14 +27,14 @@ struct Service::ImportCatalog
   end
 
   def import_catalog(db)
-    categories, entries = Catalog.read(@catalog_location)
+    catalog = Catalog.read(@catalog_location)
 
-    category_stats = update_categories(db, categories)
+    category_stats = update_categories(db, catalog.categories)
 
-    update_categorizations(db, entries)
-    delete_obsolete_categorizations(db, entries)
+    update_categorizations(db, catalog.entries)
+    delete_obsolete_categorizations(db, catalog.entries)
 
-    import_repos(db, entries)
+    import_repos(db, catalog.entries)
 
     category_stats
   end

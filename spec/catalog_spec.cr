@@ -32,8 +32,8 @@ describe Catalog do
             - git: foo/bar
               role: legacy
           YAML
-        categories, entries = Catalog.read(catalog_path)
-        categories.keys.should eq ["category"]
+        catalog = Catalog.read(catalog_path)
+        catalog.categories.keys.should eq ["category"]
       end
     end
 
