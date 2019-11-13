@@ -35,14 +35,18 @@ describe Service::ImportShard do
     version: 0.1.0
     SPEC
 
-  it "creates new repo" do
+  it "creates new shard" do
     repo_ref = Repo::Ref.new("git", "mock:test")
     service = Service::ImportShard.new(repo_ref)
 
     transaction do |db|
+      repo_id = Factory.create_repo(db, repo_ref, nil)
+      repo = db.get_repo(repo_id)
+
       shard_id = service.import_shard(db,
-        Repo::Resolver.new(mock_resolver, repo_ref),
-        Catalog::Entry.new(repo_ref, description: "foo description")
+        repo,
+        Catalog::Entry.new(repo_ref, description: "foo description"),
+        resolver: Repo::Resolver.new(mock_resolver, repo_ref),
       )
 
       ShardsDBHelper.persisted_shards(db).should eq [{"test", "", "foo description"}]
@@ -56,7 +60,6 @@ describe Service::ImportShard do
       ]
 
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-        {"import_shard:repo:created", repo_id, nil, nil},
         {"import_shard:created", repo_id, shard_id, nil},
       ]
     end
@@ -69,8 +72,11 @@ describe Service::ImportShard do
 
     transaction do |db|
       repo_id = Factory.create_repo(db, repo_ref, nil)
+      repo = db.get_repo(repo_id)
 
-      shard_id = service.import_shard(db, Repo::Resolver.new(mock_resolver, repo_ref))
+      shard_id = service.import_shard(db,
+        repo,
+        resolver: Repo::Resolver.new(mock_resolver, repo_ref))
 
       ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}]
       persisted_repos(db).should eq [{"git", "mock://example.com/git/test.git", "canonical", "test"}]
@@ -83,7 +89,7 @@ describe Service::ImportShard do
     end
   end
 
-  it "handles unresolvable repo" do
+  pending "handles unresolvable repo" do
     repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
     service = Service::ImportShard.new(repo_ref)
 

@@ -22,37 +22,23 @@ struct Service::ImportShard
   def import_shard(db)
     Raven.tags_context repo: @repo_ref.to_s
 
-    import_shard(db, Repo::Resolver.new(@repo_ref))
-  end
-
-  def import_shard(db : ShardsDB, resolver : Repo::Resolver, entry : Catalog::Entry? = nil)
     repo = find_or_create_repo(db)
-    shard_id = create_shard(db, resolver, repo, entry)
-
-    Service::SyncRepo.new(@repo_ref).perform_later
-
-    shard_id
+    import_shard(db, repo)
   end
 
   # Entry point for ImportCatalog
-  def import_shard(db : ShardsDB, repo : Repo, entry : Catalog::Entry? = nil)
+  def import_shard(db : ShardsDB, repo : Repo, entry : Catalog::Entry? = nil, *, resolver = Repo::Resolver.new(@repo_ref))
     raise "Repo has already a shard associated" if repo.shard_id
-
-    resolver = Repo::Resolver.new(@repo_ref)
-    shard_id = create_shard(db, resolver, repo, entry)
-
-    Service::SyncRepo.new(@repo_ref).perform_later
-
-    shard_id
-  end
-
-  def create_shard(db : ShardsDB, resolver : Repo::Resolver, repo : Repo, entry : Catalog::Entry? = nil)
     Raven.tags_context repo: @repo_ref.to_s, repo_id: repo.id
 
     spec = retrieve_spec(db, resolver, repo)
     return unless spec
 
-    CreateShard.new(db, repo, spec.name, entry).perform
+    shard_id = CreateShard.new(db, repo, spec.name, entry).perform
+
+    SyncRepo.new(@repo_ref).perform_later
+
+    shard_id
   ensure
     Raven.tags_context repo: nil, repo_id: nil, shard_id: nil
   end
