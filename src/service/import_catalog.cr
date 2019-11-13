@@ -1,4 +1,5 @@
 require "../catalog"
+require "./import_categories"
 require "./import_shard"
 require "./update_shard"
 require "taskmaster"
@@ -29,10 +30,7 @@ struct Service::ImportCatalog
   def import_catalog(db)
     catalog = Catalog.read(@catalog_location)
 
-    category_stats = update_categories(db, catalog.categories)
-
-    update_categorizations(db, catalog.entries)
-    delete_obsolete_categorizations(db, catalog.entries)
+    category_stats = ImportCategories.new(db, catalog).perform
 
     import_repos(db, catalog.entries)
 
@@ -331,56 +329,6 @@ struct Service::ImportCatalog
       db.log_activity "import_catalog:repo:obsoleted", repo_id, shard_id
       set_role(db, Repo::Ref.new(resolver, url), :obsolete)
     end
-  end
-
-  def update_categories(db, categories)
-    all_categories = db.connection.query_all <<-SQL, categories.keys, as: {String?, String?, String?, String?}
-      SELECT
-        categories.slug::text, target_categories.slug, name::text, description
-      FROM
-        categories
-      FULL OUTER JOIN
-        (
-          SELECT unnest($1::text[]) AS slug
-        ) AS target_categories
-        ON categories.slug = target_categories.slug
-      SQL
-
-    deleted_categories = [] of String
-    new_categories = [] of String
-    updated_categories = [] of String
-    all_categories.each do |existing_slug, new_slug, name, description|
-      if existing_slug.nil?
-        category = categories[new_slug]
-        db.create_category(category)
-        new_categories << new_slug.not_nil!
-      elsif new_slug.nil?
-        db.remove_category(existing_slug.not_nil!)
-        deleted_categories << existing_slug.not_nil!
-      else
-        category = categories[existing_slug]
-        if category.name != name || category.description != description
-          db.update_category(category)
-          updated_categories << category.slug
-        end
-      end
-    end
-
-    {
-      "deleted_categories" => deleted_categories,
-      "new_categories"     => new_categories,
-      "updated_categories" => updated_categories,
-    }
-  end
-
-  def update_categorizations(db, repos)
-    repos.each do |entry|
-      db.update_categorization(entry.repo_ref, entry.categories)
-    end
-  end
-
-  def delete_obsolete_categorizations(db, repos)
-    db.delete_categorizations(repos.map &.repo_ref)
   end
 
   def self.checkout_catalog(uri)

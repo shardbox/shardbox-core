@@ -51,6 +51,10 @@ class Catalog
     nil
   end
 
+  def entries
+    @entries.values
+  end
+
   def entry?(repo_ref : Repo::Ref)
     @entries[repo_ref]?
   end
