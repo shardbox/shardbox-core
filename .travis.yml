@@ -32,6 +32,7 @@ before_script:
   wget -qO vendor/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
   chmod +x vendor/bin/dbmate
   export PATH="$PATH:$(pwd)/vendor/bin"
+- psql $TEST_DATABASE_URL -c 'SELECT version()'
 
 script:
 - crystal spec
