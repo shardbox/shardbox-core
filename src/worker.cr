@@ -28,11 +28,11 @@ when "import_catalog"
   unless catalog_path
     abort "No catalog path specified. Either provide program argument or environment variable SHARDBOX_CATALOG"
   end
-  uri = URI.parse(catalog_path)
-  if uri.scheme
-    catalog_path = Service::ImportCatalog.checkout_catalog(uri)
+  ShardsDB.transaction do |db|
+    service = Service::ImportCatalog.new(db, catalog_path)
+    service.perform
   end
-  service = Service::ImportCatalog.new(catalog_path)
+  exit 0
 when "sync_repos"
   hours = 24
   ratio = nil

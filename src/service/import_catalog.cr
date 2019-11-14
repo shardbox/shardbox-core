@@ -4,11 +4,15 @@ require "./import_shard"
 require "./update_shard"
 
 struct Service::ImportCatalog
-  def initialize(@db : ShardsDB, @catalog_location : String)
+  def initialize(@db : ShardsDB, @catalog : Catalog)
+  end
+
+  def self.new(db, catalog)
+    new(db, Catalog.read(catalog))
   end
 
   def perform
-    import_stats = import_catalog(@db)
+    import_stats = import_catalog
 
     @db.log_activity "import_catalog:done", metadata: import_stats
   rescue exc
@@ -25,18 +29,16 @@ struct Service::ImportCatalog
   end
 
   def import_catalog
-    catalog = Catalog.read(@catalog_location)
+    category_stats = ImportCategories.new(@db, @catalog).perform
 
-    category_stats = ImportCategories.new(@db, catalog).perform
-
-    import_repos(catalog.entries)
+    import_repos
 
     category_stats
   end
 
-  def import_repos(entries)
-    entries.each do |entry|
-      shard_id = import_repo(entry, entries)
+  def import_repos
+    @catalog.entries.each do |entry|
+      shard_id = import_repo(entry)
       if shard_id
         update_mirrors(entry, shard_id)
       else
@@ -44,11 +46,11 @@ struct Service::ImportCatalog
       end
     end
 
-    obsolete_removed_repos(entries.map &.repo_ref)
+    obsolete_removed_repos(@catalog.entries.map &.repo_ref)
     archive_unreferenced_shards
   end
 
-  def import_repo(entry, entries) : Int64?
+  def import_repo(entry) : Int64?
     repo = @db.get_repo?(entry.repo_ref)
 
     unless repo
@@ -91,7 +93,7 @@ struct Service::ImportCatalog
     else
       # Check whether the current canonical is in the catalog,
       # either as canonical or mirror.
-      canonical_entry = find_canonical_entry(entries, canonical_ref)
+      canonical_entry = @catalog.find_canonical_entry(canonical_ref)
       if canonical_entry
         # The current canonical is referenced in an other entry,
         # so this one is to be considered a new shard.
@@ -146,12 +148,6 @@ struct Service::ImportCatalog
 
   private def update_shard(entry, shard_id : Int64)
     Service::UpdateShard.new(@db, shard_id, entry).perform
-  end
-
-  private def find_canonical_entry(entries, ref)
-    entries.find do |entry|
-      entry.repo_ref == ref || entry.mirrors.find { |mirror| mirror.repo_ref == ref }
-    end
   end
 
   def set_role(repo_ref : Repo::Ref, role : Repo::Role)
@@ -300,23 +296,5 @@ struct Service::ImportCatalog
     @db.log_activity "import_catalog:repo:obsoleted", repo.id, repo.shard_id, metadata: {
       "old_role" => repo.role,
     }
-  end
-
-  def self.checkout_catalog(uri)
-    checkout_catalog(uri, "./catalog")
-  end
-
-  def self.checkout_catalog(uri, checkout_path)
-    if File.directory?(checkout_path)
-      if Process.run("git", ["-C", checkout_path.to_s, "pull", uri.to_s], output: :inherit, error: :inherit).success?
-        return Path[checkout_path, "catalog"].to_s
-      else
-        abort "Can't checkout catalog from #{uri}: checkout path #{checkout_path.inspect} exists, but is not a git repository"
-      end
-    end
-
-    Process.run("git", ["clone", uri.to_s, checkout_path.to_s], output: :inherit, error: :inherit)
-
-    Path[checkout_path, "catalog"].to_s
   end
 end

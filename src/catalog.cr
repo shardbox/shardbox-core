@@ -2,48 +2,60 @@ require "yaml"
 require "json"
 require "./repo"
 require "./category"
+require "uri"
 
 class Catalog
   class Error < Exception
   end
 
+  getter location : URI
   getter categories = Hash(String, ::Category).new
   @entries = {} of Repo::Ref => Entry
 
-  def initialize(catalog_location)
-    @catalog_location = Path.new(catalog_location)
+  def initialize(@location : URI)
   end
 
-  def self.read(catalog_location) : self
-    catalog = new(catalog_location)
+  def self.empty
+    new URI.new
+  end
+
+  def self.new(location)
+    new(URI.parse(location))
+  end
+
+  def self.read(location) : self
+    catalog = new(location)
+    catalog.read
+    catalog
+  end
+
+  def read
     mirrors = Set(Repo::Ref).new
 
-    catalog.each_category do |yaml_category|
+    each_category do |yaml_category|
       category = ::Category.new(yaml_category.slug, yaml_category.name, yaml_category.description)
-      catalog.categories[category.slug] = category
+      categories[category.slug] = category
       yaml_category.shards.each do |shard|
-        if stored_entry = catalog.@entries[shard.repo_ref]?
+        if stored_entry = @entries[shard.repo_ref]?
           stored_entry.mirrors.concat(shard.mirrors)
           stored_entry.categories << yaml_category.slug
         else
           shard.categories << yaml_category.slug
-          catalog.@entries[shard.repo_ref] = shard
+          @entries[shard.repo_ref] = shard
         end
 
-        if duplicate_repo = duplicate_mirror?(shard, mirrors, catalog)
+        if duplicate_repo = Catalog.duplicate_mirror?(shard, mirrors, self.@entries)
           raise Error.new("duplicate mirror #{duplicate_repo} in #{yaml_category.slug}")
         end
       end
     end
-
-    catalog
   end
 
-  def self.duplicate_mirror?(shard, mirrors, catalog)
+  def self.duplicate_mirror?(shard, mirrors, all_entries)
     return shard.repo_ref if mirrors.includes?(shard.repo_ref)
 
     shard.mirrors.each do |mirror|
-      if catalog.entry?(mirror.repo_ref) || !mirrors.add?(mirror.repo_ref)
+      if all_entries[mirror.repo_ref]? || !mirrors.add?(mirror.repo_ref)
         return mirror.repo_ref
       end
     end
@@ -59,13 +71,29 @@ class Catalog
     @entries[repo_ref]?
   end
 
+  def find_canonical_entry(ref : Repo::Ref)
+    entry?(ref) || begin
+      @entries.find do |_, entry|
+        entry.mirrors.find { |mirror| mirror.repo_ref == ref }
+      end
+    end
+  end
+
   def each_category
-    unless File.directory?(@catalog_location)
-      raise Error.new "Can't read catalog at #{@catalog_location}, directory does not exist."
+    local_path = check_out
+
+    each_category(local_path) do |category|
+      yield category
+    end
+  end
+
+  def each_category(path : Path)
+    unless File.directory?(path)
+      raise Error.new "Can't read catalog at #{path}, directory does not exist."
     end
     found_a_file = false
 
-    filenames = Dir.glob(@catalog_location.join("*.yml").to_s).sort
+    filenames = Dir.glob(path.join("*.yml").to_s).sort
     filenames.each do |filename|
       found_a_file = true
       File.open(filename) do |file|
@@ -81,8 +109,27 @@ class Catalog
       end
     end
     unless found_a_file
-      raise "Catalog at #{@catalog_location} is empty."
+      raise "Catalog at #{path} is empty."
     end
+  end
+
+  def check_out(checkout_path = "./catalog")
+    if location.scheme == "file" || location.scheme.nil?
+      return Path.new(location.path)
+    end
+
+    local_path = Path[checkout_path, "catalog"]
+    if File.directory?(checkout_path)
+      if Process.run("git", ["-C", checkout_path.to_s, "pull", location.to_s], output: :inherit, error: :inherit).success?
+        return local_path
+      else
+        abort "Can't checkout catalog from #{location}: checkout path #{checkout_path.inspect} exists, but is not a git repository"
+      end
+    end
+
+    Process.run("git", ["clone", location.to_s, checkout_path.to_s], output: :inherit, error: :inherit)
+
+    local_path
   end
 end
 

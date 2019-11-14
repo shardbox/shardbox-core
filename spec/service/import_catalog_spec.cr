@@ -689,7 +689,7 @@ describe Service::ImportCatalog do
       foo_id = Factory.create_shard(db, "foo")
       foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_id)
 
-      service = Service::ImportCatalog.new(db, "")
+      service = Service::ImportCatalog.new(db, Catalog.empty)
       service.archive_unreferenced_shards
 
       db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
