@@ -61,14 +61,26 @@ struct Service::ImportCatalog
     shard_id = repo.shard_id
 
     unless shard_id
-      # Repo exists, but not associated with a shard (obsolete)
-      if repo.role.obsolete?
+      case repo.role
+      when .obsolete?
+        # Repo exists, but not associated with a shard (obsolete)
         @db.log_activity "import_catalog:repo:reactivated", repo_id: repo.id
-      end
-      repo.role = :canonical
-      set_role(repo.ref, :canonical)
 
-      return import_shard(entry, repo)
+        repo.role = :canonical
+        set_role(repo.ref, :canonical)
+
+        return import_shard(entry, repo)
+      when .canonical?
+        # Repo exists and is canonical, but shard does not yet exist.
+        if repo.sync_failed_at
+          # Sync has already failed, not trying it again
+          return
+        else
+          return import_shard(entry, repo)
+        end
+      else
+        raise "Unexpected repo role #{repo.role}"
+      end
     end
 
     if repo.role.canonical?
