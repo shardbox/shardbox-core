@@ -189,6 +189,23 @@ class ShardsDB
     Repo.new(repo_ref, shard_id, Repo::Role.parse(role), Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: id)
   end
 
+  def repos_pending_sync
+    results = connection.query_all <<-SQL, as: {Int64, String, String, Int64?, String, String, Time?, Time?}
+      SELECT
+        id, resolver::text, url::text, shard_id, role::text, metadata::text, synced_at, sync_failed_at
+      FROM
+        repos
+      WHERE
+        synced_at IS NULL AND sync_failed_at IS NULL AND role = 'canonical'
+      ORDER BY
+        created_at
+      SQL
+
+    results.map do |id, resolver, url, shard_id, role, metadata, synced_at, sync_failed_at|
+      Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: id)
+    end
+  end
+
   def create_shard(shard : Shard)
     shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, shard.archived_at, as: Int64
       INSERT INTO shards
@@ -200,11 +217,11 @@ class ShardsDB
   end
 
   def create_repo(repo : Repo)
-    connection.query_one <<-SQL, repo.shard_id, repo.ref.resolver, repo.ref.url, repo.role, as: Int64
+    connection.query_one <<-SQL, repo.shard_id, repo.ref.resolver, repo.ref.url, repo.role, repo.synced_at, repo.sync_failed_at, as: Int64
       INSERT INTO repos
-        (shard_id, resolver, url, role)
+        (shard_id, resolver, url, role, synced_at, sync_failed_at)
       VALUES
-        ($1, $2, $3, $4)
+        ($1, $2, $3, $4, $5, $6)
       RETURNING id
       SQL
   end

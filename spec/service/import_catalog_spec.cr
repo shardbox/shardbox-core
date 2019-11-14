@@ -1,7 +1,6 @@
 require "spec"
 require "../../src/service/import_catalog"
 require "../../src/service/create_shard"
-require "../support/jobs"
 require "../support/db"
 require "../support/raven"
 require "file_utils"

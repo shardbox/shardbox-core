@@ -3,7 +3,6 @@ require "../../src/service/sync_dependencies"
 require "../../src/repo"
 require "../../src/repo/resolver"
 require "../support/db"
-require "../support/jobs"
 require "../support/mock_resolver"
 
 private def query_dependencies_with_repo(db)
@@ -36,7 +35,7 @@ describe Service::SyncDependencies do
             {"foo", spec, "runtime", nil, "git", "foo", "canonical"},
           ]
 
-          enqueued_jobs.should eq [{"Service::SyncRepo", %({"repo_ref":{"resolver":"git","url":"foo"}})}]
+          db.repos_pending_sync.map(&.ref).should eq [Repo::Ref.new("git", "foo")]
         end
       end
 
@@ -57,10 +56,7 @@ describe Service::SyncDependencies do
             {"foo", spec_bar, "development", nil, "git", "bar", "canonical"},
           ]
 
-          enqueued_jobs.should eq [
-            {"Service::SyncRepo", %({"repo_ref":{"resolver":"git","url":"foo"}})},
-            {"Service::SyncRepo", %({"repo_ref":{"resolver":"git","url":"bar"}})},
-          ]
+          db.repos_pending_sync.map(&.ref).should eq [Repo::Ref.new("git", "foo"), Repo::Ref.new("git", "bar")]
         end
       end
     end
@@ -69,9 +65,9 @@ describe Service::SyncDependencies do
       it "creates dependency and links repo" do
         transaction do |db|
           release_id = Factory.create_release(db)
-          repo_foo = Factory.create_repo(db, Repo::Ref.new("git", "foo"))
           shard_id = Factory.create_shard(db, "foo")
-          repo_bar = Factory.create_repo(db, Repo::Ref.new("git", "bar"), shard_id)
+          repo_foo = db.create_repo Repo.new(Repo::Ref.new("git", "foo"), nil, :canonical, synced_at: Time.utc)
+          repo_bar = db.create_repo Repo.new(Repo::Ref.new("git", "bar"), shard_id, :canonical, synced_at: Time.utc)
 
           service = Service::SyncDependencies.new(db, release_id)
 
@@ -87,16 +83,16 @@ describe Service::SyncDependencies do
             {"bar", spec_bar, "runtime", shard_id, "git", "bar", "canonical"},
           ]
 
-          enqueued_jobs.empty?.should be_true
+          db.repos_pending_sync.should eq [] of Repo
         end
       end
 
       it "updates dependency" do
         transaction do |db|
           release_id = Factory.create_release(db)
-          repo_foo = Factory.create_repo(db, Repo::Ref.new("git", "foo"))
           shard_id = Factory.create_shard(db, "bar")
-          repo_bar = Factory.create_repo(db, Repo::Ref.new("git", "bar"), shard_id)
+          repo_foo = db.create_repo Repo.new(Repo::Ref.new("git", "foo"), nil, :canonical, synced_at: Time.utc)
+          repo_bar = db.create_repo Repo.new(Repo::Ref.new("git", "bar"), shard_id, :canonical, synced_at: Time.utc)
 
           service = Service::SyncDependencies.new(db, release_id)
 
@@ -111,7 +107,7 @@ describe Service::SyncDependencies do
             {"foo", spec_bar, "development", shard_id, "git", "bar", "canonical"},
           ]
 
-          enqueued_jobs.empty?.should be_true
+          db.repos_pending_sync.should eq [] of Repo
         end
       end
     end

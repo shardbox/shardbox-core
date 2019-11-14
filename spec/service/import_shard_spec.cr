@@ -1,9 +1,8 @@
 require "spec"
-require "../support/raven"
 require "../../src/service/import_shard"
 require "../../src/catalog"
+require "../support/raven"
 require "../support/db"
-require "../support/jobs"
 require "../support/mock_resolver"
 
 private def shard_categorizations(db)
@@ -41,7 +40,7 @@ describe Service::ImportShard do
       ShardsDBHelper.persisted_shards(db).should eq [{"test", "", "foo description"}]
 
       repo_id = db.get_repo(repo_ref).id
-      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":#{repo_ref.to_json}})]
+      db.repos_pending_sync.map(&.ref).should eq [repo_ref]
 
       shard_categorizations(db).should eq [
         {"test", "", nil},
@@ -66,7 +65,7 @@ describe Service::ImportShard do
 
       ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}]
 
-      find_queued_tasks("Service::SyncRepo").map(&.arguments).should eq [%({"repo_ref":{"resolver":"git","url":"mock://example.com/git/test.git"}})]
+      db.repos_pending_sync.map(&.ref).should eq [repo_ref]
 
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
         {"import_shard:created", repo_id, shard_id, nil},
