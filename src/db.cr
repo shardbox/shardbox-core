@@ -409,7 +409,27 @@ class ShardsDB
   end
 
   # LOGGING
+  class_property logger : Logger { Logger.new(STDOUT) }
+
   def log_activity(event : String, repo_id : Int64? = nil, shard_id : Int64? = nil, metadata = nil)
+    log_message = String.build do |io|
+      io << event
+      if repo_id
+        repo_ref = get_repo(repo_id).ref rescue nil
+        repo_ref ||= repo_id
+        io << " repo=" << repo_ref
+      end
+      if shard_id
+        io << " shard=" << shard_id
+      end
+      if metadata
+        metadata.each do |key, value|
+          io << " " << key << "="
+          value.inspect(io)
+        end
+      end
+    end
+    self.class.logger.info(log_message)
     connection.exec <<-SQL, event, repo_id, shard_id, metadata.to_json
         INSERT INTO activity_log
         (
