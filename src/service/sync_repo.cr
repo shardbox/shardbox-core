@@ -1,4 +1,3 @@
-require "../db"
 require "../ext/yaml/any"
 require "../repo/resolver"
 require "./sync_release"
@@ -6,25 +5,22 @@ require "./order_releases"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepo
-  def initialize(@repo_ref : Repo::Ref)
+  def initialize(@db : ShardsDB, @repo_ref : Repo::Ref)
   end
 
   def perform
     resolver = Repo::Resolver.new(@repo_ref)
 
-    Raven.tags_context repo: @repo_ref.to_s
-
-    ShardsDB.transaction do |db|
-      sync_repo(db, resolver)
-    end
+    sync_repo(resolver)
   end
 
-  def sync_repo(db, resolver : Repo::Resolver)
-    repo = db.get_repo(resolver.repo_ref)
+  def sync_repo(resolver : Repo::Resolver)
+    Raven.tags_context repo: @repo_ref.to_s
+    repo = @db.get_repo(resolver.repo_ref)
     shard_id = repo.shard_id
 
     unless shard_id
-      shard_id = ImportShard.new(db, repo, resolver).perform
+      shard_id = ImportShard.new(@db, repo, resolver).perform
 
       return unless shard_id
     end
@@ -33,18 +29,18 @@ struct Service::SyncRepo
       # We only track releases on canonical repos
 
       begin
-        sync_releases(db, resolver, shard_id)
+        sync_releases(resolver, shard_id)
       rescue exc : Repo::Resolver::RepoUnresolvableError
-        SyncRepo.sync_failed(db, repo, "clone_failed", exc)
+        SyncRepo.sync_failed(@db, repo, "clone_failed", exc)
 
         return
       end
     end
 
-    sync_metadata(db, resolver, repo)
+    sync_metadata(resolver, repo)
   end
 
-  def sync_releases(db, resolver, shard_id)
+  def sync_releases(resolver, shard_id)
     versions = resolver.fetch_versions
 
     failed_versions = [] of String
@@ -65,23 +61,23 @@ struct Service::SyncRepo
       end
 
       begin
-        SyncRelease.new(db, shard_id, version).sync_release(resolver)
+        SyncRelease.new(@db, shard_id, version).sync_release(resolver)
       rescue exc : Shards::ParseError
-        repo = db.get_repo(resolver.repo_ref)
-        self.class.sync_failed(db, repo, "sync_release:failed", exc, {"version" => version})
+        repo = @db.get_repo(resolver.repo_ref)
+        self.class.sync_failed(@db, repo, "sync_release:failed", exc, {"version" => version})
 
         failed_versions << version
       end
     end
 
     versions -= failed_versions
-    yank_releases_with_missing_versions(db, shard_id, versions)
+    yank_releases_with_missing_versions(shard_id, versions)
 
-    Service::OrderReleases.new(db, shard_id).perform
+    Service::OrderReleases.new(@db, shard_id).perform
   end
 
-  def yank_releases_with_missing_versions(db, shard_id, versions)
-    db.connection.exec <<-SQL, shard_id, versions
+  def yank_releases_with_missing_versions(shard_id, versions)
+    @db.connection.exec <<-SQL, shard_id, versions
       UPDATE
         releases
       SET
@@ -91,20 +87,20 @@ struct Service::SyncRepo
       SQL
   end
 
-  def sync_metadata(db, resolver, repo : Repo)
+  def sync_metadata(resolver, repo : Repo)
     begin
       metadata = resolver.fetch_metadata
     rescue exc : Shards::Error
-      SyncRepo.sync_failed(db, repo, "fetch_metadata_failed", exc)
+      SyncRepo.sync_failed(@db, repo, "fetch_metadata_failed", exc)
 
-      db.connection.exec("COMMIT")
+      @db.connection.exec("COMMIT")
 
       raise exc
     end
 
     metadata ||= Repo::Metadata.new
 
-    db.connection.exec <<-SQL, repo.id, metadata.to_json
+    @db.connection.exec <<-SQL, repo.id, metadata.to_json
       UPDATE
         repos
       SET
@@ -115,7 +111,7 @@ struct Service::SyncRepo
         id = $1
       SQL
 
-    db.log_activity "sync_repo:synced", repo_id: repo.id
+    @db.log_activity "sync_repo:synced", repo_id: repo.id
   end
 
   def self.sync_failed(db, repo : Repo, event, exc = nil, metadata = nil)

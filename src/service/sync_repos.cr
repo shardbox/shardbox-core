@@ -57,7 +57,9 @@ struct Service::SyncRepos
 
   def sync_repo(repo_ref)
     begin
-      Service::SyncRepo.new(repo_ref).perform
+      ShardsDB.transaction do |db|
+        Service::SyncRepo.new(db, repo_ref).perform
+      end
     rescue exc
       Raven.capture(exc)
     end
