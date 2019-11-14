@@ -935,20 +935,6 @@ CREATE TRIGGER releases_only_one_latest_release BEFORE INSERT OR UPDATE OF lates
 
 
 --
--- Name: releases set_timestamp; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.releases FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
-
-
---
--- Name: shards set_timestamp; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.shards FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
-
-
---
 -- Name: dependencies set_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -956,10 +942,24 @@ CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.dependencies FOR EACH ROW E
 
 
 --
+-- Name: releases set_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.releases FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
+
+
+--
 -- Name: repos set_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.repos FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
+
+
+--
+-- Name: shards set_timestamp; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER set_timestamp BEFORE UPDATE ON public.shards FOR EACH ROW EXECUTE FUNCTION public.trigger_set_timestamp();
 
 
 --
