@@ -47,6 +47,55 @@ describe Service::SyncRepo do
     end
   end
 
+  describe "#sync_releases" do
+    it "skips new invalid release" do
+      transaction do |db|
+        shard_id = Factory.create_shard(db)
+        repo_ref = Repo::Ref.new("git", "foo")
+        repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
+        mock_resolver = MockResolver.new
+        mock_resolver.register "0.1.0", Factory.build_revision_info, spec: ""
+        resolver = Repo::Resolver.new(mock_resolver, repo_ref)
+
+        service = Service::SyncRepo.new(repo_ref)
+        service.sync_releases(db, resolver, shard_id)
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"sync_repo:sync_release:failed", repo_id, shard_id, {
+            "message"   => "Expected DOCUMENT_START but was STREAM_END at line 1, column 1",
+            "version"   => "0.1.0",
+            "exception" => "Shards::ParseError",
+          }},
+        ]
+      end
+    end
+
+    it "yanks existing invalid release" do
+      transaction do |db|
+        shard_id = Factory.create_shard(db, "foo")
+        repo_ref = Repo::Ref.new("git", "foo")
+        repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
+        Factory.create_release(db, shard_id, "0.1.0")
+        mock_resolver = MockResolver.new
+        mock_resolver.register "0.1.0", Factory.build_revision_info, spec: ""
+        mock_resolver.register "0.2.0", Factory.build_revision_info, spec: nil
+        resolver = Repo::Resolver.new(mock_resolver, repo_ref)
+
+        service = Service::SyncRepo.new(repo_ref)
+        service.sync_releases(db, resolver, shard_id)
+
+        db.all_releases(shard_id).map { |r| {r.version, r.yanked?} }.should eq [{"0.2.0", false}, {"0.1.0", true}]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"sync_repo:sync_release:failed", repo_id, shard_id, {
+            "message"   => "Expected DOCUMENT_START but was STREAM_END at line 1, column 1",
+            "version"   => "0.1.0",
+            "exception" => "Shards::ParseError",
+          }},
+        ]
+      end
+    end
+  end
+
   it "yanks removed releases" do
     transaction do |db|
       shard_id = Factory.create_shard(db)

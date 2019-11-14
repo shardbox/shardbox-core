@@ -249,6 +249,26 @@ class ShardsDB
       release.spec.to_json, release.yanked_at?.try(&.at_beginning_of_second)
   end
 
+  def all_releases(shard_id : Int64)
+    results = connection.query_all <<-SQL, shard_id, as: {Int64, String, Time, String, JSON::Any, Time?, Bool?}
+      SELECT
+        id, version, released_at, revision_info::text, spec, yanked_at, latest
+      FROM
+        releases
+      WHERE
+        shard_id = $1
+      ORDER BY position DESC
+      SQL
+
+    results.map do |result|
+      id, version, released_at, revision_info, spec, yanked_at, latest = result
+      revision_info = Release::RevisionInfo.from_json(revision_info)
+      Release.new(
+        version, released_at, revision_info, spec.as_h, yanked_at, !!latest, id: id
+      )
+    end
+  end
+
   def upsert_dependency(release_id : Int64, dependency : Dependency, repo_id = nil)
     connection.exec <<-SQL, release_id, repo_id, dependency.name, dependency.spec.to_json, dependency.scope
       INSERT INTO dependencies

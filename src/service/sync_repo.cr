@@ -50,6 +50,7 @@ struct Service::SyncRepo
   def sync_releases(db, resolver, shard_id)
     versions = resolver.fetch_versions
 
+    failed_versions = [] of String
     versions.each do |version|
       if !SoftwareVersion.valid?(version) && version != "HEAD"
         # TODO: What should happen when a version tag is invalid?
@@ -66,9 +67,17 @@ struct Service::SyncRepo
         next
       end
 
-      SyncRelease.new(db, shard_id, version).sync_release(resolver)
+      begin
+        SyncRelease.new(db, shard_id, version).sync_release(resolver)
+      rescue exc : Shards::ParseError
+        repo = db.get_repo(resolver.repo_ref)
+        self.class.sync_failed(db, repo, "sync_release:failed", exc, {"version" => version})
+
+        failed_versions << version
+      end
     end
 
+    versions -= failed_versions
     yank_releases_with_missing_versions(db, shard_id, versions)
 
     Service::OrderReleases.new(db, shard_id).perform
@@ -112,7 +121,7 @@ struct Service::SyncRepo
     db.log_activity "sync_repo:synced", repo_id: repo.id
   end
 
-  def self.sync_failed(db, repo : Repo, event, exc = nil)
+  def self.sync_failed(db, repo : Repo, event, exc = nil, metadata = nil)
     db.connection.exec <<-SQL, repo.id
       UPDATE
         repos
@@ -122,14 +131,14 @@ struct Service::SyncRepo
         id = $1
       SQL
 
-    metadata = nil
+    metadata ||= {} of String => String
     if exc
-      metadata = {
+      metadata.merge!({
         "exception" => exc.class.to_s,
-        "message"   => exc.message,
-      }
+        "message"   => exc.message.to_s,
+      })
     end
-    db.log_activity "sync_repo:#{event}", repo_id: repo.id, metadata: metadata
+    db.log_activity "sync_repo:#{event}", repo_id: repo.id, shard_id: repo.shard_id, metadata: metadata
 
     Raven.send_event Raven::Event.new(
       level: :warning,

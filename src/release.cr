@@ -68,5 +68,9 @@ class Release
     end
   end
 
+  def yanked? : Bool
+    !yanked_at?.nil?
+  end
+
   def_equals_and_hash version, revision_info, released_at, spec
 end

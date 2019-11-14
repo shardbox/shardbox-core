@@ -1,3 +1,5 @@
+require "../catalog"
+
 struct Service::CreateShard
   def initialize(@db : ShardsDB, @repo : Repo, @name : String, @entry : Catalog::Entry? = nil)
     raise "Repo has already a shard associated" if @repo.shard_id
