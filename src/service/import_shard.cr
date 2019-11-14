@@ -27,11 +27,7 @@ struct Service::ImportShard
     spec = retrieve_spec
     return unless spec
 
-    shard_id = CreateShard.new(@db, @repo, spec.name, @entry).perform
-
-    SyncRepo.new(@repo.ref).perform_later
-
-    shard_id
+    CreateShard.new(@db, @repo, spec.name, @entry).perform
   ensure
     Raven.tags_context repo: nil, repo_id: nil, shard_id: nil
   end

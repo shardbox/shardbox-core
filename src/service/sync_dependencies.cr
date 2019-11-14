@@ -24,9 +24,7 @@ class Service::SyncDependencies
     repo_ref = dependency.repo_ref
 
     if repo_ref
-      if upsert_repo(repo_ref)
-        SyncRepo.new(repo_ref).perform_later
-      end
+      upsert_repo(repo_ref)
 
       @db.connection.exec <<-SQL, @release_id, dependency.name, dependency.spec.to_json, dependency.scope, repo_ref.resolver, repo_ref.url
         WITH lookup_repo_id AS (

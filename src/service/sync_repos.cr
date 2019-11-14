@@ -12,7 +12,18 @@ struct Service::SyncRepos
 
   def perform
     sync_repos
+    sync_all_pending_repos
     update_shard_dependencies
+  end
+
+  def sync_all_pending_repos
+    loop do
+      pending = @db.repos_pending_sync
+      break if pending.empty?
+      pending.each do |repo|
+        sync_repo(repo.ref)
+      end
+    end
   end
 
   def sync_repos
@@ -33,14 +44,22 @@ struct Service::SyncRepos
         repos_update
       ORDER BY
         CASE WHEN(shard_id IS NULL) THEN 0 ELSE 1 END,
-        sync_failed_at ASC NULLS FIRST,
-        synced_at ASC NULLS FIRST
+        sync_failed_at ASC,
+        synced_at ASC
       LIMIT (SELECT COUNT(*) FROM repos_update) * $2::real
       SQL
 
     repo_refs.each do |repo_ref|
       repo_ref = Repo::Ref.new(*repo_ref)
+      sync_repo(repo_ref)
+    end
+  end
+
+  def sync_repo(repo_ref)
+    begin
       Service::SyncRepo.new(repo_ref).perform
+    rescue exc
+      Raven.capture(exc)
     end
   end
 

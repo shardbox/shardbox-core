@@ -1,4 +1,3 @@
-require "taskmaster"
 require "../db"
 require "../ext/yaml/any"
 require "../repo/resolver"
@@ -7,8 +6,6 @@ require "./order_releases"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepo
-  include Taskmaster::Job
-
   def initialize(@repo_ref : Repo::Ref)
   end
 
