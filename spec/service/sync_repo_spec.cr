@@ -94,6 +94,43 @@ describe Service::SyncRepo do
         ]
       end
     end
+
+    it "yanks HEAD when version found" do
+      transaction do |db|
+        shard_id = Factory.create_shard(db, "foo")
+        repo_ref = Repo::Ref.new("git", "foo")
+        repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
+        Factory.create_release(db, shard_id, "HEAD")
+        mock_resolver = MockResolver.new
+        mock_resolver.register "0.1.0", Factory.build_revision_info, spec: nil
+        resolver = Repo::Resolver.new(mock_resolver, repo_ref)
+
+        service = Service::SyncRepo.new(db, repo_ref)
+        service.sync_releases(resolver, shard_id)
+
+        db.all_releases(shard_id).map { |r| {r.version, r.yanked?} }.should eq [{"HEAD", true}, {"0.1.0", false}]
+        db.last_activities.should eq [] of LogActivity
+      end
+    end
+
+    it "inserts HEAD when all versions yanked" do
+      transaction do |db|
+        shard_id = Factory.create_shard(db, "foo")
+        repo_ref = Repo::Ref.new("git", "foo")
+        repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
+        Factory.create_release(db, shard_id, "0.1.0")#, position: 0)
+
+        mock_resolver = MockResolver.new
+        mock_resolver.register "HEAD", Factory.build_revision_info, spec: nil
+        resolver = Repo::Resolver.new(mock_resolver, repo_ref)
+
+        service = Service::SyncRepo.new(db, repo_ref)
+        service.sync_releases(resolver, shard_id)
+
+        db.all_releases(shard_id).map { |r| {r.version, r.yanked?} }.should eq [{"HEAD", false}, {"0.1.0", true}]
+        db.last_activities.should eq [] of LogActivity
+      end
+    end
   end
 
   it "yanks removed releases" do

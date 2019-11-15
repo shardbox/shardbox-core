@@ -24,7 +24,7 @@ describe Service::SyncRelease do
 
       service.sync_release(Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
 
-      results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int64?, Bool?, Time?}
+      results = db.connection.query_all <<-SQL, as: {Int64, String, Time, JSON::Any, JSON::Any, Int32?, Bool?, Time?}
         SELECT
           shard_id, version, released_at, spec, revision_info, position, latest, yanked_at
         FROM releases
@@ -37,7 +37,7 @@ describe Service::SyncRelease do
       row[2].should eq commit_1.time
       row[3].should eq JSON.parse(%({"name":"foo","version":"0.1.0"}))
       row[4].should eq JSON.parse(revision_info_1.to_json)
-      row[5].should eq nil
+      row[5].should eq 0
       row[6].should eq nil
       row[7].should eq nil
     end
@@ -88,7 +88,7 @@ describe Service::SyncRelease do
 
       service.sync_release(resolver)
 
-      results = db.connection.query_all <<-SQL, as: {Int64, Int64, String, Time, JSON::Any, JSON::Any, Int64?, Bool?, Time?}
+      results = db.connection.query_all <<-SQL, as: {Int64, Int64, String, Time, JSON::Any, JSON::Any, Int32?, Bool?, Time?}
         SELECT
           id, shard_id, version, released_at, spec, revision_info, position, latest, yanked_at
         FROM
@@ -103,7 +103,7 @@ describe Service::SyncRelease do
       released_at.should eq commit_1.time
       spec.should eq JSON.parse(%({}))
       revision_info.should eq JSON.parse(revision_info_1.to_json)
-      position.should be_nil
+      position.should eq 0
       latest.should be_nil
       yanked_at.should be_nil
 

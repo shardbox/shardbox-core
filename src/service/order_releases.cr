@@ -45,7 +45,7 @@ class Service::OrderReleases
       FROM
         releases
       WHERE
-        shard_id = $1 AND version != 'HEAD'
+        shard_id = $1
       SQL
 
     releases = [] of ReleaseInfo
@@ -57,7 +57,7 @@ class Service::OrderReleases
 
   def set_latest_flag(sorted_releases)
     latest = sorted_releases.reverse_each.find do |release|
-      !release.yanked? && !release.version.prerelease?
+      !release.yanked? && !release.version.try(&.prerelease?)
     end
 
     if latest
@@ -87,11 +87,19 @@ class Service::OrderReleases
     getter? yanked
 
     def initialize(@id : Int64, version : String, @yanked : Bool)
-      @version = SoftwareVersion.parse(version)
+      @version = SoftwareVersion.parse?(version)
     end
 
     def <=>(other : self)
-      version <=> other.version
+      if version = self.version
+        if other_version = other.version
+          version <=> other_version
+        else
+          -1
+        end
+      else
+        other.version ? 1 : 0
+      end
     end
   end
 end

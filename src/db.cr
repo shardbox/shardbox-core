@@ -226,8 +226,7 @@ class ShardsDB
       SQL
   end
 
-  def create_release(shard_id : Int64, release : Release, position = nil)
-    position_sql = position ? position.to_s : "(SELECT MAX(position) FROM releases WHERE shard_id = $1)"
+  def create_release(shard_id : Int64, release : Release, position : Int? = nil)
     sql = <<-SQL
       INSERT INTO releases
         (
@@ -236,7 +235,7 @@ class ShardsDB
           yanked_at, position
         )
       VALUES
-        ($1, $2, $3, $4::json, $5::json, $6, $7, #{position_sql})
+        ($1, $2, $3, $4::json, $5::json, $6, $7, COALESCE($8, (SELECT MAX(position) + 1 FROM releases WHERE shard_id = $1), 0))
       RETURNING id
       SQL
     revision_info = release.revision_info.try(&.to_json) || "{}"
@@ -244,7 +243,7 @@ class ShardsDB
     connection.query_one sql,
       shard_id, release.version, release.released_at.at_beginning_of_second,
       revision_info, release.spec.to_json, release.latest? || nil,
-      release.yanked_at?.try(&.at_beginning_of_second),
+      release.yanked_at?.try(&.at_beginning_of_second), position,
       as: {Int64}
   end
 

@@ -549,7 +549,7 @@ CREATE TABLE public.releases (
     version character varying NOT NULL,
     revision_info jsonb NOT NULL,
     spec jsonb NOT NULL,
-    "position" integer,
+    "position" integer NOT NULL,
     latest boolean,
     released_at timestamp with time zone NOT NULL,
     yanked_at timestamp with time zone,
@@ -1070,4 +1070,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('1'),
     ('20191012163928'),
     ('20191102100059'),
-    ('20191106093828');
+    ('20191106093828'),
+    ('20191115142944');
