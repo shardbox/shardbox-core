@@ -93,9 +93,7 @@ struct Service::SyncRepo
     rescue exc : Shards::Error
       SyncRepo.sync_failed(@db, repo, "fetch_metadata_failed", exc)
 
-      @db.connection.exec("COMMIT")
-
-      raise exc
+      return
     end
 
     metadata ||= Repo::Metadata.new
