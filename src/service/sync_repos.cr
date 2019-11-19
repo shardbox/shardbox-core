@@ -43,9 +43,7 @@ struct Service::SyncRepos
       FROM
         repos_update
       ORDER BY
-        CASE WHEN(shard_id IS NULL) THEN 0 ELSE 1 END,
-        sync_failed_at ASC,
-        synced_at ASC
+        COALESCE(sync_failed_at, synced_at) ASC
       LIMIT (SELECT COUNT(*) FROM repos_update) * $2::real
       SQL
 
