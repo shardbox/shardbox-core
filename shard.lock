@@ -22,7 +22,7 @@ shards:
 
   raven:
     github: Sija/raven.cr
-    version: 1.5.1
+    version: 1.5.3
 
   shards:
     github: crystal-lang/shards
