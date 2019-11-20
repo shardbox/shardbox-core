@@ -34,6 +34,10 @@ struct Service::SyncRepo
         SyncRepo.sync_failed(@db, repo, "clone_failed", exc)
 
         return
+      rescue exc : Shards::ParseError
+        SyncRepo.sync_failed(@db, repo, "spec_invalid", exc)
+
+        return
       end
     end
 
