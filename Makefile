@@ -3,6 +3,7 @@ TEST_DATABASE_NAME ?= $(shell echo $(TEST_DATABASE_URL) | grep -o -P '[^/]+$$')
 PG_USER ?= postgres
 BIN ?= bin
 DBMATE := dbmate
+SHARDS := shards
 
 .PHONY: DATABASE_URL
 DATABASE_URL:
@@ -36,12 +37,11 @@ $(BIN):
 	mkdir $(BIN)
 
 .PHONY: $(BIN)/worker
-$(BIN)/worker: src/worker.cr $(BIN)
+$(BIN)/worker: src/worker.cr $(BIN) shard.lock
 	crystal build src/worker.cr -o $(@)
 
-.PHONY: $(BIN)/app
-$(BIN)/app: src/app.cr $(BIN)
-	crystal build src/app.cr -o $(@)
+shard.lock: shard.yml
+	$(SHARDS) update
 
 .PHONY: test
 test: test_db
