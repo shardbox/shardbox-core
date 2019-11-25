@@ -41,4 +41,4 @@ script:
 - |
   export DATABASE_URL=$TEST_DATABASE_URL
   bin/worker sync_repos && bin/worker update_metrics
-- crystal tool format src spec
+- crystal tool format --check src spec
