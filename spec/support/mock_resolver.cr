@@ -4,7 +4,10 @@ class Repo::Resolver
 end
 
 class MockResolver
-  alias MockEntry = {spec: String?, revision_info: Release::RevisionInfo}
+  record MockEntry,
+    spec : String?,
+    revision_info : Release::RevisionInfo,
+    files : Hash(String, String) = {} of String => String
 
   property? resolvable : Bool = true
 
@@ -18,7 +21,7 @@ class MockResolver
   end
 
   def register(version : String, revision_info : Release::RevisionInfo, spec : String?)
-    @versions[version] = MockEntry.new(spec: spec, revision_info: revision_info)
+    @versions[version] = MockEntry.new(spec, revision_info)
   end
 
   def available_versions : Array(String)
@@ -35,17 +38,22 @@ class MockResolver
   def read_spec(version : String? = nil)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     version ||= @versions.keys.last
-    @versions[version][:spec]
+    @versions[version].spec
   end
 
   def revision_info(version : String? = nil)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     version ||= @versions.keys.last
-    @versions[version][:revision_info]
+    @versions[version].revision_info
   end
 
   def fetch_metadata
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     @metadata
+  end
+
+  def fetch_file(version, path)
+    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    @versions[version].files[path]?
   end
 end

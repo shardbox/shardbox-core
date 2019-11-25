@@ -118,7 +118,7 @@ describe Service::SyncRepo do
         shard_id = Factory.create_shard(db, "foo")
         repo_ref = Repo::Ref.new("git", "foo")
         repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
-        Factory.create_release(db, shard_id, "0.1.0")#, position: 0)
+        Factory.create_release(db, shard_id, "0.1.0")
 
         mock_resolver = MockResolver.new
         mock_resolver.register "HEAD", Factory.build_revision_info, spec: nil

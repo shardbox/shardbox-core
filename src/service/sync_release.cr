@@ -21,6 +21,16 @@ class Service::SyncRelease
   end
 
   def sync_release(resolver)
+    release, spec = get_spec(resolver)
+
+    release_id = upsert_release(@shard_id, release)
+
+    sync_dependencies(release_id, spec)
+    sync_files(release_id, resolver)
+    sync_repos_stats(release_id, resolver)
+  end
+
+  def get_spec(resolver)
     spec_raw = resolver.fetch_raw_spec(@version)
 
     if spec_raw
@@ -28,7 +38,7 @@ class Service::SyncRelease
       spec_json = JSON.parse(YAML.parse(spec_raw).to_json).as_h
     else
       # No `shard.yml` found, using mock spec
-      spec = Shards::Spec.from_yaml(%(name: #{resolver.repo_ref.name}\nversion: #{@version}))
+      spec = Shards::Spec.from_yaml(%(name: #{@db.get_shard(@shard_id).name}\nversion: #{@version}))
       spec_json = {} of String => JSON::Any
     end
 
@@ -41,9 +51,7 @@ class Service::SyncRelease
     revision_info = resolver.revision_info(@version)
     release = Release.new(@version, revision_info, spec_json)
 
-    release_id = upsert_release(@shard_id, release)
-
-    sync_dependencies(release_id, spec)
+    return release, spec
   end
 
   def check_version_match(tag_version, spec_version)
@@ -96,5 +104,22 @@ class Service::SyncRelease
     end
 
     SyncDependencies.new(@db, release_id).sync_dependencies(dependencies)
+  end
+
+  def sync_repos_stats(release_id, resolver)
+  end
+
+  README_NAMES = ["README.md", "Readme.md"]
+
+  def sync_files(release_id, resolver)
+    found = README_NAMES.each do |name|
+      if content = resolver.fetch_file(@version, name)
+        @db.put_file(release_id, README_NAMES.first, content)
+        break true
+      end
+    end
+    unless found
+      @db.delete_file(release_id, README_NAMES.first)
+    end
   end
 end

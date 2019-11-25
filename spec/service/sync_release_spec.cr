@@ -117,4 +117,42 @@ describe Service::SyncRelease do
         SQL
     end
   end
+
+  describe "#sync_files" do
+    it "stores README" do
+      commit_1 = Factory.build_commit("12345678")
+      revision_info_1 = Release::RevisionInfo.new Factory.build_tag("v0.1.0"), commit_1
+      mock_resolver = MockResolver.new
+      version = mock_resolver.register("0.1.0", revision_info_1, <<-SPEC)
+            name: foo
+            version: 0.1.0
+            SPEC
+      transaction do |db|
+        shard_id = Factory.create_shard(db)
+        release_id = Factory.create_release(db, shard_id, "0.1.0")
+
+        service = Service::SyncRelease.new(db, shard_id, "0.1.0")
+
+        version.files["README.md"] = "Hello World!"
+        service.sync_files(release_id, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
+        db.fetch_file(release_id, "README.md").should eq "Hello World!"
+
+        version.files["README.md"] = "Hello Foo!"
+        service.sync_files(release_id, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
+        db.fetch_file(release_id, "README.md").should eq "Hello Foo!"
+
+        version.files.delete("README.md")
+        service.sync_files(release_id, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
+        db.fetch_file(release_id, "README.md").should be_nil
+
+        version.files["Readme.md"] = "Hello Camel!"
+        service.sync_files(release_id, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
+        db.fetch_file(release_id, "README.md").should eq "Hello Camel!"
+
+        version.files["README.md"] = "Hello YELL!"
+        service.sync_files(release_id, Repo::Resolver.new(mock_resolver, Repo::Ref.new("git", "foo")))
+        db.fetch_file(release_id, "README.md").should eq "Hello YELL!"
+      end
+    end
+  end
 end

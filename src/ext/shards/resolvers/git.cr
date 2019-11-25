@@ -49,4 +49,27 @@ class Shards::GitResolver
   private def signature(signature)
     Release::Signature.new(signature.name, signature.email, signature.time)
   end
+
+  def fetch_file(version, path)
+    # Tree#path is not yet implemented in libgit2.cr, falling back to CLI
+    update_local_cache
+    refs = git_refs(version)
+
+    if file_exists?(refs, path)
+      capture("git show #{refs}:#{path}")
+    end
+  end
+
+  def repo_stats(version)
+    tree = tree(version)
+    file_count = tree.size_recursive
+  end
+
+  def tree(version)
+    update_local_cache
+
+    repo = Git::Repo.open(local_path)
+
+    repo.lookup_tree(version)
+  end
 end

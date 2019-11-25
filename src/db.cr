@@ -467,6 +467,36 @@ class ShardsDB
       ORDER BY created_at DESC
       SQL
   end
+
+  def put_file(release_id, path, content)
+    connection.exec <<-SQL, release_id, path, content
+      INSERT INTO files
+        (release_id, path, content)
+      VALUES
+        ($1, $2, $3)
+      ON CONFLICT ON CONSTRAINT files_release_id_path_uniq
+      DO UPDATE SET
+        content = $3
+      SQL
+  end
+
+  def delete_file(release_id, path)
+    connection.exec <<-SQL, release_id, path
+      DELETE FROM files
+      WHERE
+        release_id = $1 AND path = $2
+      SQL
+  end
+
+  def fetch_file(release_id, path)
+    connection.query_one? <<-SQL, release_id, path, as: String
+      SELECT
+        content
+      FROM files
+      WHERE
+        release_id = $1 AND path = $2
+      SQL
+  end
 end
 
 at_exit do

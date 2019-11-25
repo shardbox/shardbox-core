@@ -41,6 +41,10 @@ class Repo
       end
     end
 
+    def fetch_file(version : String?, path : String)
+      @resolver.fetch_file(version, path)
+    end
+
     def revision_info(version : String? = nil) : Release::RevisionInfo
       @resolver.revision_info(version)
     end
