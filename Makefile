@@ -67,3 +67,11 @@ test_db/migrate:
 .PHONY: test_db/rollback
 test_db/rollback:
 	$(DBMATE) -e TEST_DATABASE_URL rollback
+
+.PHONY: db/migrate
+db/migrate:
+	$(DBMATE) -e DATABASE_URL migrate
+
+.PHONY: db/rollback
+db/rollback:
+	$(DBMATE) -e DATABASE_URL rollback
