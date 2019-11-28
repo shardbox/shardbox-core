@@ -131,14 +131,18 @@ class ShardsDB
   end
 
   def find_canonical_repo(shard_id : Int64)
-    resolver, url, metadata, synced_at = connection.query_one <<-SQL, shard_id, as: {String, String, String, Time?}
-      SELECT resolver::text, url::text, metadata::text, synced_at
+    resolver, url, metadata, synced_at, sync_failed_at, id = connection.query_one <<-SQL, shard_id, as: {String, String, String, Time?, Time?, Int64}
+      SELECT resolver::text, url::text, metadata::text, synced_at, sync_failed_at, id
       FROM repos
       WHERE
         shard_id = $1 AND role = 'canonical'
       SQL
 
-    Repo.new(resolver, url, shard_id, "canonical", Repo::Metadata.from_json(metadata), synced_at)
+    Repo.new(resolver, url, shard_id, "canonical",
+      Repo::Metadata.from_json(metadata),
+      synced_at, sync_failed_at,
+      id: id
+    )
   end
 
   def find_canonical_ref?(shard_id)
