@@ -11,11 +11,23 @@ class ShardsDB
   end
 
   class_property database_url : String { ENV["DATABASE_URL"] }
+  class_property application_name : String? { ENV["DYNO"]? }
+  class_property statement_timeout : String?
 
   @@db : DB::Database?
 
   def self.db
-    @@db ||= DB.open(database_url)
+    @@db ||= DB.open(database_url).tap do |db|
+      db.setup_connection do |connection|
+        if application_name = self.application_name
+          connection.exec "SET application_name TO '#{application_name.dump_unquoted}';"
+        end
+        if statement_timeout = self.statement_timeout
+          connection.exec "SET statement_timeout TO '#{statement_timeout.dump_unquoted}';"
+        end
+        connection
+      end
+    end
   end
 
   # :nodoc:
