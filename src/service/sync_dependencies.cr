@@ -142,9 +142,9 @@ class Service::SyncDependencies
   end
 
   private def query_dependencies
-    dependencies = @db.connection.query_all <<-SQL, @release_id, as: {String, JSON::Any, String, Int64}
+    dependencies = @db.connection.query_all <<-SQL, @release_id, as: {String, JSON::Any, String}
       SELECT
-        name::text, spec, scope::text, repo_id
+        name::text, spec, scope::text
       FROM
         dependencies
       WHERE
