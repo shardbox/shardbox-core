@@ -8,7 +8,7 @@ struct Repo::Ref
 
   def initialize(@resolver : String, @url : String)
     raise "Unknown resolver #{@resolver}" unless RESOLVERS.includes?(@resolver)
-    if PROVIDER_RESOLVERS.includes?(@resolver)
+    if provider_resolver?
       raise "Invalid url for resolver #{@resolver}: #{@url.inspect}" unless @url =~ /^[A-Za-z0-9_\-.]{1,100}\/[A-Za-z0-9_\-.]{1,100}$/
     end
   end
@@ -55,8 +55,13 @@ struct Repo::Ref
     new(string)
   end
 
+  # Returns `true` if `resolver` is any of `PROVIDER_RESOLVER`.
+  def provider_resolver? : Bool
+    PROVIDER_RESOLVERS.includes?(@resolver)
+  end
+
   def to_uri : URI
-    if PROVIDER_RESOLVERS.includes?(@resolver)
+    if provider_resolver?
       # FIXME: Leading slash should not be needed
       URI.new("https", "#{resolver}.com", path: "/#{url}")
     else
@@ -76,6 +81,24 @@ struct Repo::Ref
   def name
     uri = URI.parse(url)
     File.basename(uri.path).rchop('/').rchop(".git")
+  end
+
+  def nice_url
+    return url if provider_resolver? || !resolvable?
+
+    url.lstrip("https://").lstrip("http://").rstrip("/").rstrip(".git")
+  end
+
+  def slug
+    if provider_resolver?
+      "#{resolver}.com/#{url}"
+    else
+      nice_url
+    end
+  end
+
+  def resolvable?
+    provider_resolver? || url.starts_with?("http://") || url.starts_with?("https://")
   end
 
   def to_s(io : IO)

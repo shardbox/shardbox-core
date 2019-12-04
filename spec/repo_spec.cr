@@ -44,4 +44,24 @@ describe Repo::Ref do
     Repo::Ref.new("https://example.com/foo/bar.git/").to_uri.should eq URI.parse("https://example.com/foo/bar.git/")
     Repo::Ref.new("github", "foo/bar").to_uri.should eq URI.parse("https://github.com/foo/bar")
   end
+
+  it "#nice_url" do
+    Repo::Ref.new("file:///repo.git").nice_url.should eq "file:///repo.git"
+    Repo::Ref.new("file:///repo").nice_url.should eq "file:///repo"
+    Repo::Ref.new("https://example.com/foo/bar").nice_url.should eq "example.com/foo/bar"
+    Repo::Ref.new("https://example.com/foo/bar.git/").nice_url.should eq "example.com/foo/bar"
+    Repo::Ref.new("github", "foo/bar").nice_url.should eq "foo/bar"
+    Repo::Ref.new("gitlab", "foo/bar").nice_url.should eq "foo/bar"
+    Repo::Ref.new("bitbucket", "foo/bar").nice_url.should eq "foo/bar"
+  end
+
+  it "#slug" do
+    Repo::Ref.new("file:///repo.git").slug.should eq "file:///repo.git"
+    Repo::Ref.new("file:///repo").slug.should eq "file:///repo"
+    Repo::Ref.new("https://example.com/foo/bar").slug.should eq "example.com/foo/bar"
+    Repo::Ref.new("https://example.com/foo/bar.git/").slug.should eq "example.com/foo/bar"
+    Repo::Ref.new("github", "foo/bar").slug.should eq "github.com/foo/bar"
+    Repo::Ref.new("gitlab", "foo/bar").slug.should eq "gitlab.com/foo/bar"
+    Repo::Ref.new("bitbucket", "foo/bar").slug.should eq "bitbucket.com/foo/bar"
+  end
 end
