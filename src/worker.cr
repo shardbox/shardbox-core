@@ -36,7 +36,7 @@ when "import_catalog"
 
   sync_all_pending_repos
 when "sync_repos"
-  hours = 24
+  hours = nil
   ratio = nil
   if arg = ARGV.shift?
     hours = arg.to_i
@@ -44,7 +44,8 @@ when "sync_repos"
       ratio = arg.to_f
     end
   end
-  ratio ||= 2.0 / hours
+  hours ||= ENV["SHARDBOX_WORKER_SYNC_REPO_HOURS"]?.try(&.to_i) || 24
+  ratio ||= ENV["SHARDBOX_WORKER_SYNC_REPO_RATIO"]?.try(&.to_f) || 10.0 / hours
 
   ShardsDB.transaction do |db|
     Service::SyncRepos.new(db, hours.hours, ratio).perform
