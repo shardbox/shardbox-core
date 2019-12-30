@@ -6,18 +6,22 @@ Shards database, collecting shard repositories, releases and dependencies.
 
 ### Prerequisites
 
-* Crystal 0.30.1
-* PostgresSQL database (for data storage).
-  Should probably work with all versions => 10. Tested with PostgreSQL 11.5
+* Crystal (0.30.1 or later)
+* PostgreSQL database (version 12)
+* [dbmate](https://github.com/amacneil/dbmate) for database migrations
 
+#### Database
 PostgreSQL databases needs to be created manually.
-Connection configuration is read from environment variables:
+
+Connection configuration is read from environment variables.
 
 * development database: `DATABASE_URL`
 * testing database: `TEST_DATABASE_URL` (only for running tests)
-* sentry: `SENTRY_DSN` (optional, for sending error reports to sentry)
 
-Install database schema by running `make db test_db`.
+Install database schema:
+
+* `make db` - development database
+* `make test_db` - test database
 
 ### Shard Dependencies
 
@@ -25,15 +29,17 @@ Run `shards install` to install dependencies.
 
 ## Usage
 
-Run `shards build worker` to build the worker executable.
+Run `make bin/worker` to build the worker executable.
 
-* `bin/worker import_catalog`: Reads repositories mentioned in `catalog/*.yml` files and
-  synchronizes them with the database.
-* `bin/worker sync_repos [hours [ratio]]`: Synchronizes data from git repositories to database for all
-  repositories not synced in the last `hours` hours (default: `24`) or never synced at all. `ratio`
-  specifies the amount of outdated repositories being run in this job (default: `2.0 / hours`).
-  This enables an even distribution of batch sizes. Recommended to be run every hour.
+* `bin/worker import_catalog https://github.com/shardbox/catalog`:
+  Reads catalog description from the catalog repository and imports shards to the database.
+* `bin/worker sync_repos`: Synchronizes data from git repositories to database for all
+  repositories not synced in the last 24 hours or never synced at all.
+  Recommended to be run every hour.
 * `bin/worker updated_metrics`: Updates shard metrics in the database. Should be run once per day.
+* `bin/worker loop` starts a worker loop which schedules regular `sync_repos` and `update_metrics`
+  jobs. It also listens to notifications sent through PostgreSQL notify channels in order
+  to trigger catalog import.
 
 A web application for browsing the database is available at https://github.com/shardbox/shardbox-web
 
@@ -51,4 +57,4 @@ Run `make test` to execute the spec suite.
 
 ## Contributors
 
-- [Johannes Müller](https://github.com/straight-shoota) - creator and maintainer
+* [Johannes Müller](https://github.com/straight-shoota) - creator and maintainer

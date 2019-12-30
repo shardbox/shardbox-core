@@ -33,9 +33,12 @@ ENV["GIT_ASKPASS"] = "/usr/bin/test"
 def show_help(io)
   io.puts "shards-toolbox worker"
   io.puts "commands:"
-  io.puts "  import_catalog [path]        import catalog data from [path] (default: ./catalog)"
-  io.puts "  sync_repos [hours [ratio]]   syncs repos not updated in last [hours] ([ratio] 0.0-1.0)"
-  io.puts "  update_metrics               update shard metrics (should be run once per day)"
+  io.puts "  import_catalog [<path>]         import catalog data from <path> (default: ./catalog)"
+  io.puts "  sync_repos [<hours> [<ratio>]]  syncs repos not updated in last <hours> (<ratio> 0.0-1.0)"
+  io.puts "  sync_repo <repo_ref>            sync a single repo identified by <repo_ref>"
+  io.puts "  update_metrics                  update shard metrics (should be run once per day)"
+  io.puts "  loop                            run worker loop to schedule sync and update tasks"
+  io.puts "  help                            show usage instructions"
 end
 
 def sync_all_pending_repos
