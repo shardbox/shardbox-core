@@ -24,7 +24,7 @@ module Factory
                           revision_info = nil, spec = {} of String => JSON::Any,
                           yanked_at = nil, latest = false, position = nil)
     shard_id ||= create_shard(db)
-    revision_info ||= build_revision_info
+    revision_info ||= build_revision_info("v#{version}")
 
     release = Release.new(version, released_at, revision_info, spec, yanked_at, latest)
 
@@ -52,7 +52,10 @@ module Factory
   end
 
   def self.build_revision_info(tag = "v0.0.0", hash = "12345678")
-    Release::RevisionInfo.new Factory.build_tag(tag), Factory.build_commit(hash)
+    unless tag.nil?
+      tag = Factory.build_tag(tag)
+    end
+    Release::RevisionInfo.new tag, Factory.build_commit(hash)
   end
 
   def self.create_category(db, slug, name = slug)

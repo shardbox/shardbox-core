@@ -54,6 +54,14 @@ class Release
   )
   end
 
+  def revision_identifier
+    if tag = revision_info.tag
+      tag.name
+    else
+      revision_info.commit.sha
+    end
+  end
+
   def license : String?
     spec["license"]?.try &.as_s
   end
