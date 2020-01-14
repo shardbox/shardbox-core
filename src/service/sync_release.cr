@@ -110,17 +110,20 @@ class Service::SyncRelease
   def sync_repos_stats(release_id, resolver)
   end
 
-  README_NAMES = ["README.md", "Readme.md"]
-
   def sync_files(release_id, resolver)
-    found = README_NAMES.each do |name|
+    find_and_sync_file(release_id, resolver, "README.md", ["README.md", "Readme.md"])
+    find_and_sync_file(release_id, resolver, "CHANGELOG.md", ["CHANGELOG.md", "Changelog.md"])
+  end
+
+  def find_and_sync_file(release_id, resolver, identifier, lookup_paths)
+    found = lookup_paths.each do |name|
       if content = resolver.fetch_file(@version, name)
-        @db.put_file(release_id, README_NAMES.first, content)
+        @db.put_file(release_id, identifier, content)
         break true
       end
     end
     unless found
-      @db.delete_file(release_id, README_NAMES.first)
+      @db.delete_file(release_id, identifier)
     end
   end
 end
