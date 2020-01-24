@@ -64,4 +64,16 @@ describe Repo::Ref do
     Repo::Ref.new("gitlab", "foo/bar").slug.should eq "gitlab.com/foo/bar"
     Repo::Ref.new("bitbucket", "foo/bar").slug.should eq "bitbucket.com/foo/bar"
   end
+
+  it "#<=>" do
+    Repo::Ref.new("git", "bar").should be < Repo::Ref.new("git", "baz")
+    Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("github", "foo/baz")
+    Repo::Ref.new("github", "goo/Bar").should be < Repo::Ref.new("github", "foo/baz")
+    Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("github", "foo/Baz")
+    Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("gitlab", "foo/baz")
+    Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("bitbucket", "foo/baz")
+    Repo::Ref.new("github", "goo/bar").should be > Repo::Ref.new("bitbucket", "foo/bar")
+
+    Repo::Ref.new("git", "https://foo/bar").should be < Repo::Ref.new("github", "foo/bar")
+  end
 end

@@ -1,5 +1,6 @@
 struct Catalog::Entry
   include JSON::Serializable
+  include Comparable(self)
 
   enum State
     ACTIVE
@@ -114,5 +115,9 @@ struct Catalog::Entry
     elsif Repo::RESOLVERS.includes?(key)
       Repo::Ref.new(key, String.new(ctx, value))
     end
+  end
+
+  def <=>(other : self)
+    repo_ref <=> other.repo_ref
   end
 end

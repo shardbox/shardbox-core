@@ -1,5 +1,6 @@
 struct Repo::Ref
   include JSON::Serializable
+  include Comparable(self)
 
   PROVIDER_RESOLVERS = {"github", "gitlab", "bitbucket"}
 
@@ -99,6 +100,18 @@ struct Repo::Ref
 
   def resolvable?
     provider_resolver? || url.starts_with?("http://") || url.starts_with?("https://")
+  end
+
+  def <=>(other : self)
+    result = name.compare(other.name, case_insensitive: true)
+    return result unless result == 0
+
+    if provider_resolver? && other.provider_resolver?
+      result = url <=> other.url
+      return result unless result == 0
+    end
+
+    slug <=> other.slug
   end
 
   def to_s(io : IO)
