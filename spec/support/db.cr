@@ -1,3 +1,4 @@
+require "../../src/db"
 require "./factory"
 
 ShardsDB.database_url = ENV["TEST_DATABASE_URL"]

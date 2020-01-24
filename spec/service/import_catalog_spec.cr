@@ -3,18 +3,8 @@ require "../../src/service/import_catalog"
 require "../../src/service/create_shard"
 require "../support/db"
 require "../support/raven"
-require "file_utils"
-
-private def with_tempdir(name)
-  path = File.join(Dir.tempdir, name)
-  FileUtils.mkdir_p(path)
-
-  begin
-    yield path
-  ensure
-    FileUtils.rm_r(path) if File.exists?(path)
-  end
-end
+require "../support/mock_resolver"
+require "../support/tempdir"
 
 private def persisted_repos(db)
   db.connection.query_all <<-SQL, as: {String, String, String, Int64?}
@@ -39,19 +29,6 @@ private def shard_categorizations(db)
     ORDER BY
       name, qualifier
     SQL
-end
-
-struct Service::ImportCatalog
-  property mock_create_shard = false
-
-  private def create_shard(entry, repo)
-    if mock_create_shard
-      # This avoids parsing shard spec in ImportShard
-      Service::CreateShard.new(@db, repo, entry.repo_ref.name, entry).perform
-    else
-      previous_def
-    end
-  end
 end
 
 describe Service::ImportCatalog do
