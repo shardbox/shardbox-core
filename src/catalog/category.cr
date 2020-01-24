@@ -11,6 +11,7 @@ class Catalog::Category
   @[YAML::Field(ignore: true)]
   property! slug : String?
 
-  def initialize(@name : String, @description : String? = nil)
+  def initialize(@name : String, @description : String? = nil, @slug = nil)
+    @slug ||= @name
   end
 end
