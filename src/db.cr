@@ -364,9 +364,13 @@ class ShardsDB
 
   def update_category(category : Category)
     category_id = connection.exec <<-SQL, category.slug, category.name, category.description
-      UPDATE categories
+      UPDATE
+        categories
       SET
-        name = $2, description = $3
+        name = $2,
+        description = $3
+      WHERE
+        slug = $1
       SQL
   end
 
