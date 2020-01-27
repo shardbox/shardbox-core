@@ -3,18 +3,7 @@ require "../../src/service/import_catalog"
 require "../../src/service/create_shard"
 require "../support/db"
 require "../support/raven"
-require "file_utils"
-
-private def with_tempdir(name)
-  path = File.join(Dir.tempdir, name)
-  FileUtils.mkdir_p(path)
-
-  begin
-    yield path
-  ensure
-    FileUtils.rm_r(path) if File.exists?(path)
-  end
-end
+require "../support/tempdir"
 
 private def persisted_repos(db)
   db.connection.query_all <<-SQL, as: {String, String, String, Int64?}
