@@ -538,6 +538,59 @@ describe Service::ImportCatalog do
     end
   end
 
+  it "archives and re-activates shard" do
+    with_tempdir("import_catalog-mirrors") do |catalog_path|
+      File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+        name: category
+        shards: []
+        YAML
+
+      transaction do |db|
+        category_id = Factory.create_category(db, "category")
+        foo_shard_id = Factory.create_shard(db, "foo", categories: ["category"])
+        foo_repo_id = Factory.create_repo(db, Repo::Ref.new("git", "foo/foo"), shard_id: foo_shard_id)
+
+        service = Service::ImportCatalog.new(db, catalog_path)
+        service.mock_create_shard = true
+        import_stats = service.import_catalog
+
+        persisted_repos(db).should eq [
+          {"git", "foo/foo", "obsolete", nil},
+        ]
+        db.get_shards.should be_empty
+
+        # Shards list is empty, but archived shard can be retrieved by id
+        shard = db.get_shard(foo_shard_id)
+        shard.display_name.should eq "foo"
+        shard.archived_at.should_not be_nil
+
+        File.write(File.join(catalog_path, "category.yml"), <<-YAML)
+          name: category
+          shards:
+          - git: foo/foo
+          YAML
+
+        service = Service::ImportCatalog.new(db, catalog_path)
+        service.mock_create_shard = true
+        import_stats = service.import_catalog
+
+        persisted_repos(db).should eq [
+          {"git", "foo/foo", "canonical", foo_shard_id},
+        ]
+        db.get_shards.map { |shard| {shard.id, shard.name, shard.qualifier, shard.archived_at} }.should eq [
+          {foo_shard_id, "foo", "", nil},
+        ]
+
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"import_catalog:repo:obsoleted", foo_repo_id, foo_shard_id, {"old_role" => "canonical"}},
+          {"import_catalog:shard:archived", nil, foo_shard_id, nil},
+          {"import_catalog:repo:reactivated", foo_repo_id, nil, nil},
+          {"update_shard:unarchived", nil, foo_shard_id, nil},
+        ]
+      end
+    end
+  end
+
   it "reactivates obsolete repo" do
     with_tempdir("import_catalog-reactivate") do |catalog_path|
       File.write(File.join(catalog_path, "category.yml"), <<-YAML)

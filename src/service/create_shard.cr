@@ -7,13 +7,22 @@ struct Service::CreateShard
   end
 
   def perform
-    qualifier = find_qualifier
+    qualifier, shard_id = find_qualifier
 
-    shard = build_shard(@name, qualifier)
-    shard.id = @db.create_shard(shard)
-    @db.log_activity "create_shard:created", repo_id: @repo.id, shard_id: shard.id
+    if shard_id
+      # Re-taking an archived shard
+      # TODO: Maybe this should instead create a new shard (new id) with the
+      # archived shard's qualifier in order to isolate from previous shard
+      # instance, which might have been a different one altogether.
+      Service::UpdateShard.new(@db, shard_id, @entry).perform
+    else
+      # Create a new shard
+      shard = build_shard(@name, qualifier)
+      shard_id = @db.create_shard(shard)
+      @db.log_activity "create_shard:created", repo_id: @repo.id, shard_id: shard_id
+    end
 
-    @db.connection.exec <<-SQL, @repo.id, shard.id
+    @db.connection.exec <<-SQL, @repo.id, shard_id
       UPDATE
         repos
       SET
@@ -24,7 +33,7 @@ struct Service::CreateShard
         id = $1 AND shard_id IS NULL
       SQL
 
-    shard.id
+    shard_id
   end
 
   private def build_shard(shard_name, qualifier)
@@ -45,15 +54,24 @@ struct Service::CreateShard
   # In essence, both forks and distinct shards need a separate shard instance.
   # Mirrors should point to the same shard, but such a unification needs to
   # be manually reviewed.
-  private def find_qualifier : String
+  private def find_qualifier : {String, Int64?}
     unavailable_qualifiers = [] of String
-    qualifier = possible_qualifiers do |qualifier|
+    qualifier, archived_shard_id = possible_qualifiers do |qualifier|
       next unless qualifier
       qualifier = normalize(qualifier)
-      if @db.get_shard_id?(@name, qualifier)
-        unavailable_qualifiers << qualifier
+
+      shard_id = @db.get_shard_id?(@name, qualifier)
+
+      if shard_id
+        shard = @db.get_shard(shard_id)
+        if shard.archived_at
+          # found an archived shard, re-taking it
+          break qualifier, shard_id
+        else
+          unavailable_qualifiers << qualifier
+        end
       else
-        break qualifier
+        break qualifier, nil
       end
     end
 
@@ -61,7 +79,7 @@ struct Service::CreateShard
       raise "No suitable qualifier found (#{unavailable_qualifiers.inspect})"
     end
 
-    qualifier
+    {qualifier, archived_shard_id}
   end
 
   # This method yields qualifiers for this shard in order of preference
@@ -94,7 +112,7 @@ struct Service::CreateShard
       yield repo_name
     end
 
-    nil
+    {nil, nil}
   end
 
   private def normalize(string)
