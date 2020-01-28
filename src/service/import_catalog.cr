@@ -237,11 +237,13 @@ struct Service::ImportCatalog
         id
       FROM
         shards
-      WHERE NOT EXISTS (
-        SELECT 1
-        FROM
-          repos
-        WHERE shard_id = shards.id
+      WHERE
+        archived_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1
+          FROM
+            repos
+          WHERE shard_id = shards.id
         )
       SQL
 

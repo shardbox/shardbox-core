@@ -683,6 +683,12 @@ describe Service::ImportCatalog do
       db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
         {foo_id, "foo"},
       ]
+      # archived shard can be retrieved by id
+      shard = db.get_shard(bar_id)
+      shard.display_name.should eq "bar"
+      shard.archived_at.should_not be_nil
+      archived_at = shard.archived_at.not_nil!
+      archived_at.should be_close(Time.utc, 1.seconds)
 
       releases_count = db.connection.query_one <<-SQL, as: Int64
         SELECT
@@ -695,6 +701,17 @@ describe Service::ImportCatalog do
       shard_categorizations(db).should eq [
         {"foo", "", nil},
       ]
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"import_catalog:shard:archived", nil, bar_id, nil},
+      ]
+
+      # Test idempotency
+      service.archive_unreferenced_shards
+
+      shard = db.get_shard(bar_id)
+      shard.display_name.should eq "bar"
+      shard.archived_at.should eq archived_at
+
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
         {"import_catalog:shard:archived", nil, bar_id, nil},
       ]
