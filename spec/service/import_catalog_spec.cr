@@ -68,7 +68,7 @@ describe Service::ImportCatalog do
         repo_id = db.get_repo_id("git", "foo")
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", repo_id, nil, nil},
-          {"import_shard:created", repo_id, shard_id, nil},
+          {"create_shard:created", repo_id, shard_id, nil},
         ]
         import_stats.should eq({
           "new_categories"     => ["foo"],
@@ -115,10 +115,10 @@ describe Service::ImportCatalog do
         bar_repo_id = db.get_repo_id("git", "https://example.com/foo/bar.git")
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", baz_repo_id, nil, nil},
-          {"import_shard:created", baz_repo_id, db.get_shard_id("baz"), nil},
+          {"create_shard:created", baz_repo_id, db.get_shard_id("baz"), nil},
           {"import_catalog:repo:created", bar_repo_id, nil, nil},
-          {"import_shard:created", bar_repo_id, db.get_shard_id("bar"), nil},
-          {"import_shard:created", db.get_repo_id("github", "foo/foo"), db.get_shard_id("foo"), nil},
+          {"create_shard:created", bar_repo_id, db.get_shard_id("bar"), nil},
+          {"create_shard:created", db.get_repo_id("github", "foo/foo"), db.get_shard_id("foo"), nil},
         ]
         import_stats.should eq({
           "new_categories"     => ["foo", "bar"],
@@ -173,12 +173,12 @@ describe Service::ImportCatalog do
         bar_repo_id = db.get_repo_id("git", "bar/bar")
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", foo_repo_id, nil, nil},
-          {"import_shard:created", foo_repo_id, foo_id, nil},
+          {"create_shard:created", foo_repo_id, foo_id, nil},
           {"import_catalog:mirror:switched", db.get_repo_id("git", "bar/foo"), foo_id, {"role" => "mirror", "old_role" => "canonical", "old_shard_id" => nil}},
           {"import_catalog:mirror:created", db.get_repo_id("git", "baz/foo"), foo_id, {"role" => "legacy"}},
           {"import_catalog:mirror:created", db.get_repo_id("git", "qux/foo"), foo_id, {"role" => "legacy"}},
           {"import_catalog:repo:created", bar_repo_id, nil, nil},
-          {"import_shard:created", bar_repo_id, bar_id, nil},
+          {"create_shard:created", bar_repo_id, bar_id, nil},
           {"import_catalog:mirror:created", db.get_repo_id("git", "foo/bar"), bar_id, {"role" => "legacy"}},
         ]
         import_stats.should eq({
@@ -232,7 +232,7 @@ describe Service::ImportCatalog do
 
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", foo_repo_id, nil, nil},
-          {"import_shard:created", foo_repo_id, foo_id, nil},
+          {"create_shard:created", foo_repo_id, foo_id, nil},
           {"import_catalog:mirror:created", db.get_repo_id("git", "bar/foo"), foo_id, {"role" => "mirror"}},
           {"import_catalog:mirror:created", db.get_repo_id("git", "baz/foo"), foo_id, {"role" => "legacy"}},
           {"import_catalog:mirror:created", db.get_repo_id("git", "bar/bar"), foo_id, {"role" => "mirror"}},
@@ -327,7 +327,7 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:obsoleted", foo_repo_id, foo_shard_id, {"old_role" => "mirror"}},
           {"import_catalog:repo:reactivated", foo_repo_id, nil, nil},
-          {"import_shard:created", foo_repo_id, bar_shard_id, nil},
+          {"create_shard:created", foo_repo_id, bar_shard_id, nil},
         ]
         import_stats.should eq({
           "new_categories"     => ["category"],
@@ -415,7 +415,7 @@ describe Service::ImportCatalog do
         foo_repo_id = db.get_repo_id("git", "foo/foo")
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:created", foo_repo_id, nil, nil},
-          {"import_shard:created", foo_repo_id, db.get_shard_id("foo"), nil},
+          {"create_shard:created", foo_repo_id, db.get_shard_id("foo"), nil},
           {"import_catalog:repo:obsoleted", qux_repo_id, qux_id, {"old_role" => "canonical"}},
           {"import_catalog:shard:archived", nil, qux_id, nil},
         ]
@@ -475,7 +475,7 @@ describe Service::ImportCatalog do
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"update_shard:archived", nil, foo_id, nil},
           {"import_catalog:repo:created", bar_repo_id, nil, nil},
-          {"import_shard:created", bar_repo_id, bar_id, nil},
+          {"create_shard:created", bar_repo_id, bar_id, nil},
           {"update_shard:unarchived", nil, baz_id, nil},
         ]
         import_stats.should eq({
@@ -563,7 +563,7 @@ describe Service::ImportCatalog do
 
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"import_catalog:repo:reactivated", foo_repo_id, nil, nil},
-          {"import_shard:created", foo_repo_id, foo_id, nil},
+          {"create_shard:created", foo_repo_id, foo_id, nil},
         ]
       end
     end
@@ -630,7 +630,7 @@ describe Service::ImportCatalog do
         ]
 
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-          {"import_shard:created", foo_repo_id, foo_id, nil},
+          {"create_shard:created", foo_repo_id, foo_id, nil},
         ]
       end
     end

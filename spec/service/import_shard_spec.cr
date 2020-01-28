@@ -47,7 +47,7 @@ describe Service::ImportShard do
       ]
 
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-        {"import_shard:created", repo_id, shard_id, nil},
+        {"create_shard:created", repo_id, shard_id, nil},
       ]
     end
   end
@@ -68,7 +68,7 @@ describe Service::ImportShard do
       db.repos_pending_sync.map(&.ref).should eq [repo_ref]
 
       db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
-        {"import_shard:created", repo_id, shard_id, nil},
+        {"create_shard:created", repo_id, shard_id, nil},
       ]
     end
   end

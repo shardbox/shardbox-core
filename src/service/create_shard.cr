@@ -11,7 +11,7 @@ struct Service::CreateShard
 
     shard = build_shard(@name, qualifier)
     shard.id = @db.create_shard(shard)
-    @db.log_activity "import_shard:created", repo_id: @repo.id, shard_id: shard.id
+    @db.log_activity "create_shard:created", repo_id: @repo.id, shard_id: shard.id
 
     @db.connection.exec <<-SQL, @repo.id, shard.id
       UPDATE
