@@ -5,6 +5,9 @@ BIN ?= bin
 DBMATE := dbmate
 SHARDS := shards
 
+.PHONY: build
+build: $(BIN)/worker
+
 .PHONY: DATABASE_URL
 DATABASE_URL:
 	@test "${$@}" || (echo "$@ is undefined" && false)
