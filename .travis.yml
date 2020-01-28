@@ -9,6 +9,11 @@ env:
 services:
 - postgresql
 
+cache:
+  directories:
+  - $HOME/lib/
+  - $HOME/.cache/shards/
+
 before_script:
 - crystal --version
 - shards --version
@@ -20,17 +25,19 @@ before_script:
   sudo cp /etc/postgresql/{9.6,12}/main/pg_hba.conf
   sudo service postgresql restart 12
 - |
-  sudo apt install --yes cmake
-  if [ ! -f "~/lib/libgit2" ]; then
-    scripts/build_libgit2.sh ~ maint/v0.27
+  if [ ! -f "$HOME/lib/libgit2.so.27" ]; then
+    sudo apt install --yes cmake
+    scripts/build_libgit2.sh $HOME maint/v0.27
   fi
-  export LIBRARY_PATH=$LIBRARY_PATH:~/lib
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/lib
+  export LIBRARY_PATH=$LIBRARY_PATH:$HOME/lib
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/lib
 - make test_db
 - |
-  mkdir -p vendor/bin
-  wget -qO vendor/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
-  chmod +x vendor/bin/dbmate
+  if [ ! -f "vendor/bin/dbmate" ]; then
+    mkdir -p vendor/bin
+    wget -qO vendor/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
+    chmod +x vendor/bin/dbmate
+  fi
   export PATH="$PATH:$(pwd)/vendor/bin"
 - psql $TEST_DATABASE_URL -c 'SELECT version()'
 
