@@ -36,57 +36,6 @@ describe Catalog do
         catalog.categories.keys.should eq ["category"]
       end
     end
-
-    describe "duplicate mirrors" do
-      it "same entry" do
-        with_tempdir("catalog-mirrors") do |catalog_path|
-          File.write(File.join(catalog_path, "category.yml"), <<-YAML)
-            name: Category
-            shards:
-            - git: foo/foo
-              mirrors:
-              - git: foo/foo
-            YAML
-          expect_raises(Catalog::Error, "duplicate mirror git:foo/foo") do
-            Catalog.read(catalog_path)
-          end
-        end
-      end
-
-      it "both mirrors" do
-        with_tempdir("catalog-mirrors") do |catalog_path|
-          File.write(File.join(catalog_path, "category.yml"), <<-YAML)
-            name: Category
-            shards:
-            - git: foo/foo
-              mirrors:
-              - git: foo/bar
-            - git: foo/baz
-              mirrors:
-              - git: foo/bar
-            YAML
-          expect_raises(Catalog::Error, "duplicate mirror git:foo/bar") do
-            Catalog.read(catalog_path)
-          end
-        end
-      end
-
-      it "mirror and canonical" do
-        with_tempdir("catalog-mirrors") do |catalog_path|
-          File.write(File.join(catalog_path, "category.yml"), <<-YAML)
-            name: Category
-            shards:
-            - git: foo/foo
-              mirrors:
-              - git: foo/bar
-            - git: foo/bar
-            YAML
-          expect_raises(Catalog::Error, "duplicate mirror git:foo/bar") do
-            Catalog.read(catalog_path)
-          end
-        end
-      end
-    end
   end
 end
 

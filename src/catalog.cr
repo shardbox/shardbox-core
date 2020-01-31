@@ -30,12 +30,16 @@ class Catalog
   end
 
   def read
-    mirrors = Set(Repo::Ref).new
+    duplication = Duplication.new
 
     each_category do |yaml_category|
       category = ::Category.new(yaml_category.slug, yaml_category.name, yaml_category.description)
       categories[category.slug] = category
       yaml_category.shards.each do |shard|
+        if error = duplication.register(yaml_category.slug, shard)
+          raise error
+        end
+
         if stored_entry = @entries[shard.repo_ref]?
           stored_entry.mirrors.concat(shard.mirrors)
           stored_entry.categories << yaml_category.slug
@@ -43,20 +47,29 @@ class Catalog
           shard.categories << yaml_category.slug
           @entries[shard.repo_ref] = shard
         end
-
-        if duplicate_repo = Catalog.duplicate_mirror?(shard, mirrors, self.@entries)
-          raise Error.new("duplicate mirror #{duplicate_repo} in #{yaml_category.slug}")
-        end
       end
     end
   end
 
-  def self.duplicate_mirror?(shard, mirrors, all_entries)
+  def self.duplicate_repo?(shard, mirrors, all_entries)
+    # (1) The entry's repo is already specified as a mirror of another entry
     return shard.repo_ref if mirrors.includes?(shard.repo_ref)
+
+    # (2) The
+    if shard.mirrors.any? { |mirror| mirror.repo_ref == shard.repo_ref }
+      return shard.repo_ref
+    end
 
     shard.mirrors.each do |mirror|
       if all_entries[mirror.repo_ref]? || !mirrors.add?(mirror.repo_ref)
         return mirror.repo_ref
+      end
+    end
+
+    if other_entry = all_entries[shard.repo_ref]?
+      if other_entry.description && shard.description
+        p! other_entry.description, shard.description
+        return shard.repo_ref
       end
     end
 
