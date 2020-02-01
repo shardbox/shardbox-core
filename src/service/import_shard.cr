@@ -15,21 +15,20 @@ struct Service::ImportShard
 
   def perform
     import_shard
+  rescue exc
+    SyncRepo.log_sync_failed(@db, @repo, "import_shard_failed", exc)
+
+    raise exc
   end
 
   # Entry point for ImportCatalog
   def import_shard
-    Raven.tags_context repo: @repo.ref.to_s
-
     raise "Repo has already a shard associated" if @repo.shard_id
-    Raven.tags_context repo: @repo.ref.to_s, repo_id: @repo.id
 
     spec = retrieve_spec
     return unless spec
 
     CreateShard.new(@db, @repo, spec.name, @entry).perform
-  ensure
-    Raven.tags_context repo: nil, repo_id: nil, shard_id: nil
   end
 
   private def retrieve_spec

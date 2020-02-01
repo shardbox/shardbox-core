@@ -31,11 +31,11 @@ struct Service::SyncRepo
       begin
         sync_releases(resolver, shard_id)
       rescue exc : Repo::Resolver::RepoUnresolvableError
-        SyncRepo.sync_failed(@db, repo, "clone_failed", exc)
+        SyncRepo.sync_failed(@db, repo, "clone_failed", exc.cause)
 
         return
       rescue exc : Shards::ParseError
-        SyncRepo.sync_failed(@db, repo, "spec_invalid", exc)
+        SyncRepo.sync_failed(@db, repo, "spec_invalid", exc, tags: {"error_message" => exc.message})
 
         return
       end
@@ -68,7 +68,7 @@ struct Service::SyncRepo
         SyncRelease.new(@db, shard_id, version).sync_release(resolver)
       rescue exc : Shards::ParseError
         repo = @db.get_repo(resolver.repo_ref)
-        self.class.sync_failed(@db, repo, "sync_release:failed", exc, {"version" => version})
+        SyncRepo.sync_failed(@db, repo, "sync_release:failed", exc, tags: {"error_message" => exc.message, "version" => version})
 
         failed_versions << version
       end
@@ -130,7 +130,7 @@ struct Service::SyncRepo
     @db.log_activity "sync_repo:synced", repo_id: repo.id
   end
 
-  def self.sync_failed(db, repo : Repo, event, exc = nil, metadata = nil)
+  def self.log_sync_failed(db, repo : Repo, event, exc = nil, metadata = nil)
     db.connection.exec <<-SQL, repo.id
       UPDATE
         repos
@@ -141,21 +141,32 @@ struct Service::SyncRepo
       SQL
 
     metadata ||= {} of String => String
+    metadata["repo_role"] ||= repo.role.to_s
     if exc
-      metadata.merge!({
-        "exception" => exc.class.to_s,
-        "message"   => exc.message.to_s,
-      })
+      metadata["exception"] ||= exc.class.to_s
+      metadata["error_message"] ||= exc.message.to_s
     end
     db.log_activity "sync_repo:#{event}", repo_id: repo.id, shard_id: repo.shard_id, metadata: metadata
+  end
+
+  def self.sync_failed(db, repo : Repo, event, exc = nil, tags = nil)
+    log_sync_failed(db, repo, event, exc, tags)
+
+    tags ||= {} of String => String
+    tags["repo_role"] ||= repo.role.to_s
+
+    if exc
+      tags["exception"] ||= exc.class.to_s
+      tags["error_message"] ||= exc.to_s
+    end
+
+    tags["repo"] ||= repo.ref.to_s
+    tags["event"] ||= event
 
     Raven.send_event Raven::Event.new(
       level: :warning,
-      message: "Failed to clone repository",
-      tags: {
-        repo:     repo.ref.to_s,
-        resolver: repo.ref.resolver,
-      }
+      message: "Failed to sync repository",
+      tags: tags
     )
   end
 end
