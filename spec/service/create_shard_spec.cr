@@ -3,61 +3,42 @@ require "../support/raven"
 require "../../src/service/create_shard"
 require "../support/db"
 
-describe Service::ImportShard do
-  describe "duplicate name" do
+private def find_qualifier(url, name, &)
+  result = {"~", nil}
+  transaction do |db|
+    if url.is_a?(String)
+      repo_ref = Repo::Ref.parse(url)
+    else
+      repo_ref = url
+    end
+    repo_id = Factory.create_repo(db, repo_ref)
+    repo = db.get_repo(repo_id)
+
+    yield db
+
+    result = Service::CreateShard.new(db, repo, name).find_qualifier
+  end
+  result
+end
+
+describe Service::CreateShard do
+  describe "#find_qualifier" do
     context "with git resolver" do
       it "detects username/repo" do
-        transaction do |db|
-          repo_id = Factory.create_repo(db, Repo::Ref.new("git", "mock://example.com/user/test.git"))
-          repo = db.get_repo(repo_id)
-
-          Factory.create_shard(db, "test")
-
-          Service::CreateShard.new(db, repo, "test").perform
-
-          ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}, {"test", "user", nil}]
-        end
-      end
-
-      it "users hostname" do
-        transaction do |db|
-          repo_id = Factory.create_repo(db, Repo::Ref.new("git", "mock://example.com/user/sub/test.git"))
-          repo = db.get_repo(repo_id)
-
-          Factory.create_shard(db, "test")
-
-          Service::CreateShard.new(db, repo, "test").perform
-
-          ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}, {"test", "example.com", nil}]
-        end
+        find_qualifier("mock://example.com/user/test.git", "test") { }.should eq({"", nil})
       end
     end
 
-    it "with github resolver" do
-      transaction do |db|
-        repo_id = Factory.create_repo(db, Repo::Ref.new("github", "testorg/test"))
-        repo = db.get_repo(repo_id)
-
+    it "detects username/repo" do
+      find_qualifier("mock://example.com/user/test.git", "test") do |db|
         Factory.create_shard(db, "test")
-
-        Service::CreateShard.new(db, repo, "test").perform
-
-        ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}, {"test", "testorg", nil}]
-      end
+      end.should eq({"user", nil})
     end
 
-    it "with existing qualifier" do
-      transaction do |db|
-        repo_id = Factory.create_repo(db, Repo::Ref.new("git", "mock://example.com/user/test.git"))
-        repo = db.get_repo(repo_id)
-
+    it "users hostname" do
+      find_qualifier("mock://example.com/user/sub/test.git", "test") do |db|
         Factory.create_shard(db, "test")
-        Factory.create_shard(db, "test", qualifier: "example.com")
-
-        Service::CreateShard.new(db, repo, "test").perform
-
-        ShardsDBHelper.persisted_shards(db).should eq [{"test", "", nil}, {"test", "example.com", nil}, {"test", "user", nil}]
-      end
+      end.should eq({"example.com", nil})
     end
   end
 end

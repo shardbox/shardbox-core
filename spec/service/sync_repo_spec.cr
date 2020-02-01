@@ -62,9 +62,10 @@ describe Service::SyncRepo do
 
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"sync_repo:sync_release:failed", repo_id, shard_id, {
-            "message"   => "Expected DOCUMENT_START but was STREAM_END at line 1, column 1",
-            "version"   => "0.1.0",
-            "exception" => "Shards::ParseError",
+            "error_message" => "Expected DOCUMENT_START but was STREAM_END at line 1, column 1",
+            "version"       => "0.1.0",
+            "repo_role"     => "canonical",
+            "exception"     => "Shards::ParseError",
           }},
         ]
       end
@@ -87,9 +88,10 @@ describe Service::SyncRepo do
         db.all_releases(shard_id).map { |r| {r.version, r.yanked?} }.should eq [{"0.2.0", false}, {"0.1.0", true}]
         db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
           {"sync_repo:sync_release:failed", repo_id, shard_id, {
-            "message"   => "Expected DOCUMENT_START but was STREAM_END at line 1, column 1",
-            "version"   => "0.1.0",
-            "exception" => "Shards::ParseError",
+            "error_message" => "Expected DOCUMENT_START but was STREAM_END at line 1, column 1",
+            "version"       => "0.1.0",
+            "repo_role"     => "canonical",
+            "exception"     => "Shards::ParseError",
           }},
           {"sync_release:created", nil, shard_id, {"version" => "0.2.0"}},
           {"sync_repo:release:yanked", nil, shard_id, {"version" => "0.1.0"}},

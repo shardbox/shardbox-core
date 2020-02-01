@@ -54,7 +54,7 @@ struct Service::CreateShard
   # In essence, both forks and distinct shards need a separate shard instance.
   # Mirrors should point to the same shard, but such a unification needs to
   # be manually reviewed.
-  private def find_qualifier : {String, Int64?}
+  def find_qualifier : {String, Int64?}
     unavailable_qualifiers = [] of String
     qualifier, archived_shard_id = possible_qualifiers do |qualifier|
       next unless qualifier
