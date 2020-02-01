@@ -41,4 +41,49 @@ describe Service::CreateShard do
       end.should eq({"example.com", nil})
     end
   end
+
+  it "with github resolver" do
+    find_qualifier("github:testorg/test", "test") do |db|
+      Factory.create_shard(db, "test")
+    end.should eq({"testorg", nil})
+  end
+
+  it "with existing qualifier" do
+    find_qualifier("mock://example.com/user/test.git", "test") do |db|
+      Factory.create_shard(db, "test")
+      Factory.create_shard(db, "test", qualifier: "example.com")
+    end.should eq({"user", nil})
+  end
+
+  it "with different providers" do
+    find_qualifier("github:testorg/test", "test") do |db|
+      Factory.create_shard(db, "test")
+      Factory.create_shard(db, "test", qualifier: "testorg")
+    end.should eq({"github", nil})
+  end
+
+  it "with different providers" do
+    find_qualifier("github:testorg/test", "test") do |db|
+      Factory.create_shard(db, "test")
+      Factory.create_shard(db, "test", qualifier: "testorg")
+      Factory.create_shard(db, "test", qualifier: "github")
+    end.should eq({"testorg-github", nil})
+  end
+
+  it "with archived shard" do
+    shard_id = nil
+    find_qualifier("github:testorg/test", "test") do |db|
+      shard_id = Factory.create_shard(db, "test", archived_at: Time.utc)
+    end.should eq({"", shard_id})
+
+    find_qualifier("github:testorg/test", "test") do |db|
+      shard_id = Factory.create_shard(db, "test", archived_at: Time.utc)
+      Factory.create_shard(db, "test", qualifier: "testorg", archived_at: Time.utc)
+    end.should eq({"", shard_id})
+
+    find_qualifier("github:testorg/test", "test") do |db|
+      Factory.create_shard(db, "test")
+      shard_id = Factory.create_shard(db, "test", qualifier: "testorg", archived_at: Time.utc)
+    end.should eq({"testorg", shard_id})
+  end
 end

@@ -92,7 +92,12 @@ struct Service::CreateShard
     url = @repo.ref.url
     case resolver
     when "github", "gitlab", "bitbucket"
-      yield File.dirname(url)
+      org = File.dirname(url)
+      yield org
+
+      yield resolver
+
+      yield "#{org}-#{resolver}"
     when "git"
       # If path looks like <username>/<repo> pattern
       uri = URI.parse(url)
