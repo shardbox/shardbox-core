@@ -4,6 +4,9 @@ require "./sync_repo"
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepos
   def initialize(@db : ShardsDB, @older_than : Time, @ratio : Float32)
+    @repo_refs_count = 0
+    @failures_count = 0
+    @pending_repos_count = 0
   end
 
   def self.new(db, age : Time::Span = 24.hours, ratio : Number = 0.1)
@@ -11,9 +14,23 @@ struct Service::SyncRepos
   end
 
   def perform
-    sync_repos
-    sync_all_pending_repos
-    update_shard_dependencies
+    elapsed = Time.measure do
+      # 1. Sync repos that haven't been synced since @older_than
+      sync_repos
+      # 2. Sync new repos that have never been processed (newly discovered dependencies)
+      sync_all_pending_repos
+      # 3. Update dependency table
+      update_shard_dependencies
+    end
+
+    @db.log_activity "sync_repos:finished", metadata: {
+      older_than:          @older_than,
+      ratio:               @ratio,
+      elapsed_time:        elapsed.to_s,
+      repo_refs_count:     @repo_refs_count,
+      failures_count:      @failures_count,
+      pending_repos_count: @pending_repos_count,
+    }
   end
 
   def sync_all_pending_repos
@@ -22,6 +39,7 @@ struct Service::SyncRepos
       break if pending.empty?
       pending.each do |repo|
         sync_repo(repo.ref)
+        @pending_repos_count += 1
       end
     end
   end
@@ -51,6 +69,7 @@ struct Service::SyncRepos
       repo_ref = Repo::Ref.new(*repo_ref)
       sync_repo(repo_ref)
     end
+    @repo_refs_count = repo_refs.size
   end
 
   def sync_repo(repo_ref)
@@ -60,6 +79,7 @@ struct Service::SyncRepos
       end
     rescue exc
       Raven.capture(exc)
+      @failures_count += 1
     end
   end
 
