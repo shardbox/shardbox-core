@@ -8,6 +8,8 @@ struct Service::ImportCategories
     update_categorizations
     delete_obsolete_categorizations
 
+    @db.log_activity "import_categories:finished", metadata: category_stats
+
     category_stats
   end
 

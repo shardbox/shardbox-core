@@ -4,6 +4,10 @@ require "./import_shard"
 require "./update_shard"
 
 struct Service::ImportCatalog
+  @new_repos = [] of Repo::Ref
+  @obsolete_repos = [] of Repo::Ref
+  @unreferenced_shards : Array(Int64)? = nil
+
   def initialize(@db : ShardsDB, @catalog : Catalog)
   end
 
@@ -12,9 +16,11 @@ struct Service::ImportCatalog
   end
 
   def perform
-    import_stats = import_catalog
+    elapsed = Time.measure do
+      import_catalog
+    end
 
-    @db.log_activity "import_catalog:done", metadata: import_stats
+    @db.log_activity "import_catalog:finished", metadata: stats(elapsed)
   rescue exc
     begin
       # Log failure in a separate connection because the main transaction
@@ -28,12 +34,22 @@ struct Service::ImportCatalog
     raise exc
   end
 
+  def stats(elapsed)
+    {
+      "elapsed"         => elapsed.to_s,
+      "new_repos"       => @new_repos.map(&.to_s),
+      "obsolete_repos"  => @obsolete_repos.map(&.to_s),
+      "archived_shards" => @unreferenced_shards,
+    }
+  end
+
   def import_catalog
-    category_stats = ImportCategories.new(@db, @catalog).perform
-
+    import_categories
     import_repos
+  end
 
-    category_stats
+  def import_categories
+    ImportCategories.new(@db, @catalog).perform
   end
 
   def import_repos
@@ -140,6 +156,7 @@ struct Service::ImportCatalog
     repo.id = @db.create_repo(repo)
 
     @db.log_activity "import_catalog:repo:created", repo_id: repo.id
+    @new_repos << entry.repo_ref
 
     import_shard(entry, repo)
   end
@@ -259,6 +276,8 @@ struct Service::ImportCatalog
           id = $1
         SQL
     end
+
+    @unreferenced_shards = unreferenced_shards
   end
 
   private def obsolete_removed_repos(valid_refs)
@@ -310,5 +329,6 @@ struct Service::ImportCatalog
     @db.log_activity "import_catalog:repo:obsoleted", repo.id, repo.shard_id, metadata: {
       "old_role" => repo.role,
     }
+    @obsolete_repos << repo.ref
   end
 end
