@@ -18,7 +18,7 @@ shards:
 
   pg:
     github: will/crystal-pg
-    version: 0.20.0
+    commit: c6448b7577bd0db5e5a578f73cab93b63a48055a
 
   raven:
     github: Sija/raven.cr
