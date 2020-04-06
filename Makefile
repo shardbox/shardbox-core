@@ -1,8 +1,8 @@
 DATABASE_NAME ?= $(shell echo $(DATABASE_URL) | grep -o -P '[^/]+$$')
 TEST_DATABASE_NAME ?= $(shell echo $(TEST_DATABASE_URL) | grep -o -P '[^/]+$$')
-PG_USER ?= postgres
+
 BIN ?= bin
-DBMATE := dbmate
+DBMATE ?= dbmate
 SHARDS := shards
 
 .PHONY: build
@@ -19,22 +19,22 @@ TEST_DATABASE_URL:
 .PHONY: test_db
 test_db: TEST_DATABASE_URL
 	@psql $(TEST_DATABASE_NAME) -c "SELECT 1" > /dev/null 2>&1 || \
-	(createdb -U $(PG_USER) $(TEST_DATABASE_NAME) && psql -U $(PG_USER) $(TEST_DATABASE_NAME) < db/schema.sql)
+	(createdb $(TEST_DATABASE_NAME) && psql $(TEST_DATABASE_NAME) < db/schema.sql)
 
 .PHONY: db
 db: DATABASE_URL
 	@psql $(DATABASE_NAME) -c "SELECT 1" > /dev/null 2>&1 || \
-	createdb -U $(PG_USER) $(DATABASE_NAME)
-	psql -U $(PG_USER) $(DATABASE_NAME) -c "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;"
-	dbmate up
+	createdb $(DATABASE_NAME)
+	psql $(DATABASE_NAME) -c "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;"
+	$(DBMATE) up
 
 .PHONY: db/dump
 db/dump: DATABASE_URL
-	pg_dump -U $(PG_USER) -d $(DATABASE_NAME) -a -Tschema_migrations --disable-triggers > db/dump/$(shell date +'%Y-%m-%d-%H%M').sql
+	pg_dump -d $(DATABASE_NAME) -a -Tschema_migrations --disable-triggers > db/dump/$(shell date +'%Y-%m-%d-%H%M').sql
 
 .PHONY: db/dump_schema
 db/dump_schema: DATABASE_URL
-	pg_dump -U $(PG_USER) -s $(DATABASE_NAME) > db/schema.sql
+	pg_dump -s $(DATABASE_NAME) > db/schema.sql
 
 $(BIN):
 	mkdir $(BIN)
@@ -52,12 +52,12 @@ test: test_db
 
 .PHONY: test_db/drop_sync
 test_db/drop_sync: test_db/drop
-	createdb -U $(PG_USER) $(TEST_DATABASE_NAME) 2> /dev/null
-	pg_dump -U $(PG_USER) -s $(DATABASE_NAME) | psql -U $(PG_USER) $(TEST_DATABASE_NAME) -q
+	createdb $(TEST_DATABASE_NAME) 2> /dev/null
+	pg_dump -s $(DATABASE_NAME) | psql $(TEST_DATABASE_NAME) -q
 
 .PHONY: test_db/drop
 test_db/drop:
-	dropdb -U $(PG_USER) $(TEST_DATABASE_NAME) || true
+	dropdb $(TEST_DATABASE_NAME) || true
 
 .PHONY: test/migration
 test/migration: test_db/rollback test_db/migrate

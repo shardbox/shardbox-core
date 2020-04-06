@@ -1,51 +1,58 @@
+dist: bionic
 language: crystal
 
-addons:
+build_addons: &build_addons
   postgresql: "12"
+  apt:
+    packages:
+    - postgresql-12
+    - postgresql-client-12
+    - libgit2-dev
 
-env:
-  TEST_DATABASE_URL: "postgres://postgres:@localhost/shardbox"
-
-services:
-- postgresql
+crystal:
+- latest
 
 cache:
-  directories:
-  - $HOME/lib/
-  - $HOME/.cache/shards/
+- shards
+- directories:
+  - vendor/
 
-before_script:
-- crystal --version
-- shards --version
-- shards check || shards install
-- |
-  sudo apt update
-  sudo apt-get --yes remove postgresql\*
-  sudo apt-get install -y postgresql-12 postgresql-client-12
-  sudo cp /etc/postgresql/{9.6,12}/main/pg_hba.conf
-  sudo service postgresql restart 12
-- |
-  if [ ! -f "$HOME/lib/libgit2.so.27" ]; then
-    sudo apt install --yes cmake
-    scripts/build_libgit2.sh $HOME maint/v0.27
-  fi
-  export LIBRARY_PATH=$LIBRARY_PATH:$HOME/lib
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/lib
-- make test_db
-- |
+env:
+  global:
+    - PGPORT: 5433
+    - TEST_DATABASE_URL: "postgres://postgres:@localhost:5433/shardbox"
+    - DBMATE: "vendor/bin/dbmate"
+
+before_install: |
   if [ ! -f "vendor/bin/dbmate" ]; then
     mkdir -p vendor/bin
     wget -qO vendor/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
     chmod +x vendor/bin/dbmate
   fi
-  export PATH="$PATH:$(pwd)/vendor/bin"
-- psql $TEST_DATABASE_URL -c 'SELECT version()'
 
-script:
-- crystal spec
-- make test/migration
-- make bin/worker
-- |
-  export DATABASE_URL=$TEST_DATABASE_URL
-  bin/worker sync_repos && bin/worker update_metrics
-- crystal tool format --check src spec
+jobs:
+  include:
+  - stage: test
+    name: unit tests
+    services:
+    - postgresql
+    addons: *build_addons
+    before_script: ./.travis/setup-database.sh
+    script: make test
+  - stage: test
+    name: migration test
+    addons: *build_addons
+    before_script: ./.travis/setup-database.sh
+    script: make test_db test/migration
+  - stage: test
+    name: integration test
+    addons: *build_addons
+    before_script: ./.travis/setup-database.sh
+    script:
+    - make test_db bin/worker
+    - |
+      export DATABASE_URL=$TEST_DATABASE_URL
+      bin/worker sync_repos && bin/worker update_metrics
+  - stage: test
+    name: format
+    script: crystal tool format --check src spec
