@@ -10,7 +10,7 @@ shards:
 
   git:
     github: smacker/libgit2.cr
-    commit: 3426bf335e0970852e300f7602cf6e8dd21d0867
+    commit: 1d42ffdcf6f885a49ece5b2baac00a5146d0a556
 
   github-cr:
     github: arnavb/github-cr
@@ -26,7 +26,7 @@ shards:
 
   raven:
     github: Sija/raven.cr
-    version: 1.5.5
+    version: 1.6.0
 
   shards:
     github: crystal-lang/shards
