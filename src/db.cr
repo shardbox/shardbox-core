@@ -19,15 +19,16 @@ class ShardsDB
 
   def self.db
     @@db ||= DB.open(database_url).tap do |db|
-      db.setup_connection do |connection|
-        if application_name = self.application_name
-          connection.exec "SET application_name TO '#{application_name.dump_unquoted}';"
-        end
-        if statement_timeout = self.statement_timeout
-          connection.exec "SET statement_timeout TO '#{statement_timeout.dump_unquoted}';"
-        end
-        connection
-      end
+      # TODO: Reenable when this doesn't produce a mutex deadlock anymore https://github.com/crystal-lang/crystal-db/issues/127
+      # db.setup_connection do |connection|
+      #   if application_name = self.application_name
+      #     connection.exec "SET application_name TO '#{application_name.dump_unquoted}';"
+      #   end
+      #   if statement_timeout = self.statement_timeout
+      #     connection.exec "SET statement_timeout TO '#{statement_timeout.dump_unquoted}';"
+      #   end
+      #   connection
+      # end
     end
   end
 
