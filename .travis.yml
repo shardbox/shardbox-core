@@ -23,7 +23,7 @@ env:
     - TEST_DATABASE_URL: "postgres://postgres:@localhost:5433/shardbox"
     - DBMATE: "vendor/bin/dbmate"
 
-after_install: |
+before_install: |
   if [ ! -f "vendor/bin/dbmate" ]; then
     mkdir -p vendor/bin
     wget -qO vendor/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
