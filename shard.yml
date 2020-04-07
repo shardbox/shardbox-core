@@ -15,7 +15,8 @@ license: MIT
 dependencies:
   shards:
     github: crystal-lang/shards
-    branch: master
+    # shards is pinned to 0.10. because of crystal-lang/shards#346
+    version: 0.10.0
   pg:
     github: will/crystal-pg
     branch: master

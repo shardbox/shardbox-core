@@ -16,6 +16,10 @@ shards:
     github: arnavb/github-cr
     commit: 119df4c747a81260b37af0878b24eab9345a94f4
 
+  molinillo:
+    github: crystal-lang/crystal-molinillo
+    version: 0.1.0
+
   pg:
     github: will/crystal-pg
     commit: c6448b7577bd0db5e5a578f73cab93b63a48055a
@@ -26,5 +30,5 @@ shards:
 
   shards:
     github: crystal-lang/shards
-    commit: 43ae0adbad8d07776139b55ac69a3819008518cb
+    version: 0.10.0
 

@@ -4,22 +4,26 @@ require "shards/dependency"
 require "shards/resolvers/resolver"
 require "shards/resolvers/git"
 require "../../../src/ext/shards/resolvers/git"
-require "../../../lib/shards/test/support/factories"
+require "shards/spec/support/factories"
 require "file_utils"
 
 struct ShardsHelper
-  include Shards::Factories
-
   def resolver(name, config = {} of String => String)
     config = config.merge({"git" => git_url(name)})
     dependency = Shards::Dependency.new(name, config)
     Shards::GitResolver.new(dependency)
   end
+end
 
-  def create_git_tag(project, version, message)
-    Dir.cd(git_path(project)) do
-      run "git tag -m '#{message}' #{version}"
-    end
+class Shards::Dependency
+  def self.new(name, config)
+    previous_def
+  end
+end
+
+private def create_git_tag(project, version, message)
+  Dir.cd(git_path(project)) do
+    run "git tag -m '#{message}' #{version}"
   end
 end
 
@@ -27,11 +31,11 @@ describe Shards::GitResolver do
   describe "#revision_info" do
     it "handles special characters" do
       helper = ShardsHelper.new
-      helper.create_git_repository("foo")
-      helper.create_git_commit("foo", "foo\nbar")
-      helper.create_git_tag("foo", "v0.1", "bar\nfoo")
-      helper.create_git_commit("foo", "foo\"bar")
-      helper.create_git_tag("foo", "v0.2", "bar\"foo")
+      create_git_repository("foo")
+      create_git_commit("foo", "foo\nbar")
+      create_git_tag("foo", "v0.1", "bar\nfoo")
+      create_git_commit("foo", "foo\"bar")
+      create_git_tag("foo", "v0.2", "bar\"foo")
       resolver = helper.resolver("foo")
 
       revision_info = resolver.revision_info("0.1")
@@ -43,14 +47,14 @@ describe Shards::GitResolver do
       revision_info.tag.not_nil!.message.should eq "bar\"foo\n"
     ensure
       if helper
-        FileUtils.rm_rf(helper.git_path("foo"))
+        FileUtils.rm_rf(git_path("foo"))
       end
     end
 
     it "resolves HEAD" do
       helper = ShardsHelper.new
-      helper.create_git_repository("foo")
-      helper.create_git_commit("foo", "foo bar")
+      create_git_repository("foo")
+      create_git_commit("foo", "foo bar")
       resolver = helper.resolver("foo")
 
       revision_info = resolver.revision_info("HEAD")
@@ -58,17 +62,17 @@ describe Shards::GitResolver do
       revision_info.tag.should be_nil
     ensure
       if helper
-        FileUtils.rm_rf(helper.git_path("foo"))
+        FileUtils.rm_rf(git_path("foo"))
       end
     end
 
     it "resolves symbolic reference" do
       helper = ShardsHelper.new
-      helper.create_git_repository("foo")
-      helper.create_git_commit("foo", "foo bar")
-      helper.create_git_tag("foo", "v0.1", "bar foo")
-      Dir.cd(helper.git_path("foo")) do
-        helper.run "git tag v0.2 v0.1"
+      create_git_repository("foo")
+      create_git_commit("foo", "foo bar")
+      create_git_tag("foo", "v0.1", "bar foo")
+      Dir.cd(git_path("foo")) do
+        run "git tag v0.2 v0.1"
       end
       resolver = helper.resolver("foo")
 
@@ -77,7 +81,7 @@ describe Shards::GitResolver do
       revision_info.tag.not_nil!.message.should eq "bar foo\n"
     ensure
       if helper
-        FileUtils.rm_rf(helper.git_path("foo"))
+        FileUtils.rm_rf(git_path("foo"))
       end
     end
   end
