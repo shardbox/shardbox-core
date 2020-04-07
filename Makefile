@@ -2,7 +2,7 @@ DATABASE_NAME ?= $(shell echo $(DATABASE_URL) | grep -o -P '[^/]+$$')
 TEST_DATABASE_NAME ?= $(shell echo $(TEST_DATABASE_URL) | grep -o -P '[^/]+$$')
 
 BIN ?= bin
-DBMATE := dbmate
+DBMATE ?= dbmate
 SHARDS := shards
 
 .PHONY: build
@@ -26,7 +26,7 @@ db: DATABASE_URL
 	@psql $(DATABASE_NAME) -c "SELECT 1" > /dev/null 2>&1 || \
 	createdb $(DATABASE_NAME)
 	psql $(DATABASE_NAME) -c "CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;"
-	dbmate up
+	$(DBMATE) up
 
 .PHONY: db/dump
 db/dump: DATABASE_URL
