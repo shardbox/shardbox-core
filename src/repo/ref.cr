@@ -32,6 +32,8 @@ struct Repo::Ref
       if path = extract_org_repo_url(uri)
         return new("bitbucket", path)
       end
+    else
+      # fall through
     end
 
     path = uri.path
