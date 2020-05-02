@@ -98,6 +98,36 @@ struct Repo::Ref
     end
   end
 
+  def base_url_source(refname = nil)
+    refname ||= "master"
+
+    case resolver
+    when "bitbucket"
+      url = to_uri
+      url.path += "/src/#{refname}/"
+      url
+    when "github", "gitlab"
+      url = to_uri
+      url.path += "/blob/#{refname}/"
+      url
+    else
+      nil
+    end
+  end
+
+  def base_url_raw(refname = nil)
+    refname ||= "master"
+
+    case resolver
+    when "github", "gitlab", "bitbucket"
+      url = to_uri
+      url.path += "/raw/#{refname}/"
+      url
+    else
+      nil
+    end
+  end
+
   def resolvable?
     provider_resolver? || url.starts_with?("http://") || url.starts_with?("https://")
   end
