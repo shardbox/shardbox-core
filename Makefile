@@ -19,7 +19,7 @@ TEST_DATABASE_URL:
 .PHONY: test_db
 test_db: TEST_DATABASE_URL
 	@psql $(TEST_DATABASE_NAME) -c "SELECT 1" > /dev/null 2>&1 || \
-	(createdb $(TEST_DATABASE_NAME) && psql $(TEST_DATABASE_NAME) < db/schema.sql)
+	(createdb $(TEST_DATABASE_NAME) && psql $(TEST_DATABASE_NAME) < db/extension.sql && psql $(TEST_DATABASE_URL) < db/schema.sql)
 
 .PHONY: db
 db: DATABASE_URL
@@ -60,7 +60,9 @@ test_db/drop:
 	dropdb $(TEST_DATABASE_NAME) || true
 
 .PHONY: test/migration
-test/migration: test_db/rollback test_db/migrate
+test/migration:
+	git add db/schema.sql
+	make test_db/rollback test_db/migrate
 	git diff --exit-code db/schema.sql
 
 .PHONY: test_db/migrate
