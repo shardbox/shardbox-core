@@ -45,7 +45,6 @@ describe Repo::Ref do
     Repo::Ref.new("github", "foo/bar").to_uri.should eq URI.parse("https://github.com/foo/bar")
   end
 
-
   it "#base_url_source" do
     Repo::Ref.new("github", "foo/bar").base_url_source.should eq URI.parse("https://github.com/foo/bar/tree/master/")
     Repo::Ref.new("github", "foo/bar").base_url_source("HEAD").should eq URI.parse("https://github.com/foo/bar/tree/master/")
