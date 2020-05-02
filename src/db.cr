@@ -338,7 +338,7 @@ class ShardsDB
       id, version, released_at, revision_info, spec, yanked_at, latest = result
       revision_info = Release::RevisionInfo.from_json(revision_info)
       Release.new(
-        version, released_at, revision_info, spec.as_h, yanked_at, !!latest, id: id
+        Shards::Version.new(version), released_at, revision_info, spec.as_h, yanked_at, !!latest, id: id
       )
     end
   end
