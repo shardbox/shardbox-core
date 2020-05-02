@@ -100,6 +100,57 @@ struct Repo::Ref
     end
   end
 
+  def base_url_source(refname = nil)
+    refname = normalize_refname(refname)
+
+    case resolver
+    when "bitbucket"
+      url = to_uri
+      url.path += "/src/#{refname}/"
+      url
+    when "github"
+      url = to_uri
+      url.path += "/tree/#{refname}/"
+      url
+    when "gitlab"
+      # gitlab doesn't necessarily need the `-` component but they use it by default
+      # and it seems reasonable to be safe of any ambiguities
+      url = to_uri
+      url.path += "/-/tree/#{refname}/"
+      url
+    else
+      nil
+    end
+  end
+
+  def base_url_raw(refname = nil)
+    refname = normalize_refname(refname)
+
+    case resolver
+    when "github", "bitbucket"
+      url = to_uri
+      url.path += "/raw/#{refname}/"
+      url
+    when "gitlab"
+      # gitlab doesn't necessarily need the `-` component but they use it by default
+      # and it seems reasonable to be safe of any ambiguities
+      url = to_uri
+      url.path += "/-/raw/#{refname}/"
+      url
+    else
+      nil
+    end
+  end
+
+  private def normalize_refname(refname)
+    case refname
+    when Nil, "HEAD"
+      "master"
+    else
+      refname
+    end
+  end
+
   def resolvable?
     provider_resolver? || url.starts_with?("http://") || url.starts_with?("https://")
   end

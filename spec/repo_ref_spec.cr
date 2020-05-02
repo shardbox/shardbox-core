@@ -45,6 +45,41 @@ describe Repo::Ref do
     Repo::Ref.new("github", "foo/bar").to_uri.should eq URI.parse("https://github.com/foo/bar")
   end
 
+
+  it "#base_url_source" do
+    Repo::Ref.new("github", "foo/bar").base_url_source.should eq URI.parse("https://github.com/foo/bar/tree/master/")
+    Repo::Ref.new("github", "foo/bar").base_url_source("HEAD").should eq URI.parse("https://github.com/foo/bar/tree/master/")
+    Repo::Ref.new("github", "foo/bar").base_url_source("12345").should eq URI.parse("https://github.com/foo/bar/tree/12345/")
+
+    Repo::Ref.new("gitlab", "foo/bar").base_url_source.should eq URI.parse("https://gitlab.com/foo/bar/-/tree/master/")
+    Repo::Ref.new("gitlab", "foo/bar").base_url_source("HEAD").should eq URI.parse("https://gitlab.com/foo/bar/-/tree/master/")
+    Repo::Ref.new("gitlab", "foo/bar").base_url_source("12345").should eq URI.parse("https://gitlab.com/foo/bar/-/tree/12345/")
+
+    Repo::Ref.new("bitbucket", "foo/bar").base_url_source.should eq URI.parse("https://bitbucket.com/foo/bar/src/master/")
+    Repo::Ref.new("bitbucket", "foo/bar").base_url_source("HEAD").should eq URI.parse("https://bitbucket.com/foo/bar/src/master/")
+    Repo::Ref.new("bitbucket", "foo/bar").base_url_source("12345").should eq URI.parse("https://bitbucket.com/foo/bar/src/12345/")
+
+    Repo::Ref.new("git", "foo/bar").base_url_source.should be_nil
+    Repo::Ref.new("git", "foo/bar").base_url_source("12345").should be_nil
+  end
+
+  it "#base_url_raw" do
+    Repo::Ref.new("github", "foo/bar").base_url_raw.should eq URI.parse("https://github.com/foo/bar/raw/master/")
+    Repo::Ref.new("github", "foo/bar").base_url_raw("HEAD").should eq URI.parse("https://github.com/foo/bar/raw/master/")
+    Repo::Ref.new("github", "foo/bar").base_url_raw("12345").should eq URI.parse("https://github.com/foo/bar/raw/12345/")
+
+    Repo::Ref.new("gitlab", "foo/bar").base_url_raw.should eq URI.parse("https://gitlab.com/foo/bar/-/raw/master/")
+    Repo::Ref.new("gitlab", "foo/bar").base_url_raw("HEAD").should eq URI.parse("https://gitlab.com/foo/bar/-/raw/master/")
+    Repo::Ref.new("gitlab", "foo/bar").base_url_raw("12345").should eq URI.parse("https://gitlab.com/foo/bar/-/raw/12345/")
+
+    Repo::Ref.new("bitbucket", "foo/bar").base_url_raw.should eq URI.parse("https://bitbucket.com/foo/bar/raw/master/")
+    Repo::Ref.new("bitbucket", "foo/bar").base_url_raw("HEAD").should eq URI.parse("https://bitbucket.com/foo/bar/raw/master/")
+    Repo::Ref.new("bitbucket", "foo/bar").base_url_raw("12345").should eq URI.parse("https://bitbucket.com/foo/bar/raw/12345/")
+
+    Repo::Ref.new("git", "foo/bar").base_url_raw.should be_nil
+    Repo::Ref.new("git", "foo/bar").base_url_raw("12345").should be_nil
+  end
+
   it "#nice_url" do
     Repo::Ref.new("file:///repo.git").nice_url.should eq "file:///repo.git"
     Repo::Ref.new("file:///repo").nice_url.should eq "file:///repo"
