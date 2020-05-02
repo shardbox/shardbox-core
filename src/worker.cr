@@ -18,7 +18,7 @@ def show_help(io)
 end
 
 def sync_all_pending_repos
-  ShardsDB.transaction do |db|
+  ShardsDB.connect do |db|
     Service::SyncRepos.new(db).sync_all_pending_repos
   end
 end
