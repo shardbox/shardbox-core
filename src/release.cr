@@ -18,7 +18,7 @@ class Release
     include JSON::Serializable
   end
 
-  property version : Shards::Version
+  property version : String
   property released_at : Time
   property! revision_info : RevisionInfo?
   property? yanked_at : Time?
@@ -27,7 +27,7 @@ class Release
   property! id : Int64
 
   def self.new(
-    version : Shards::Version,
+    version : String,
     revision_info : RevisionInfo,
     spec : Hash(String, JSON::Any) = {} of String => JSON::Any,
     yanked_at : Time? = nil,
@@ -44,7 +44,7 @@ class Release
   end
 
   def initialize(
-    @version : Shards::Version,
+    @version : String,
     @released_at : Time,
     @revision_info : RevisionInfo? = nil,
     @spec : Hash(String, JSON::Any) = {} of String => JSON::Any,

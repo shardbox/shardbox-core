@@ -8,14 +8,14 @@ require "./import_shard"
 
 # This service synchronizes the information about a release in the database.
 class Service::SyncRelease
-  def initialize(@db : ShardsDB, @shard_id : Int64, @version : Shards::Version)
+  def initialize(@db : ShardsDB, @shard_id : Int64, @version : String)
   end
 
   def perform
     repo = @db.find_canonical_repo(@shard_id)
     resolver = Repo::Resolver.new(repo.ref)
 
-    Raven.tags_context repo: repo.ref.to_s, version: @version.to_s
+    Raven.tags_context repo: repo.ref.to_s, version: @version
 
     sync_release(resolver)
   end
@@ -38,7 +38,7 @@ class Service::SyncRelease
       spec_json = JSON.parse(YAML.parse(spec_raw).to_json).as_h
     else
       # No `shard.yml` found, using mock spec
-      spec = Shards::Spec.new(name: @db.get_shard(@shard_id).name, version: @version)
+      spec = Shards::Spec.new(name: @db.get_shard(@shard_id).name, version: Shards::Version.new(@version))
       spec_json = {} of String => JSON::Any
     end
 
