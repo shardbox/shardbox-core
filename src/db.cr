@@ -487,7 +487,7 @@ class ShardsDB
   end
 
   # LOGGING
-  class_property logger : Logger { Logger.new(STDOUT) }
+  Log = ::Log.for(self)
 
   def log_activity(event : String, repo_id : Int64? = nil, shard_id : Int64? = nil, metadata = nil)
     log_message = String.build do |io|
@@ -507,7 +507,7 @@ class ShardsDB
         end
       end
     end
-    self.class.logger.info(log_message)
+    Log.info { log_message }
     connection.exec <<-SQL, event, repo_id, shard_id, metadata.to_json
         INSERT INTO activity_log
         (

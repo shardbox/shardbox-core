@@ -2,7 +2,6 @@ require "./factory"
 require "../../src/db"
 
 ShardsDB.database_url = ENV["TEST_DATABASE_URL"]
-ShardsDB.logger = Logger.new(nil)
 
 def transaction
   ShardsDB.transaction do |db, transaction|

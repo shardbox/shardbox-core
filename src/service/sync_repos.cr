@@ -3,6 +3,8 @@ require "./sync_repo"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepos
+  Log = ::Log.for(self)
+
   def initialize(@db : ShardsDB, @older_than : Time, @ratio : Float32)
     @repo_refs_count = 0
     @failures_count = 0
@@ -79,6 +81,7 @@ struct Service::SyncRepos
       end
     rescue exc
       Raven.capture(exc)
+      Log.error(exception: exc) { "Failure while syncing repo #{repo_ref}" }
       @failures_count += 1
     end
   end
