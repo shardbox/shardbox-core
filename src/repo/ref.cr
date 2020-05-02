@@ -107,11 +107,13 @@ struct Repo::Ref
     return result unless result == 0
 
     if provider_resolver? && other.provider_resolver?
-      result = url <=> other.url
+      result = url.compare(other.url, case_insensitive: true)
       return result unless result == 0
-    end
 
-    slug <=> other.slug
+      resolver <=> other.resolver
+    else
+      slug <=> other.slug
+    end
   end
 
   def to_s(io : IO)

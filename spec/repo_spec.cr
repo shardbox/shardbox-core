@@ -67,12 +67,18 @@ describe Repo::Ref do
 
   it "#<=>" do
     Repo::Ref.new("git", "bar").should be < Repo::Ref.new("git", "baz")
+    (Repo::Ref.new("git", "bar") <=> Repo::Ref.new("git", "bar")).should eq 0
+    Repo::Ref.new("git", "bar").should be > Repo::Ref.new("git", "Bar")
+    (Repo::Ref.new("github", "goo/bar") <=> Repo::Ref.new("github", "goo/bar")).should eq 0
+    (Repo::Ref.new("github", "goo/bar") <=> Repo::Ref.new("github", "goo/Bar")).should eq 0
+    (Repo::Ref.new("github", "goo/bar") <=> Repo::Ref.new("github", "Goo/bar")).should eq 0
     Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("github", "foo/baz")
     Repo::Ref.new("github", "goo/Bar").should be < Repo::Ref.new("github", "foo/baz")
     Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("github", "foo/Baz")
     Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("gitlab", "foo/baz")
     Repo::Ref.new("github", "goo/bar").should be < Repo::Ref.new("bitbucket", "foo/baz")
     Repo::Ref.new("github", "goo/bar").should be > Repo::Ref.new("bitbucket", "foo/bar")
+    Repo::Ref.new("github", "goo/bar").should be > Repo::Ref.new("bitbucket", "goo/bar")
 
     Repo::Ref.new("git", "https://foo/bar").should be < Repo::Ref.new("github", "foo/bar")
   end
