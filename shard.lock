@@ -30,5 +30,5 @@ shards:
 
   shards:
     github: crystal-lang/shards
-    version: 0.10.0
+    commit: 5666481ea1b304944adcf9eabce0b24ff9badeb9
 

@@ -32,7 +32,7 @@ class Shards::GitResolver
       # annotated tag
       tag = target
       commit = repo.lookup_commit(tag.target_oid)
-      tag_info = Release::Tag.new(tag.name, tag.message, signature(tag.tagger))
+      tag_info = Release::Tag.new(tag.name, tag.message.strip, signature(tag.tagger))
     when Git::Commit
       # lightweight tag
       commit = target
@@ -41,7 +41,7 @@ class Shards::GitResolver
       raise "Unexpected target type #{target.class}"
     end
 
-    commit_info = Release::Commit.new(commit.sha, commit.time, signature(commit.author), signature(commit.committer), commit.message)
+    commit_info = Release::Commit.new(commit.sha, commit.time, signature(commit.author), signature(commit.committer), commit.message.strip)
 
     Release::RevisionInfo.new tag_info, commit_info
   end
@@ -50,13 +50,17 @@ class Shards::GitResolver
     Release::Signature.new(signature.name, signature.email, signature.time)
   end
 
+  def read_spec!(version)
+    read_spec(version)
+  end
+
   def fetch_file(version, path)
     # Tree#path is not yet implemented in libgit2.cr, falling back to CLI
     update_local_cache
-    refs = git_refs(version)
+    ref = git_ref(version)
 
-    if file_exists?(refs, path)
-      capture("git show #{refs}:#{path}")
+    if file_exists?(ref, path)
+      capture("git show #{ref.to_git_ref}:#{path}")
     end
   end
 

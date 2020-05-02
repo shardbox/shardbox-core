@@ -8,14 +8,14 @@ require "./import_shard"
 
 # This service synchronizes the information about a release in the database.
 class Service::SyncRelease
-  def initialize(@db : ShardsDB, @shard_id : Int64, @version : String)
+  def initialize(@db : ShardsDB, @shard_id : Int64, @version : Shards::Version)
   end
 
   def perform
     repo = @db.find_canonical_repo(@shard_id)
     resolver = Repo::Resolver.new(repo.ref)
 
-    Raven.tags_context repo: repo.ref.to_s, version: @version
+    Raven.tags_context repo: repo.ref.to_s, version: @version.to_s
 
     sync_release(resolver)
   end
@@ -25,7 +25,7 @@ class Service::SyncRelease
 
     release_id = upsert_release(@shard_id, release)
 
-    sync_dependencies(release_id, spec)
+    sync_dependencies(release_id, spec, release.spec)
     sync_files(release_id, resolver)
     sync_repos_stats(release_id, resolver)
   end
@@ -94,14 +94,16 @@ class Service::SyncRelease
     release_id
   end
 
-  def sync_dependencies(release_id, spec : Shards::Spec)
+  def sync_dependencies(release_id, spec : Shards::Spec, raw_spec)
     dependencies = [] of Dependency
+    dependencies_json = raw_spec["dependencies"]?
     spec.dependencies.each do |spec_dependency|
-      dependencies << Dependency.from_spec(spec_dependency)
+      dependencies << Dependency.new(spec_dependency.name, dependencies_json.not_nil![spec_dependency.name], :runtime)
     end
 
+    dev_dependencies_json = raw_spec["dev_dependencies"]?
     spec.development_dependencies.each do |spec_dependency|
-      dependencies << Dependency.from_spec(spec_dependency, :development)
+      dependencies << Dependency.new(spec_dependency.name, dependencies_json.not_nil![spec_dependency.name], :development)
     end
 
     SyncDependencies.new(@db, release_id).sync_dependencies(dependencies)

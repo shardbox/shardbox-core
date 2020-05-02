@@ -25,6 +25,7 @@ module Factory
                           yanked_at = nil, latest = false, position = nil)
     shard_id ||= create_shard(db)
     revision_info ||= build_revision_info("v#{version}")
+    version = Shards::Version.new(version)
 
     release = Release.new(version, released_at, revision_info, spec, yanked_at, latest)
 

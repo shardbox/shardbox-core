@@ -33,7 +33,11 @@ struct Service::ImportShard
 
   private def retrieve_spec
     begin
-      spec_raw = @resolver.fetch_raw_spec
+      version = @resolver.latest_version_for_ref(nil)
+      unless version
+        return
+      end
+      spec_raw = @resolver.fetch_raw_spec(version)
     rescue exc : Repo::Resolver::RepoUnresolvableError
       SyncRepo.sync_failed(@db, @repo, "fetch_spec_failed", exc.cause)
 

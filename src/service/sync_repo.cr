@@ -47,9 +47,9 @@ struct Service::SyncRepo
   def sync_releases(resolver, shard_id)
     versions = resolver.fetch_versions
 
-    failed_versions = [] of String
+    failed_versions = [] of Shards::Version
     versions.each do |version|
-      if !SoftwareVersion.valid?(version) && version != "HEAD"
+      if !SoftwareVersion.valid?(version.to_s) && version.to_s != "HEAD"
         # TODO: What should happen when a version tag is invalid?
         # Ignoring this release for now and sending a note to sentry.
 
@@ -58,7 +58,7 @@ struct Service::SyncRepo
           message: "Invalid version, ignoring release.",
           tags: {
             repo:        resolver.repo_ref.to_s,
-            tag_version: version,
+            tag_version: version.to_s,
           }
         )
         next
@@ -68,7 +68,7 @@ struct Service::SyncRepo
         SyncRelease.new(@db, shard_id, version).sync_release(resolver)
       rescue exc : Shards::ParseError
         repo = @db.get_repo(resolver.repo_ref)
-        SyncRepo.sync_failed(@db, repo, "sync_release:failed", exc, tags: {"error_message" => exc.message, "version" => version})
+        SyncRepo.sync_failed(@db, repo, "sync_release:failed", exc, tags: {"error_message" => exc.message, "version" => version.to_s})
 
         failed_versions << version
       end

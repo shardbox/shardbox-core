@@ -19,12 +19,6 @@ class Dependency
   def initialize(@name : String, @spec : JSON::Any, @scope : Scope = :RUNTIME)
   end
 
-  def self.from_spec(dependency : Shards::Dependency, scope : Scope = :RUNTIME)
-    any = JSON::Any.new(dependency.transform_values { |string| JSON::Any.new(string) })
-
-    Dependency.new(dependency.name, any, scope)
-  end
-
   def repo_ref : Repo::Ref?
     if git = spec["git"]?
       # Treat git specially to detect URLs to registered resolvers like `git: https://github.com/crystal-lang/shards`

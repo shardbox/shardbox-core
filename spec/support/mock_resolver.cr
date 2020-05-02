@@ -11,7 +11,11 @@ class MockResolver
 
   property? resolvable : Bool = true
 
-  def initialize(@versions : Hash(String, MockEntry) = {} of String => MockEntry, @metadata : Repo::Metadata = Repo::Metadata.new)
+  def self.new(versions : Hash(String, MockEntry) = {} of String => MockEntry, metadata : Repo::Metadata = Repo::Metadata.new)
+    new(versions.transform_keys { |key| Shards::Version.new(key) }, metadata)
+  end
+
+  def initialize(@versions : Hash(Shards::Version, MockEntry), @metadata : Repo::Metadata = Repo::Metadata.new)
   end
 
   def self.unresolvable
@@ -21,35 +25,41 @@ class MockResolver
   end
 
   def register(version : String, revision_info : Release::RevisionInfo, spec : String?)
+    register(Shards::Version.new(version), revision_info, spec)
+  end
+
+  def register(version : Shards::Version, revision_info : Release::RevisionInfo, spec : String?)
     @versions[version] = MockEntry.new(spec, revision_info)
   end
 
-  def available_versions : Array(String)
+  def available_releases : Array(Shards::Version)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     @versions.keys.compact
   end
 
-  def spec(version : String? = nil)
+  def spec(version : Shards::Version)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
-    version ||= @versions.keys.last
     Shards::Spec.from_yaml(read_spec(version))
   end
 
-  def read_spec(version : String? = nil)
+  def read_spec!(version : Shards::Version)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
-    version ||= @versions.keys.last
     @versions[version].spec
   end
 
-  def revision_info(version : String? = nil)
+  def revision_info(version : Shards::Version)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
-    version ||= @versions.keys.last
     @versions[version].revision_info
   end
 
   def fetch_metadata
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     @metadata
+  end
+
+  def latest_version_for_ref(ref)
+    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    @versions.keys.last?
   end
 
   def fetch_file(version, path)
