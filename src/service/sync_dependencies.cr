@@ -35,7 +35,10 @@ class Service::SyncDependencies
     repo_ref = dependency.repo_ref
 
     if repo_ref
-      repo_id = upsert_repo(repo_ref)
+      repo_id = @db.get_repo_id?(repo_ref)
+      unless repo_id
+        repo_id = @db.create_repo(Repo.new(repo_ref, shard_id: nil))
+      end
     else
       repo_id = nil
     end
@@ -154,19 +157,5 @@ class Service::SyncDependencies
     dependencies.map do |name, spec, scope|
       Dependency.new(name, spec, Dependency::Scope.parse(scope))
     end
-  end
-
-  # Upserts repo and returns repo_id
-  def upsert_repo(repo_ref : Repo::Ref)
-    repo_id = @db.connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: Int64?
-      INSERT INTO repos
-        (resolver, url)
-      VALUES
-        ($1, $2)
-      ON CONFLICT ON CONSTRAINT repos_url_uniq DO NOTHING
-      RETURNING id
-      SQL
-
-    repo_id || @db.get_repo_id(repo_ref)
   end
 end
