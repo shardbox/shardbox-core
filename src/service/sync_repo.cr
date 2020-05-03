@@ -108,8 +108,8 @@ struct Service::SyncRepo
 
   def sync_metadata(repo : Repo, *, fetch_service = Service::FetchMetadata.new(repo.ref))
     begin
-      metadata = fetch_service.fetch_metadata
-    rescue exc : Service::FetchMetadata::Error
+      metadata = fetch_service.fetch_repo_metadata
+    rescue exc : Shardbox::FetchError
       SyncRepo.sync_failed(@db, repo, "fetch_metadata_failed", exc)
 
       return
