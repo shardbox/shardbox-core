@@ -4,6 +4,8 @@ CREATE TABLE owners (
     resolver public.repo_resolver NOT NULL,
     slug public.citext NOT NULL,
     name TEXT,
+    description TEXT,
+    extra jsonb NOT NULL DEFAULT '{}',
     shards_count INT,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL

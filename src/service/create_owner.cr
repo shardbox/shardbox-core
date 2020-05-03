@@ -2,6 +2,8 @@ require "../repo/owner"
 require "../fetchers/github_api"
 
 struct Service::CreateOwner
+  property github_api : Shardbox::GitHubAPI { Shardbox::GitHubAPI.new }
+
   def initialize(@db : ShardsDB, @repo_ref : Repo::Ref)
   end
 
@@ -48,12 +50,8 @@ struct Service::CreateOwner
         owner.description = value.as_s
       when "name"
         owner.name = value.as_s
-      when "email"
-        owner.email = value.as_s
-      when "websiteUrl"
-        owner.website_url = value.as_s
       else
-        owner.extra[key] = value
+        owner.extra[key.underscore] = value
       end
     end
   end

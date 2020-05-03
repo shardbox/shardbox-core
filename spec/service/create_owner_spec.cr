@@ -94,34 +94,32 @@ describe Service::CreateOwner do
   describe ".fetch_owner_info_github" do
     it "do" do
       api = Shardbox::GitHubAPI.new("")
-      api.mock_owner_info =  Hash(String, JSON::Any).from_json(<<-JSON)
-              {
-                "login": "boni",
-                "url": "https://github.com/boni",
-                "bio": "verbum domini manet in eternum",
-                "company": "RKK",
-                "createdAt": "2020-05-03T16:50:55Z",
-                "email": "boni@boni.org",
-                "location": "Germany",
-                "name": "Bonifatius",
-                "websiteUrl": "boni.org"
-              }
-              JSON
+      api.mock_owner_info = Hash(String, JSON::Any).from_json(<<-JSON)
+             {
+               "bio": "verbum domini manet in eternum",
+               "company": "RKK",
+               "createdAt": "2020-05-03T16:50:55Z",
+               "email": "boni@boni.org",
+               "location": "Germany",
+               "name": "Bonifatius",
+               "websiteUrl": "boni.org"
+             }
+             JSON
 
       owner = Repo::Owner.new("github", "boni")
 
       Service::CreateOwner.fetch_owner_info_github(owner, api)
 
       owner.should eq Repo::Owner.new("github", "boni",
-              name: "Bonifatius",
-              description: "verbum domini manet in eternum",
-              email: "boni@boni.org",
-              website_url: "boni.org",
-              extra: {
-                "location" => JSON::Any.new("Germany"),
-                "company" => JSON::Any.new("RKK"),
-                "createdAt" => JSON::Any.new("2020-05-03T16:50:55Z"),
-              }
+        name: "Bonifatius",
+        description: "verbum domini manet in eternum",
+        extra: {
+          "location"    => JSON::Any.new("Germany"),
+          "email"       => JSON::Any.new("boni@boni.org"),
+          "website_url" => JSON::Any.new("boni.org"),
+          "company"     => JSON::Any.new("RKK"),
+          "created_at"  => JSON::Any.new("2020-05-03T16:50:55Z"),
+        }
       )
     end
   end

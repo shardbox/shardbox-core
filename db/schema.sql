@@ -574,6 +574,8 @@ CREATE TABLE public.owners (
     resolver public.repo_resolver NOT NULL,
     slug public.citext NOT NULL,
     name text,
+    description text,
+    extra jsonb DEFAULT '{}'::jsonb NOT NULL,
     shards_count integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
