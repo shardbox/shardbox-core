@@ -264,6 +264,23 @@ class ShardsDB
     end
   end
 
+  def get_owned_repos(owner_id : Int64)
+    results = connection.query_all <<-SQL, owner_id, as: {Int64, String, String, Int64?, String, String, Time?, Time?}
+      SELECT
+        id, resolver::text, url::text, shard_id, role::text, metadata::text, synced_at, sync_failed_at
+      FROM
+        repos
+      WHERE
+        owner_id = $1
+      ORDER BY
+        created_at
+      SQL
+
+    results.map do |id, resolver, url, shard_id, role, metadata, synced_at, sync_failed_at|
+      Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at, sync_failed_at, id: id)
+    end
+  end
+
   def create_shard(shard : Shard)
     shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, shard.archived_at, as: Int64
       INSERT INTO shards
@@ -447,6 +464,83 @@ class ShardsDB
       results << Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at, id: id)
     end
     results
+  end
+
+  def create_owner(owner : Repo::Owner)
+    connection.query_one <<-SQL, owner.resolver, owner.slug, owner.name, owner.shards_count, as: Int64
+      INSERT INTO owners
+        (resolver, slug, name, shards_count)
+      VALUES
+        ($1, $2, $3, $4)
+      RETURNING id
+      SQL
+  end
+
+  def get_owner?(resolver : String, slug : String)
+    result = connection.query_one? <<-SQL, resolver, slug, as: {String, String, String?, Int32?, Int64}
+      SELECT
+        resolver::text,
+        slug::text,
+        name,
+        shards_count,
+        id
+      FROM owners
+      WHERE resolver = $1
+        AND slug  = $2
+      SQL
+
+    return unless result
+    resolver, owner, name, shards_count, id = result
+    Repo::Owner.new(resolver, owner, name, shards_count, id: id)
+  end
+
+  def get_owner?(repo_ref : Repo::Ref)
+    result = connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: {String, String, String?, Int32?, Int64}
+      SELECT
+        owners.resolver::text,
+        owners.slug::text,
+        owners.name,
+        owners.shards_count,
+        owners.id
+      FROM owners
+      JOIN
+        repos ON repos.owner_id = owners.id
+      WHERE repos.resolver = $1
+        AND repos.url  = $2
+      SQL
+
+    return unless result
+    resolver, owner, name, shards_count, id = result
+    Repo::Owner.new(resolver, owner, name, shards_count, id: id)
+  end
+
+  def set_owner(repo_ref : Repo::Ref, owner_id : Int64)
+    connection.exec <<-SQL, repo_ref.resolver, repo_ref.url, owner_id
+      UPDATE repos
+      SET
+        owner_id = $3
+      WHERE resolver = $1
+        AND url = $2
+      SQL
+  end
+
+  def update_owner_shards_count(owner_id : Int64)
+    connection.exec <<-SQL, owner_id
+      UPDATE owners
+      SET
+        shards_count = (
+          SELECT
+            COUNT(*)
+          FROM
+            repos
+          WHERE
+            owner_id = owners.id
+          AND
+            role = 'canonical'
+        )
+      WHERE
+        id = $1
+      SQL
   end
 
   def sql_array(array)
