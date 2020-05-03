@@ -2,12 +2,36 @@ require "spec"
 require "../support/db"
 require "../../src/service/create_owner"
 
+struct Shardbox::GitHubAPI
+  property mock_owner_info : Hash(String, JSON::Any)?
+
+  def fetch_owner_info(login : String)
+    if mock = mock_owner_info
+      return mock
+    else
+      previous_def
+    end
+  end
+end
+
+struct Service::CreateOwner
+  property skip_owner_info = false
+
+  def fetch_owner_info(owner)
+    unless skip_owner_info
+      previous_def
+    end
+  end
+end
+
 describe Service::CreateOwner do
   describe "#perform" do
     it "creates owner" do
       transaction do |db|
         repo_ref = Repo::Ref.new("github", "foo/bar")
         service = Service::CreateOwner.new(db, repo_ref)
+        service.skip_owner_info = true
+
         db.get_owner?("github", "foo").should be_nil
         db.get_owner?(repo_ref).should be_nil
         service.perform
@@ -22,7 +46,9 @@ describe Service::CreateOwner do
         db.create_repo(Repo.new(repo_ref, shard_id: nil))
         db.get_owner?(repo_ref).should be_nil
 
-        Service::CreateOwner.new(db, repo_ref).perform
+        service = Service::CreateOwner.new(db, repo_ref)
+        service.skip_owner_info = true
+        service.perform
 
         db.get_owner?(repo_ref).should eq Repo::Owner.new("github", "foo", shards_count: 1)
       end
@@ -35,7 +61,9 @@ describe Service::CreateOwner do
         db.create_owner(Repo::Owner.new("github", "foo"))
         db.get_owner?(repo_ref).should be_nil
 
-        Service::CreateOwner.new(db, repo_ref).perform
+        service = Service::CreateOwner.new(db, repo_ref)
+        service.skip_owner_info = true
+        service.perform
 
         db.get_owner?(repo_ref).should eq Repo::Owner.new("github", "foo", shards_count: 1)
       end
@@ -45,7 +73,10 @@ describe Service::CreateOwner do
       transaction do |db|
         repo_ref = Repo::Ref.new("github", "foo/bar")
         db.create_repo(Repo.new(repo_ref, shard_id: nil))
-        Service::CreateOwner.new(db, repo_ref).perform
+
+        service = Service::CreateOwner.new(db, repo_ref)
+        service.skip_owner_info = true
+        service.perform
 
         db.get_owner?(repo_ref).should eq Repo::Owner.new("github", "foo", shards_count: 1)
 
@@ -57,6 +88,41 @@ describe Service::CreateOwner do
         db.get_owned_repos(owner.id).map(&.ref).should eq [repo_ref, repo_ref_baz]
         db.get_owner?(repo_ref).should eq Repo::Owner.new("github", "foo", shards_count: 2)
       end
+    end
+  end
+
+  describe ".fetch_owner_info_github" do
+    it "do" do
+      api = Shardbox::GitHubAPI.new("")
+      api.mock_owner_info =  Hash(String, JSON::Any).from_json(<<-JSON)
+              {
+                "login": "boni",
+                "url": "https://github.com/boni",
+                "bio": "verbum domini manet in eternum",
+                "company": "RKK",
+                "createdAt": "2020-05-03T16:50:55Z",
+                "email": "boni@boni.org",
+                "location": "Germany",
+                "name": "Bonifatius",
+                "websiteUrl": "boni.org"
+              }
+              JSON
+
+      owner = Repo::Owner.new("github", "boni")
+
+      Service::CreateOwner.fetch_owner_info_github(owner, api)
+
+      owner.should eq Repo::Owner.new("github", "boni",
+              name: "Bonifatius",
+              description: "verbum domini manet in eternum",
+              email: "boni@boni.org",
+              website_url: "boni.org",
+              extra: {
+                "location" => JSON::Any.new("Germany"),
+                "company" => JSON::Any.new("RKK"),
+                "createdAt" => JSON::Any.new("2020-05-03T16:50:55Z"),
+              }
+      )
     end
   end
 end

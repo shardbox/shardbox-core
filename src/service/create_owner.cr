@@ -1,4 +1,5 @@
 require "../repo/owner"
+require "../fetchers/github_api"
 
 struct Service::CreateOwner
   def initialize(@db : ShardsDB, @repo_ref : Repo::Ref)
@@ -16,6 +17,7 @@ struct Service::CreateOwner
       owner = db_owner
     else
       # owner does not yet exist, need to insert a new entry
+      fetch_owner_info(owner)
       owner.id = @db.create_owner(owner)
     end
 
@@ -27,5 +29,32 @@ struct Service::CreateOwner
   private def assign_owner(owner)
     @db.set_owner(@repo_ref, owner.id)
     @db.update_owner_shards_count(owner.id)
+  end
+
+  def fetch_owner_info(owner)
+    case owner.resolver
+    when "github"
+      CreateOwner.fetch_owner_info_github(owner, Shardbox::GitHubAPI.new)
+    else
+      # skip
+    end
+  end
+
+  def self.fetch_owner_info_github(owner, github_api)
+    data = github_api.fetch_owner_info(owner.slug)
+    data.each do |key, value|
+      case key
+      when "bio", "description"
+        owner.description = value.as_s
+      when "name"
+        owner.name = value.as_s
+      when "email"
+        owner.email = value.as_s
+      when "websiteUrl"
+        owner.website_url = value.as_s
+      else
+        owner.extra[key] = value
+      end
+    end
   end
 end

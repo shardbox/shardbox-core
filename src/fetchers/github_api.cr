@@ -10,17 +10,27 @@ struct Shardbox::GitHubAPI
     {{ read_file("#{__DIR__}/github_api-repo_metadata.graphql") }}
   end
 
+  private getter query_owner_info : String = begin
+    {{ read_file("#{__DIR__}/github_api-owner_info.graphql") }}
+  end
+
   def initialize(@api_token = ENV["GITHUB_TOKEN"])
   end
 
-  def fetch_repo_metadata(owner : String, name : String)
-    body = {query: query_repo_metadata, variables: {owner: owner, name: name}}
+  def query(query, variables)
+    body = {query: query, variables: variables}
     response = graphql_client.post "/graphql", body: body.to_json, headers: HTTP::Headers{"Authorization" => "bearer #{@api_token}"}
 
     raise FetchError.new("Repository unavailable") unless response.status_code == 200
 
+    response.body
+  end
+
+  def fetch_repo_metadata(owner : String, name : String)
+    response = query(query_repo_metadata, {owner: owner, name: name})
+
     begin
-      metadata = Repo::Metadata.from_github_graphql(response.body)
+      metadata = Repo::Metadata.from_github_graphql(response)
     rescue exc : JSON::ParseException
       raise FetchError.new("Invalid response", cause: exc)
     end
@@ -28,6 +38,51 @@ struct Shardbox::GitHubAPI
     raise FetchError.new("Invalid response") unless metadata
 
     metadata
+  end
+
+  def fetch_owner_info(login : String) : Hash(String, JSON::Any)
+    response = query(query_owner_info, {login: login})
+
+    data = parse_github_graphql(response, "repositoryOwner") do |pull|
+      Hash(String, JSON::Any).new(pull)
+    end
+
+    raise FetchError.new("Invalid response") unless data
+
+    data
+  end
+
+  def parse_github_graphql(content, expected_key)
+    pull = JSON::PullParser.new(content)
+
+    pull.read_object do |key|
+      case key
+      when "data"
+        pull.read_object do |key|
+          if key == expected_key
+            return pull.read_null_or do
+              yield pull
+            end
+          else
+            pull.skip
+          end
+        end
+      when "errors"
+        errors = [] of String
+        pull.read_array do
+          pull.on_key!("message") do
+            errors << pull.read_string
+          end
+        end
+        raise Shardbox::FetchError.new("Repository error: #{errors.join(", ")}")
+      else
+        pull.skip
+      end
+    end
+
+    nil
+  rescue exc : JSON::ParseException
+    raise FetchError.new("Invalid response", cause: exc)
   end
 end
 
