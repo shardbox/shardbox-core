@@ -11,11 +11,11 @@ class MockResolver
 
   property? resolvable : Bool = true
 
-  def self.new(versions : Hash(String, MockEntry) = {} of String => MockEntry, metadata : Repo::Metadata = Repo::Metadata.new)
-    new(versions.transform_keys { |key| Shards::Version.new(key) }, metadata)
+  def self.new(versions : Hash(String, MockEntry) = {} of String => MockEntry)
+    new(versions.transform_keys { |key| Shards::Version.new(key) })
   end
 
-  def initialize(@versions : Hash(Shards::Version, MockEntry), @metadata : Repo::Metadata = Repo::Metadata.new)
+  def initialize(@versions : Hash(Shards::Version, MockEntry))
   end
 
   def self.unresolvable
@@ -52,11 +52,6 @@ class MockResolver
     @versions[version].revision_info
   end
 
-  def fetch_metadata
-    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
-    @metadata
-  end
-
   def latest_version_for_ref(ref)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     @versions.keys.last?
@@ -65,5 +60,18 @@ class MockResolver
   def fetch_file(version, path)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     @versions[version].files[path]?
+  end
+end
+
+struct MockFetchMetadata
+  def initialize(@metadata : Repo::Metadata?)
+  end
+
+  def fetch_metadata
+    if metadata = @metadata
+      metadata
+    else
+      raise Service::FetchMetadata::Error.new("Repo unavailable")
+    end
   end
 end

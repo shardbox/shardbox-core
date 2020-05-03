@@ -25,3 +25,8 @@ dependencies:
     github: smacker/libgit2.cr
   github-cr:
     github: arnavb/github-cr
+
+development_dependencies:
+  webmock:
+    github: manastech/webmock.cr
+    branch: master

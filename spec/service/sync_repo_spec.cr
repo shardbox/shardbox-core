@@ -187,18 +187,25 @@ describe Service::SyncRepo do
       repo_ref = Repo::Ref.new("git", "foo")
       service = Service::SyncRepo.new(db, repo_ref)
 
-      mock_resolver = MockResolver.new(metadata: Repo::Metadata.new(forks_count: 42))
-      resolver = Repo::Resolver.new(mock_resolver, repo_ref)
       repo = Repo.new(repo_ref, nil, id: repo_id)
-      service.sync_metadata(resolver, repo)
-
-      results = db.connection.query_all <<-SQL, as: {JSON::Any, Bool, Time?}
+      service.sync_metadata(repo, fetch_service: MockFetchMetadata.new(nil))
+      results = db.connection.query_all <<-SQL, as: {JSON::Any, Bool, Bool}
         SELECT
-          metadata, synced_at > NOW() - interval '1s', sync_failed_at
+          metadata, synced_at > NOW() - interval '1s', sync_failed_at IS NOT NULL
         FROM repos
         SQL
 
-      results.should eq [{JSON.parse(%({"forks_count": 42})), true, nil}]
+      results.should eq [{JSON.parse(%({})), false, true}]
+
+      service.sync_metadata(repo, fetch_service: MockFetchMetadata.new(Repo::Metadata.new(forks_count: 42)))
+
+      results = db.connection.query_all <<-SQL, as: {JSON::Any, Bool, Bool}
+        SELECT
+          metadata, synced_at > NOW() - interval '1s', sync_failed_at IS NOT NULL
+        FROM repos
+        SQL
+
+      results.should eq [{JSON.parse(%({"forks_count": 42})), true, false}]
     end
   end
 end

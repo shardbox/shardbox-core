@@ -2,6 +2,7 @@ require "../ext/yaml/any"
 require "../repo/resolver"
 require "./sync_release"
 require "./order_releases"
+require "./fetch_metadata"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepo
@@ -41,7 +42,7 @@ struct Service::SyncRepo
       end
     end
 
-    sync_metadata(resolver, repo)
+    sync_metadata(repo)
   end
 
   def sync_releases(resolver, shard_id)
@@ -105,10 +106,10 @@ struct Service::SyncRepo
     end
   end
 
-  def sync_metadata(resolver, repo : Repo)
+  def sync_metadata(repo : Repo, *, fetch_service = Service::FetchMetadata.new(repo.ref))
     begin
-      metadata = resolver.fetch_metadata
-    rescue exc : Shards::Error
+      metadata = fetch_service.fetch_metadata
+    rescue exc : Service::FetchMetadata::Error
       SyncRepo.sync_failed(@db, repo, "fetch_metadata_failed", exc)
 
       return

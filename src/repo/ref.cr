@@ -86,6 +86,12 @@ struct Repo::Ref
     File.basename(uri.path).rchop('/').rchop(".git")
   end
 
+  def owner
+    if provider_resolver?
+      Path.posix(url).dirname
+    end
+  end
+
   def nice_url
     return url if provider_resolver? || !resolvable?
 

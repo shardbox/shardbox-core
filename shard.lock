@@ -32,3 +32,7 @@ shards:
     github: crystal-lang/shards
     commit: 5666481ea1b304944adcf9eabce0b24ff9badeb9
 
+  webmock:
+    github: manastech/webmock.cr
+    commit: 78bb0e3b5850c700da0e7fbdd2d6c180cc4a061b
+

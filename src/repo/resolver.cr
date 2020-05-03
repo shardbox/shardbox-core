@@ -1,7 +1,6 @@
 require "shards/logger"
 require "shards/package"
 require "../ext/shards/resolvers/git"
-require "../ext/shards/resolvers/github"
 require "../release"
 
 class Repo
@@ -46,12 +45,6 @@ class Repo
 
     def revision_info(version : String? = nil) : Release::RevisionInfo
       @resolver.revision_info(Shards::Version.new(version))
-    end
-
-    def fetch_metadata : Repo::Metadata?
-      if (resolver = @resolver).responds_to?(:fetch_metadata)
-        resolver.fetch_metadata
-      end
     end
 
     def latest_version_for_ref(ref) : String?

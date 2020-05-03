@@ -1,36 +1,43 @@
 require "json"
 require "http/client"
-require "../../../repo"
+require "../repo"
 
-class Shards::GithubResolver
-  @@graphql_client : HTTP::Client?
-
-  def self.graphql_client
-    @@graphql_client ||= HTTP::Client.new("api.github.com", 443, true)
+struct Service::FetchMetadata
+  class Error < Exception
   end
 
-  def self.api_token
-    @@api_token ||= ENV["GITHUB_TOKEN"]
+  getter graphql_client : HTTP::Client { HTTP::Client.new("api.github.com", 443, true) }
+  property api_token : String { ENV["GITHUB_TOKEN"] }
+
+  private getter graphql_query : String = begin
+    {{ read_file("#{__DIR__}/fetch_metadata-github.graphql") }}
   end
 
-  def fetch_metadata : Repo::Metadata
-    self.class.fetch_metadata(dependency["github"])
+  def initialize(@repo_ref : Repo::Ref)
   end
 
-  private def self.graphql_query : String
-    {{ read_file("#{__DIR__}/github-repo-metadata.graphql") }}
+  def fetch_metadata
+    case @repo_ref.resolver
+    when "github"
+      fetch_metadata_github(@repo_ref.owner, @repo_ref.name)
+    else
+      nil
+    end
   end
 
-  def self.fetch_metadata(path)
-    owner, name = path.split("/")
+  def fetch_metadata_github(owner, name)
     body = {query: graphql_query, variables: {owner: owner, name: name}}
     response = graphql_client.post "/graphql", body: body.to_json, headers: HTTP::Headers{"Authorization" => "bearer #{api_token}"}
 
-    raise Shards::Error.new("Repository unavailable") unless response.status_code == 200
+    raise Error.new("Repository unavailable") unless response.status_code == 200
 
-    metadata = Repo::Metadata.from_github_graphql(response.body)
+    begin
+      metadata = Repo::Metadata.from_github_graphql(response.body)
+    rescue exc : JSON::ParseException
+      raise Error.new("Invalid response", cause: exc)
+    end
 
-    raise Shards::Error.new("Invalid response") unless metadata
+    raise Error.new("Invalid response") unless metadata
 
     metadata
   end
@@ -46,7 +53,7 @@ struct Repo::Metadata
         pull.read_object do |key|
           if key == "repository"
             pull.read_null_or do
-              metadata = new(github_pull: pull)
+              metadata = Repo::Metadata.new(github_pull: pull)
             end
           else
             pull.skip
@@ -59,7 +66,7 @@ struct Repo::Metadata
             errors << pull.read_string
           end
         end
-        raise Shards::Error.new("Repository error: #{errors.join(", ")}")
+        raise Service::FetchMetadata::Error.new("Repository error: #{errors.join(", ")}")
       else
         pull.skip
       end
