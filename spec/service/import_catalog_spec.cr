@@ -298,8 +298,8 @@ describe Service::ImportCatalog do
           }},
           {"import_catalog:mirror:created", db.get_repo_id("git", "bar/foo"), foo_id, {"role" => "mirror"}},
           {"import_catalog:mirror:created", db.get_repo_id("git", "baz/foo"), foo_id, {"role" => "legacy"}},
-          {"import_catalog:repo:obsoleted", db.get_repo_id("git", "baz/bar"), foo_id, {"old_role" => "legacy"}},
           {"import_catalog:repo:obsoleted", db.get_repo_id("git", "bar/bar"), foo_id, {"old_role" => "mirror"}},
+          {"import_catalog:repo:obsoleted", db.get_repo_id("git", "baz/bar"), foo_id, {"old_role" => "legacy"}},
         ]
       end
     end

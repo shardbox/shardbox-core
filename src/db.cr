@@ -441,7 +441,7 @@ class ShardsDB
       WHERE
         shard_id = $1 AND role <> 'canonical'
       ORDER BY
-        role, url
+        role DESC, url
       SQL
       id, resolver, url, role, metadata, synced_at = result.read Int64, String, String, String, String, Time?
       results << Repo.new(resolver, url, shard_id, role, Repo::Metadata.from_json(metadata), synced_at, id: id)
