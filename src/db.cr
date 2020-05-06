@@ -5,6 +5,7 @@ require "./shard"
 require "./release"
 require "./category"
 require "./repo"
+require "./repo/owner"
 require "./log_activity"
 
 class ShardsDB
@@ -467,21 +468,23 @@ class ShardsDB
   end
 
   def create_owner(owner : Repo::Owner)
-    connection.query_one <<-SQL, owner.resolver, owner.slug, owner.name, owner.shards_count, as: Int64
+    connection.query_one <<-SQL, owner.resolver, owner.slug, owner.name, owner.description, owner.extra.to_json, owner.shards_count, as: Int64
       INSERT INTO owners
-        (resolver, slug, name, shards_count)
+        (resolver, slug, name, description, extra, shards_count)
       VALUES
-        ($1, $2, $3, $4)
+        ($1, $2, $3, $4, $5, $6)
       RETURNING id
       SQL
   end
 
   def get_owner?(resolver : String, slug : String)
-    result = connection.query_one? <<-SQL, resolver, slug, as: {String, String, String?, Int32?, Int64}
+    result = connection.query_one? <<-SQL, resolver, slug, as: {String, String, String?, String?, JSON::Any, Int32?, Int64}
       SELECT
         resolver::text,
         slug::text,
         name,
+        description,
+        extra,
         shards_count,
         id
       FROM owners
@@ -490,16 +493,18 @@ class ShardsDB
       SQL
 
     return unless result
-    resolver, owner, name, shards_count, id = result
-    Repo::Owner.new(resolver, owner, name, shards_count, id: id)
+    resolver, owner, name, description, extra, shards_count, id = result
+    Repo::Owner.new(resolver, owner, name, description, extra.as_h, shards_count, id: id)
   end
 
   def get_owner?(repo_ref : Repo::Ref)
-    result = connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: {String, String, String?, Int32?, Int64}
+    result = connection.query_one? <<-SQL, repo_ref.resolver, repo_ref.url, as: {String, String, String?, String?, JSON::Any, Int32?, Int64}
       SELECT
         owners.resolver::text,
         owners.slug::text,
         owners.name,
+        owners.description,
+        owners.extra,
         owners.shards_count,
         owners.id
       FROM owners
@@ -510,8 +515,8 @@ class ShardsDB
       SQL
 
     return unless result
-    resolver, owner, name, shards_count, id = result
-    Repo::Owner.new(resolver, owner, name, shards_count, id: id)
+    resolver, owner, name, description, extra, shards_count, id = result
+    Repo::Owner.new(resolver, owner, name, description, extra.as_h, shards_count, id: id)
   end
 
   def set_owner(repo_ref : Repo::Ref, owner_id : Int64)

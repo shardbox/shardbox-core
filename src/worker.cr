@@ -1,6 +1,7 @@
 require "./service/import_catalog"
 require "./service/sync_repos"
 require "./service/update_shard_metrics"
+require "./service/update_owner_metrics"
 require "./service/worker_loop"
 require "./raven"
 require "uri"
@@ -64,6 +65,7 @@ when "sync_repo"
   sync_all_pending_repos
 when "update_metrics"
   Service::UpdateShardMetrics.new.perform
+  Service::UpdateOwnerMetrics.new.perform
 when "loop"
   Service::WorkerLoop.new.perform
 else

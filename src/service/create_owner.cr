@@ -36,7 +36,7 @@ struct Service::CreateOwner
   def fetch_owner_info(owner)
     case owner.resolver
     when "github"
-      CreateOwner.fetch_owner_info_github(owner, Shardbox::GitHubAPI.new)
+      CreateOwner.fetch_owner_info_github(owner, github_api)
     else
       # skip
     end
@@ -47,9 +47,9 @@ struct Service::CreateOwner
     data.each do |key, value|
       case key
       when "bio", "description"
-        owner.description = value.as_s
+        owner.description = value.as_s?
       when "name"
-        owner.name = value.as_s
+        owner.name = value.as_s?
       else
         owner.extra[key.underscore] = value
       end

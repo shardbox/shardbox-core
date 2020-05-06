@@ -1,28 +1,7 @@
 require "spec"
 require "../support/db"
 require "../../src/service/create_owner"
-
-struct Shardbox::GitHubAPI
-  property mock_owner_info : Hash(String, JSON::Any)?
-
-  def fetch_owner_info(login : String)
-    if mock = mock_owner_info
-      return mock
-    else
-      previous_def
-    end
-  end
-end
-
-struct Service::CreateOwner
-  property skip_owner_info = false
-
-  def fetch_owner_info(owner)
-    unless skip_owner_info
-      previous_def
-    end
-  end
-end
+require "../support/fetcher_mocks"
 
 describe Service::CreateOwner do
   describe "#perform" do
@@ -122,5 +101,21 @@ describe Service::CreateOwner do
         }
       )
     end
+  end
+
+  it "do" do
+    api = Shardbox::GitHubAPI.new("")
+    api.mock_owner_info = Hash(String, JSON::Any).from_json(<<-JSON)
+           {
+             "description": null,
+             "name": null
+           }
+           JSON
+
+    owner = Repo::Owner.new("github", "boni")
+
+    Service::CreateOwner.fetch_owner_info_github(owner, api)
+
+    owner.should eq Repo::Owner.new("github", "boni")
   end
 end
