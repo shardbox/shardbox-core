@@ -67,11 +67,11 @@ struct MockFetchMetadata
   def initialize(@metadata : Repo::Metadata?)
   end
 
-  def fetch_metadata
+  def fetch_repo_metadata
     if metadata = @metadata
       metadata
     else
-      raise Service::FetchMetadata::Error.new("Repo unavailable")
+      raise Shardbox::FetchError.new("Repo unavailable")
     end
   end
 end

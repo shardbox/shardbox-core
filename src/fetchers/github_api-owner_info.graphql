@@ -1,0 +1,22 @@
+query RepositoryOwnerQuery($login : String!) {
+  repositoryOwner(login: $login) {
+    avatarUrl,
+    ... on Organization {
+      createdAt,
+      description,
+      email,
+      location,
+      name,
+      websiteUrl
+    }
+    ... on User {
+      bio,
+      company,
+      createdAt,
+      email,
+      location,
+      name,
+      websiteUrl
+    }
+  }
+}

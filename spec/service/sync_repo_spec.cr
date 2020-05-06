@@ -2,6 +2,7 @@ require "spec"
 require "../../src/service/sync_repo"
 require "../support/db"
 require "../support/mock_resolver"
+require "../support/fetcher_mocks"
 require "../support/raven"
 
 describe Service::SyncRepo do
@@ -206,6 +207,45 @@ describe Service::SyncRepo do
         SQL
 
       results.should eq [{JSON.parse(%({"forks_count": 42})), true, false}]
+    end
+  end
+
+  it "#sync_owner" do
+    transaction do |db|
+      repo_id = db.connection.query_one <<-SQL, as: Int64
+        INSERT INTO repos
+          (resolver, url, synced_at, sync_failed_at)
+        VALUES
+          ('github', 'foo/bar', NOW() - interval '1h', NOW())
+        RETURNING id
+        SQL
+
+      repo_ref = Repo::Ref.new("github", "foo/bar")
+      repo = Repo.new(repo_ref, nil, id: repo_id)
+
+      api = Shardbox::GitHubAPI.new("")
+      api.mock_owner_info = Hash(String, JSON::Any).from_json(<<-JSON)
+             {
+               "name": "Foo",
+               "exxxtra": "big"
+             }
+             JSON
+
+      create_owner = Service::CreateOwner.new(db, repo_ref)
+      create_owner.github_api = api
+
+      service = Service::SyncRepo.new(db, repo_ref)
+      service.sync_owner(repo, service: create_owner)
+
+      results = db.connection.query_all <<-SQL, as: {String, String, String?, JSON::Any}
+        SELECT
+          owners.resolver::text, slug::text, name, extra
+        FROM owners
+        JOIN repos
+          ON repos.owner_id = owners.id
+        SQL
+
+      results.should eq [{"github", "foo", "Foo", JSON.parse(%({"exxxtra": "big"}))}]
     end
   end
 end

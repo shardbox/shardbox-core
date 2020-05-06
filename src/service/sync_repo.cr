@@ -3,6 +3,7 @@ require "../repo/resolver"
 require "./sync_release"
 require "./order_releases"
 require "./fetch_metadata"
+require "./create_owner"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepo
@@ -43,6 +44,8 @@ struct Service::SyncRepo
     end
 
     sync_metadata(repo)
+
+    sync_owner(repo)
   end
 
   def sync_releases(resolver, shard_id)
@@ -108,8 +111,8 @@ struct Service::SyncRepo
 
   def sync_metadata(repo : Repo, *, fetch_service = Service::FetchMetadata.new(repo.ref))
     begin
-      metadata = fetch_service.fetch_metadata
-    rescue exc : Service::FetchMetadata::Error
+      metadata = fetch_service.fetch_repo_metadata
+    rescue exc : Shardbox::FetchError
       SyncRepo.sync_failed(@db, repo, "fetch_metadata_failed", exc)
 
       return
@@ -129,6 +132,12 @@ struct Service::SyncRepo
       SQL
 
     @db.log_activity "sync_repo:synced", repo_id: repo.id
+  end
+
+  def sync_owner(repo, *, service = CreateOwner.new(@db, repo.ref))
+    unless @db.get_owner?(repo.ref)
+      service.perform
+    end
   end
 
   def self.log_sync_failed(db, repo : Repo, event, exc = nil, metadata = nil)
