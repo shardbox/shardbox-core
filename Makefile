@@ -1,12 +1,50 @@
-DATABASE_NAME ?= $(shell echo $(DATABASE_URL) | grep -o -P '[^/]+$$')
-TEST_DATABASE_NAME ?= $(shell echo $(TEST_DATABASE_URL) | grep -o -P '[^/]+$$')
+-include Makefile.local # for optional local options
 
-BIN ?= bin
+BUILD_TARGET ::= bin/worker
+
+# The dbmate command to use
 DBMATE ?= dbmate
-SHARDS := shards
+# The shards command to use
+SHARDS ?= shards
+# The crystal command to use
+CRYSTAL ?= crystal
+
+SRC_SOURCES ::= $(shell find src -name '*.cr' 2>/dev/null)
+LIB_SOURCES ::= $(shell find lib -name '*.cr' 2>/dev/null)
+SPEC_SOURCES ::= $(shell find spec -name '*.cr' 2>/dev/null)
+
+DATABASE_NAME ::= $(shell echo $(DATABASE_URL) | grep -o -P '[^/]+$$')
+TEST_DATABASE_NAME ::= $(shell echo $(TEST_DATABASE_URL) | grep -o -P '[^/]+$$')
 
 .PHONY: build
-build: $(BIN)/worker
+build: ## Build the application binary
+build: $(BUILD_TARGET)
+
+$(BUILD_TARGET): $(SRC_SOURCES) $(LIB_SOURCES) lib
+	mkdir -p $(shell dirname $(@))
+	$(CRYSTAL) build src/worker.cr -o $(@)
+
+.PHONY: test
+test: ## Run the test suite
+test: lib test_db
+	$(CRYSTAL) spec
+
+.PHONY: format
+format: ## Apply source code formatting
+format: $(SRC_SOURCES) $(SPEC_SOURCES)
+	$(CRYSTAL) tool format src spec
+
+docs: ## Generate API docs
+docs: $(SRC_SOURCES) lib
+	$(CRYSTAL) docs -o docs
+
+lib: shard.lock
+	$(SHARDS) install
+	# Touch is necessary because `shards install` always touches shard.lock
+	touch lib
+
+shard.lock: shard.yml
+	$(SHARDS) update
 
 .PHONY: DATABASE_URL
 DATABASE_URL:
@@ -35,20 +73,6 @@ db/dump: DATABASE_URL
 .PHONY: db/dump_schema
 db/dump_schema: DATABASE_URL
 	pg_dump -s $(DATABASE_NAME) > db/schema.sql
-
-$(BIN):
-	mkdir $(BIN)
-
-.PHONY: $(BIN)/worker
-$(BIN)/worker: src/worker.cr $(BIN) shard.lock
-	crystal build src/worker.cr -o $(@)
-
-shard.lock: shard.yml
-	$(SHARDS) update
-
-.PHONY: test
-test: test_db
-	crystal spec
 
 .PHONY: test_db/drop_sync
 test_db/drop_sync: test_db/drop
@@ -80,3 +104,25 @@ db/migrate:
 .PHONY: db/rollback
 db/rollback:
 	$(DBMATE) -e DATABASE_URL rollback
+
+.PHONY: clean
+clean: ## Remove application binary
+clean:
+	@rm -f $(BUILD_TARGET)
+
+.PHONY: help
+help: ## Show this help
+	@echo
+	@printf '\033[34mtargets:\033[0m\n'
+	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) |\
+		sort |\
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo
+	@printf '\033[34moptional variables:\033[0m\n'
+	@grep -hE '^[a-zA-Z_-]+ \?=.*?## .*$$' $(MAKEFILE_LIST) |\
+		sort |\
+		awk 'BEGIN {FS = " \\?=.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo
+	@printf '\033[34mrecipes:\033[0m\n'
+	@grep -hE '^##.*$$' $(MAKEFILE_LIST) |\
+		awk 'BEGIN {FS = "## "}; /^## [a-zA-Z_-]/ {printf "  \033[36m%s\033[0m\n", $$2}; /^##  / {printf "  %s\n", $$2}'
