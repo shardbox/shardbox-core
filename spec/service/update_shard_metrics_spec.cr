@@ -11,8 +11,8 @@ describe Service::UpdateShardMetrics do
         puts notice
       end
 
-      service = Service::UpdateShardMetrics.new
-      service.perform(db)
+      service = Service::UpdateShardMetrics.new(db)
+      service.perform
     end
   end
 end

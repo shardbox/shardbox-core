@@ -75,8 +75,8 @@ describe Service::UpdateOwnerMetrics do
       owner_id = Factory.create_owner(db, "me")
       Factory.set_owner(db, owner_id, [myshard1_repo_id, myshard2_repo_id])
 
-      service = Service::UpdateOwnerMetrics.new
-      service.perform(db)
+      service = Service::UpdateOwnerMetrics.new(db)
+      service.perform
 
       results = db.connection.query_all <<-SQL, as: {Int64, Int32, Int32, Int32, Int32, Int32, Int32, Int32}
         SELECT

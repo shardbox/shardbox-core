@@ -64,8 +64,10 @@ when "sync_repo"
 
   sync_all_pending_repos
 when "update_metrics"
-  Service::UpdateShardMetrics.new.perform
-  Service::UpdateOwnerMetrics.new.perform
+  ShardsDB.transaction do |db|
+    Service::UpdateShardMetrics.new(db).perform
+    Service::UpdateOwnerMetrics.new(db).perform
+  end
 when "loop"
   Service::WorkerLoop.new.perform
 else

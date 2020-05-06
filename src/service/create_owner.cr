@@ -1,5 +1,6 @@
 require "../repo/owner"
 require "../fetchers/github_api"
+require "./update_owner_metrics"
 
 struct Service::CreateOwner
   property github_api : Shardbox::GitHubAPI { Shardbox::GitHubAPI.new }
@@ -21,6 +22,7 @@ struct Service::CreateOwner
       # owner does not yet exist, need to insert a new entry
       fetch_owner_info(owner)
       owner.id = @db.create_owner(owner)
+      UpdateOwnerMetrics.new(@db).update_owner_metrics(owner.id)
     end
 
     assign_owner(owner)
