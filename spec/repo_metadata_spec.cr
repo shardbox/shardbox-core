@@ -5,7 +5,7 @@ describe Repo::Metadata do
   describe "for Github graphql" do
     it ".from_github_graphql" do
       File.open("#{__DIR__}/fixtures/repo_metadata-github-graphql-response.json", "r") do |file|
-        metadata = Repo::Metadata.from_github_graphql(file)
+        metadata = Repo::Metadata.from_json(file)
         metadata.should eq Repo::Metadata.new(
           forks_count: 964,
           stargazers_count: 13060,

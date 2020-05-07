@@ -1,75 +1,65 @@
 {
-  "data": {
-    "repository": {
-      "nameWithOwner": "crystal-lang/crystal",
-      "forks": {
-        "totalCount": 964
+  "nameWithOwner": "crystal-lang/crystal",
+  "forks": {
+    "totalCount": 964
+  },
+  "stargazers": {
+    "totalCount": 13060
+  },
+  "watchers": {
+    "totalCount": 479
+  },
+  "createdAt": "2012-11-27T17:32:32Z",
+  "description": "The Crystal Programming Language",
+  "hasIssuesEnabled": true,
+  "hasWikiEnabled": true,
+  "homepageUrl": "https://crystal-lang.org",
+  "isArchived": false,
+  "isFork": false,
+  "isMirror": false,
+  "licenseInfo": {
+    "key": "other"
+  },
+  "primaryLanguage": {
+    "name": "Crystal"
+  },
+  "pushedAt": "2019-04-08T23:53:17Z",
+  "closedIssues": {
+    "totalCount": 3587
+  },
+  "openIssues": {
+    "totalCount": 717
+  },
+  "closedPullRequests": {
+    "totalCount": 673
+  },
+  "openPullRequests": {
+    "totalCount": 154
+  },
+  "mergedPullRequests": {
+    "totalCount": 2408
+  },
+  "repositoryTopics": {
+    "nodes": [
+      {
+        "topic": {
+          "name": "crystal"
+        }
       },
-      "stargazers": {
-        "totalCount": 13060
+      {
+        "topic": {
+          "name": "language"
+        }
       },
-      "watchers": {
-        "totalCount": 479
-      },
-      "createdAt": "2012-11-27T17:32:32Z",
-      "description": "The Crystal Programming Language",
-      "hasIssuesEnabled": true,
-      "hasWikiEnabled": true,
-      "homepageUrl": "https://crystal-lang.org",
-      "isArchived": false,
-      "isFork": false,
-      "isMirror": false,
-      "licenseInfo": {
-        "key": "other"
-      },
-      "primaryLanguage": {
-        "name": "Crystal"
-      },
-      "pushedAt": "2019-04-08T23:53:17Z",
-      "closedIssues": {
-        "totalCount": 3587
-      },
-      "openIssues": {
-        "totalCount": 717
-      },
-      "closedPullRequests": {
-        "totalCount": 673
-      },
-      "openPullRequests": {
-        "totalCount": 154
-      },
-      "mergedPullRequests": {
-        "totalCount": 2408
-      },
-      "repositoryTopics": {
-        "nodes": [
-          {
-            "topic": {
-              "name": "crystal"
-            }
-          },
-          {
-            "topic": {
-              "name": "language"
-            }
-          },
-          {
-            "topic": {
-              "name": "efficiency"
-            }
-          }
-        ]
-      },
-      "codeOfConduct": {
-        "name": "Contributor Covenant",
-        "url": "https://github.com/crystal-lang/crystal/blob/master/CODE_OF_CONDUCT.md"
+      {
+        "topic": {
+          "name": "efficiency"
+        }
       }
-    },
-    "rateLimit": {
-      "limit": 5000,
-      "cost": 1,
-      "remaining": 4998,
-      "resetAt": "2019-04-09T12:06:33Z"
-    }
+    ]
+  },
+  "codeOfConduct": {
+    "name": "Contributor Covenant",
+    "url": "https://github.com/crystal-lang/crystal/blob/master/CODE_OF_CONDUCT.md"
   }
 }

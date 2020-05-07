@@ -26,16 +26,12 @@ struct Shardbox::GitHubAPI
     response.body
   end
 
-  def fetch_repo_metadata(owner : String, name : String)
+  def fetch_repo_metadata(owner : String, name : String) : Repo::Metadata?
     response = query(query_repo_metadata, {owner: owner, name: name})
 
-    begin
-      metadata = Repo::Metadata.from_github_graphql(response)
-    rescue exc : JSON::ParseException
-      raise FetchError.new("Invalid response", cause: exc)
+    metadata = parse_github_graphql(response, "repository") do |pull|
+      Repo::Metadata.new(pull)
     end
-
-    raise FetchError.new("Invalid response") unless metadata
 
     metadata
   end
@@ -87,37 +83,6 @@ struct Shardbox::GitHubAPI
 end
 
 struct Repo::Metadata
-  def self.from_github_graphql(string)
-    pull = JSON::PullParser.new(string)
-    metadata = nil
-    pull.read_object do |key|
-      case key
-      when "data"
-        pull.read_object do |key|
-          if key == "repository"
-            pull.read_null_or do
-              metadata = Repo::Metadata.new(github_pull: pull)
-            end
-          else
-            pull.skip
-          end
-        end
-      when "errors"
-        errors = [] of String
-        pull.read_array do
-          pull.on_key!("message") do
-            errors << pull.read_string
-          end
-        end
-        raise Shardbox::FetchError.new("Repository error: #{errors.join(", ")}")
-      else
-        pull.skip
-      end
-    end
-
-    metadata
-  end
-
   def initialize(github_pull pull : JSON::PullParser)
     pull.read_object do |key|
       case key
