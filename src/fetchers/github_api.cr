@@ -40,14 +40,12 @@ struct Shardbox::GitHubAPI
     metadata
   end
 
-  def fetch_owner_info(login : String) : Hash(String, JSON::Any)
+  def fetch_owner_info(login : String) : Hash(String, JSON::Any)?
     response = query(query_owner_info, {login: login})
 
     data = parse_github_graphql(response, "repositoryOwner") do |pull|
       Hash(String, JSON::Any).new(pull)
     end
-
-    raise FetchError.new("Invalid response") unless data
 
     data
   end
@@ -60,8 +58,10 @@ struct Shardbox::GitHubAPI
       when "data"
         pull.read_object do |key|
           if key == expected_key
-            return pull.read_null_or do
-              yield pull
+            if pull.kind.null?
+              return nil
+            else
+              return yield pull
             end
           else
             pull.skip
@@ -80,7 +80,7 @@ struct Shardbox::GitHubAPI
       end
     end
 
-    nil
+    raise FetchError.new("Invalid response")
   rescue exc : JSON::ParseException
     raise FetchError.new("Invalid response", cause: exc)
   end

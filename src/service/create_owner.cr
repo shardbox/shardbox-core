@@ -46,6 +46,20 @@ struct Service::CreateOwner
 
   def self.fetch_owner_info_github(owner, github_api)
     data = github_api.fetch_owner_info(owner.slug)
+    unless data
+      # Skip if data could not be determined (for example GitHub API returns null when the owner was renamed)
+
+      Raven.send_event Raven::Event.new(
+        level: :info,
+        message: "GitHub API returned null for owner",
+        tags: {
+          owner: owner.slug,
+        }
+      )
+
+      return
+    end
+
     data.each do |key, value|
       case key
       when "bio", "description"

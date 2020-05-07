@@ -51,4 +51,42 @@ describe Shardbox::GitHubAPI do
       end
     end
   end
+
+  describe "#fetch_repository_owner" do
+    it "queries from GraphQL" do
+      WebMock.wrap do
+        WebMock.stub(:post, "https://api.github.com/graphql").to_return(<<-JSON, status: 200)
+          {
+            "data": {
+              "repositoryOwner": {
+                "description": "foo"
+              }
+            }
+          }
+          JSON
+
+        api = Shardbox::GitHubAPI.new("")
+
+        api.fetch_owner_info("foo").should eq({
+          "description" => JSON::Any.new("foo"),
+        })
+      end
+    end
+
+    it "handles repositoryOwner: null" do
+      WebMock.wrap do
+        WebMock.stub(:post, "https://api.github.com/graphql").to_return(<<-JSON, status: 200)
+          {
+            "data": {
+              "repositoryOwner": null
+            }
+          }
+          JSON
+
+        api = Shardbox::GitHubAPI.new("")
+
+        api.fetch_owner_info("foo").should be_nil
+      end
+    end
+  end
 end
