@@ -43,8 +43,13 @@ class Repo
       @resolver.fetch_file(Shards::Version.new(version), path)
     end
 
-    def revision_info(version : String? = nil) : Release::RevisionInfo
-      @resolver.revision_info(Shards::Version.new(version))
+    def revision_info(version : String = "HEAD") : Release::RevisionInfo
+      if version == "HEAD"
+        version = Shards::GitHeadRef.new
+      else
+        version = Shards::Version.new(version)
+      end
+      @resolver.revision_info(version)
     end
 
     def latest_version_for_ref(ref) : String?

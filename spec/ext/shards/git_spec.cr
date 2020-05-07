@@ -24,11 +24,11 @@ describe Shards::GitResolver do
       create_git_tag("repo1", "v0.2", "bar\"foo")
       resolver = Shards::GitResolver.find_resolver("git", "repo1", git_url("repo1")).as(Shards::GitResolver)
 
-      revision_info = resolver.revision_info("0.1")
+      revision_info = resolver.revision_info(Shards::Version.new("0.1"))
       revision_info.commit.message.should eq "foo\nbar"
       revision_info.tag.not_nil!.message.should eq "bar\nfoo"
 
-      revision_info = resolver.revision_info("0.2")
+      revision_info = resolver.revision_info(Shards::Version.new("0.2"))
       revision_info.commit.message.should eq "foo\"bar"
       revision_info.tag.not_nil!.message.should eq "bar\"foo"
     ensure
@@ -40,7 +40,7 @@ describe Shards::GitResolver do
       create_git_commit("repo2", "foo bar")
       resolver = Shards::GitResolver.find_resolver("git", "repo2", git_url("repo2")).as(Shards::GitResolver)
 
-      revision_info = resolver.revision_info("HEAD")
+      revision_info = resolver.revision_info(Shards::GitHeadRef.new)
       revision_info.commit.message.should eq "foo bar"
       revision_info.tag.should be_nil
     ensure
@@ -56,7 +56,7 @@ describe Shards::GitResolver do
       end
       resolver = Shards::GitResolver.find_resolver("git", "repo3", git_url("repo3")).as(Shards::GitResolver)
 
-      revision_info = resolver.revision_info("0.2")
+      revision_info = resolver.revision_info(Shards::Version.new("0.2"))
       revision_info.commit.message.should eq "foo bar"
       revision_info.tag.not_nil!.message.should eq "bar foo"
     ensure

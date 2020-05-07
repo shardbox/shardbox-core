@@ -52,6 +52,10 @@ class MockResolver
     @versions[version].revision_info
   end
 
+  def revision_info(version : Shards::GitHeadRef)
+    revision_info(Shards::Version.new("HEAD"))
+  end
+
   def latest_version_for_ref(ref)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
     @versions.keys.last?

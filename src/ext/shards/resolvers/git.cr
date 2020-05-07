@@ -3,20 +3,21 @@ require "../../../release"
 require "../../git/repo"
 
 class Shards::GitResolver
-  def revision_info(version)
+  def revision_info(version : Shards::GitHeadRef | Shards::Version)
     update_local_cache
 
     repo = Git::Repo.open(local_path)
 
-    if version == "HEAD"
-      ref = repo.ref("HEAD")
-    else
-      ref = repo.ref?("refs/tags/v#{version}")
-
-      # Try without `v` prefix
-      ref ||= repo.ref?("refs/tags/#{version}")
+    case version
+    when GitHeadRef
+      ref = repo.ref(version.to_git_ref)
+    when Version
+      ref = git_ref(version)
+      ref = repo.ref?(ref.to_git_ref)
 
       raise "Can't find tag #{version}" unless ref
+    else
+      raise "unreachable"
     end
 
     # Resolve symbolic references
@@ -51,13 +52,22 @@ class Shards::GitResolver
   end
 
   def read_spec!(version)
+    if version.value == "HEAD"
+      version = latest_version_for_ref(nil)
+      raise Shards::Error.new("No version for HEAD") unless version
+    end
+
     read_spec(version)
   end
 
   def fetch_file(version, path)
     # Tree#path is not yet implemented in libgit2.cr, falling back to CLI
     update_local_cache
-    ref = git_ref(version)
+    if version.value == "HEAD"
+      ref = Shards::GitHeadRef.new
+    else
+      ref = git_ref(version)
+    end
 
     if file_exists?(ref, path)
       capture("git show #{ref.to_git_ref}:#{path}")
