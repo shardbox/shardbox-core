@@ -116,17 +116,17 @@ class ShardsDB
   end
 
   def get_shard(shard_id : Int64)
-    result = connection.query_one <<-SQL, shard_id, as: {Int64, String, String, String?, Time?}
+    result = connection.query_one <<-SQL, shard_id, as: {Int64, String, String, String?, Time?, Int64?}
       SELECT
-        id, name::text, qualifier::text, description, archived_at
+        id, name::text, qualifier::text, description, archived_at, merged_with
       FROM
         shards
       WHERE
         id = $1
       SQL
 
-    id, name, qualifier, description, archived_at = result
-    Shard.new(name, qualifier, description, archived_at, id: id)
+    id, name, qualifier, description, archived_at, merged_with = result
+    Shard.new(name, qualifier, description, archived_at, merged_with, id: id)
   end
 
   def get_shards

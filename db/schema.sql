@@ -990,6 +990,8 @@ CREATE TABLE public.shards (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     categories bigint[] DEFAULT '{}'::bigint[] NOT NULL,
     archived_at timestamp with time zone,
+    merged_with bigint,
+    CONSTRAINT shards_merged_with_archived_at CHECK (((merged_with IS NULL) OR ((archived_at IS NOT NULL) AND (categories = '{}'::bigint[])))),
     CONSTRAINT shards_name_check CHECK ((name OPERATOR(public.~) '^[A-Za-z0-9_\-.]{1,100}$'::text)),
     CONSTRAINT shards_qualifier_check CHECK ((qualifier OPERATOR(public.~) '^[A-Za-z0-9_\-.]{0,100}$'::public.citext))
 );
@@ -1174,7 +1176,7 @@ ALTER TABLE ONLY public.shard_metrics
 --
 
 ALTER TABLE ONLY public.shards
-    ADD CONSTRAINT shards_name_unique UNIQUE (name, qualifier);
+    ADD CONSTRAINT shards_name_unique UNIQUE (name, qualifier) DEFERRABLE;
 
 
 --
@@ -1396,6 +1398,14 @@ ALTER TABLE ONLY public.shard_metrics
 
 
 --
+-- Name: shards shards_merged_with_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.shards
+    ADD CONSTRAINT shards_merged_with_fk FOREIGN KEY (merged_with) REFERENCES public.shards(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -1411,4 +1421,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20191106093828'),
     ('20191115142944'),
     ('20191122122940'),
-    ('20200503132444');
+    ('20200503132444'),
+    ('20200506215505');

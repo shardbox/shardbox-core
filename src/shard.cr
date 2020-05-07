@@ -4,8 +4,9 @@ class Shard
   property description : String?
   property! id : Int64
   property archived_at : Time?
+  property merged_with : Int64?
 
-  def initialize(@name : String, @qualifier : String = "", @description : String? = nil, @archived_at : Time? = nil, @id : Int64? = nil)
+  def initialize(@name : String, @qualifier : String = "", @description : String? = nil, @archived_at : Time? = nil, @merged_with : Int64? = nil, @id : Int64? = nil)
   end
 
   def_equals_and_hash name, qualifier, description, archived_at

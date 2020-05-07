@@ -220,6 +220,10 @@ struct Service::ImportCatalog
           "old_shard_id" => repo.shard_id,
           "old_role"     => repo.role,
         }
+
+        if repo.role.canonical? && (old_shard_id = repo.shard_id)
+          merge_shard(old_shard_id, shard_id)
+        end
       else
         repo = Repo.new(mirror.repo_ref, shard_id, mirror.role)
         repo.id = @db.create_repo(repo)
@@ -248,6 +252,31 @@ struct Service::ImportCatalog
     end
   end
 
+  def merge_shard(old_shard_id, shard_id)
+    old_shard = @db.get_shard(old_shard_id)
+    shard = @db.get_shard(shard_id)
+
+    if old_shard.name == shard.name && old_shard.qualifier == ""
+      @db.connection.exec "SET CONSTRAINTS shards_name_unique DEFERRED"
+      set_qualifier(shard_id, "")
+      set_qualifier(old_shard_id, shard.qualifier)
+    end
+
+    archive_shard(old_shard_id, merged_with: shard_id)
+  end
+
+  private def set_qualifier(shard_id, qualifier)
+    result = @db.connection.exec <<-SQL, shard_id, qualifier
+      UPDATE shards
+      SET qualifier = $2
+      WHERE id = $1
+      SQL
+
+    if result.rows_affected != 1
+      raise "set_qualifier could not be applied to #{shard_id}"
+    end
+  end
+
   def archive_unreferenced_shards
     unreferenced_shards = @db.connection.query_all <<-SQL, as: Int64
       SELECT
@@ -265,19 +294,27 @@ struct Service::ImportCatalog
       SQL
 
     unreferenced_shards.each do |shard_id|
-      @db.log_activity("import_catalog:shard:archived", nil, shard_id)
-      @db.connection.exec <<-SQL, shard_id
-        UPDATE
-          shards
-        SET
-          archived_at = NOW(),
-          categories = '{}'
-        WHERE
-          id = $1
-        SQL
+      archive_shard(shard_id)
     end
 
     @unreferenced_shards = unreferenced_shards
+  end
+
+  private def archive_shard(shard_id, merged_with = nil)
+    @db.log_activity("import_catalog:shard:archived", nil, shard_id)
+    result = @db.connection.exec <<-SQL, shard_id, merged_with
+      UPDATE
+        shards
+      SET
+        archived_at = NOW(),
+        categories = '{}',
+        merged_with = $2
+      WHERE id = $1
+        AND archived_at IS NULL
+      SQL
+    if result.rows_affected != 1
+      raise "archive_shard could not be applied to #{shard_id}"
+    end
   end
 
   private def obsolete_removed_repos(valid_refs)

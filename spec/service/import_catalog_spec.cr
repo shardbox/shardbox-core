@@ -520,9 +520,10 @@ describe Service::ImportCatalog do
           {"git", "foo/foo", "canonical", foo_shard_id},
         ]
 
-        db.get_shards.map { |shard| {shard.id, shard.name} }.should eq [
-          {foo_shard_id, "foo"},
+        db.get_shards.map { |shard| {shard.id, shard.name, shard.qualifier} }.should eq [
+          {foo_shard_id, "foo", ""},
         ]
+        db.get_shard(bar_shard_id).merged_with.should eq foo_shard_id
         shard_categorizations(db).should eq [
           {"foo", "", ["category"]},
         ]
@@ -543,6 +544,28 @@ describe Service::ImportCatalog do
           {"import_catalog:shard:archived", nil, bar_shard_id, nil},
         ]
       end
+    end
+  end
+
+  it "archives unreferenced shard and moves repo to mirror, taking over the main shard qualifier" do
+    transaction do |db|
+      foo_shard_id = Factory.create_shard(db, "baz", "foo")
+      bar_shard_id = Factory.create_shard(db, "baz")
+
+      service = Service::ImportCatalog.new(db, Catalog.empty)
+      service.merge_shard(bar_shard_id, foo_shard_id)
+
+      foo_shard = db.get_shard(foo_shard_id)
+      foo_shard.name.should eq "baz"
+      foo_shard.qualifier.should eq ""
+      bar_shard = db.get_shard(bar_shard_id)
+      bar_shard.name.should eq "baz"
+      bar_shard.qualifier.should eq "foo"
+      bar_shard.merged_with.should eq foo_shard_id
+
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"import_catalog:shard:archived", nil, bar_shard_id, nil},
+      ]
     end
   end
 
