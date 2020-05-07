@@ -34,7 +34,7 @@ class MockResolver
 
   def available_releases : Array(Shards::Version)
     raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
-    @versions.keys.compact
+    @versions.keys.compact.reject { |version| version.value == "HEAD" }
   end
 
   def spec(version : Shards::Version)

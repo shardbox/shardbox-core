@@ -11,7 +11,7 @@ describe Service::SyncRepo do
       transaction do |db|
         repo_ref = Repo::Ref.new("git", "foo")
         shard_id = Factory.create_shard(db, "foo")
-        repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
+        repo_id = Factory.create_repo(db, repo_ref, role: :mirror, shard_id: shard_id)
         service = Service::SyncRepo.new(db, repo_ref)
 
         resolver = Repo::Resolver.new(MockResolver.new, repo_ref)
@@ -96,6 +96,25 @@ describe Service::SyncRepo do
           }},
           {"sync_release:created", nil, shard_id, {"version" => "0.2.0"}},
           {"sync_repo:release:yanked", nil, shard_id, {"version" => "0.1.0"}},
+        ]
+      end
+    end
+
+    it "uses HEAD when no releases tagged" do
+      transaction do |db|
+        shard_id = Factory.create_shard(db, "foo")
+        repo_ref = Repo::Ref.new("git", "foo")
+        repo_id = Factory.create_repo(db, repo_ref, shard_id: shard_id)
+        mock_resolver = MockResolver.new
+        mock_resolver.register "HEAD", Factory.build_revision_info(tag: nil), spec: nil
+        resolver = Repo::Resolver.new(mock_resolver, repo_ref)
+
+        service = Service::SyncRepo.new(db, repo_ref)
+        service.sync_releases(resolver, shard_id)
+
+        db.all_releases(shard_id).map { |r| {r.version.to_s, r.yanked?} }.should eq [{"HEAD", false}]
+        db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+          {"sync_release:created", nil, shard_id, {"version" => "HEAD"}},
         ]
       end
     end

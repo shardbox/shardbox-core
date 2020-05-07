@@ -51,6 +51,10 @@ struct Service::SyncRepo
   def sync_releases(resolver, shard_id)
     versions = resolver.fetch_versions
 
+    if versions.empty?
+      versions = ["HEAD"]
+    end
+
     failed_versions = [] of String
     versions.each do |version|
       if !SoftwareVersion.valid?(version) && version != "HEAD"
