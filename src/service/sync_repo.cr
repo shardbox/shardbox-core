@@ -22,7 +22,12 @@ struct Service::SyncRepo
     shard_id = repo.shard_id
 
     unless shard_id
-      shard_id = ImportShard.new(@db, repo, resolver).perform
+      begin
+        shard_id = ImportShard.new(@db, repo, resolver).perform
+      rescue exc : Shards::Error
+        SyncRepo.sync_failed(@db, repo, "import_shard_failed", exc, tags: {"error_message" => exc.message})
+        return
+      end
 
       return unless shard_id
     end
@@ -74,7 +79,7 @@ struct Service::SyncRepo
 
       begin
         SyncRelease.new(@db, shard_id, version).sync_release(resolver)
-      rescue exc : Shards::ParseError
+      rescue exc : Shards::Error
         repo = @db.get_repo(resolver.repo_ref)
         SyncRepo.sync_failed(@db, repo, "sync_release:failed", exc, tags: {"error_message" => exc.message, "version" => version})
 
