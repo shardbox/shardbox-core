@@ -33,26 +33,27 @@ class MockResolver
   end
 
   def available_releases : Array(Shards::Version)
-    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    raise Shards::Error.new("Failed to clone mock_repo") unless resolvable?
     @versions.keys.compact.reject { |version| version.value == "HEAD" }
   end
 
   def spec(version : Shards::Version)
-    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    raise Shards::Error.new("Failed to clone mock_repo") unless resolvable?
     Shards::Spec.from_yaml(read_spec(version))
   end
 
   def read_spec!(version : Shards::Version)
-    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    raise Shards::Error.new("Failed to clone mock_repo") unless resolvable?
     @versions[version].spec
   end
 
   def revision_info(version : Shards::Version)
-    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    raise Shards::Error.new("Failed to clone mock_repo") unless resolvable?
     @versions[version].revision_info
   end
 
   def revision_info(version : Shards::GitHeadRef)
+    raise Shards::Error.new("Failed to clone mock_repo") unless resolvable?
     revision_info(Shards::Version.new("HEAD"))
   end
 
@@ -62,7 +63,7 @@ class MockResolver
   end
 
   def fetch_file(version, path)
-    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    raise Shards::Error.new("Failed to clone mock_repo") unless resolvable?
     @versions[version].files[path]?
   end
 end
