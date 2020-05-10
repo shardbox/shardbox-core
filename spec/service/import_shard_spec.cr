@@ -72,4 +72,31 @@ describe Service::ImportShard do
       ]
     end
   end
+
+  it "handles repo unresolvable error" do
+    repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
+
+    transaction do |db|
+      repo_id = Factory.create_repo(db, repo_ref, nil)
+
+      shard_id = Service::ImportShard.new(db,
+        db.get_repo(repo_id),
+        resolver: Repo::Resolver.new(MockResolver.unresolvable, repo_ref),
+      ).perform
+
+      shard_id.should be_nil
+
+      ShardsDBHelper.persisted_shards(db).should be_empty
+
+      db.repos_pending_sync.map(&.ref).should be_empty
+
+      db.last_activities.map { |a| {a.event, a.repo_id, a.shard_id, a.metadata} }.should eq [
+        {"sync_repo:fetch_spec_failed", repo_id, nil, {
+          "exception"     => "Shards::Error",
+          "error_message" => "Failed to clone mock_repo",
+          "repo_role"     => "canonical",
+        }},
+      ]
+    end
+  end
 end

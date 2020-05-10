@@ -20,11 +20,7 @@ class Repo
     def fetch_versions : Array(String)
       @resolver.available_releases.map(&.value)
     rescue exc : Shards::Error
-      if exc.message.try &.starts_with?("Failed to clone")
-        raise RepoUnresolvableError.new(cause: exc)
-      else
-        raise exc
-      end
+      handle_shards_error(exc)
     end
 
     def fetch_raw_spec(version : String? = nil) : String?
@@ -54,6 +50,16 @@ class Repo
 
     def latest_version_for_ref(ref) : String?
       @resolver.latest_version_for_ref(ref).try &.value
+    rescue exc : Shards::Error
+      handle_shards_error(exc)
+    end
+
+    private def handle_shards_error(exc)
+      if exc.message.try &.starts_with?("Failed to clone")
+        raise RepoUnresolvableError.new(cause: exc)
+      else
+        raise exc
+      end
     end
 
     def self.resolver_instance(repo_ref)

@@ -57,7 +57,7 @@ class MockResolver
   end
 
   def latest_version_for_ref(ref)
-    raise Repo::Resolver::RepoUnresolvableError.new unless resolvable?
+    raise Shards::Error.new("Failed to clone mock_repo") unless resolvable?
     @versions.keys.last?
   end
 
