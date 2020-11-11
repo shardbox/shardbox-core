@@ -10,8 +10,6 @@ require "uri"
 # TODO: Remove this workaround (probably use libgit2 bindings instead)
 ENV["GIT_ASKPASS"] = "/usr/bin/test"
 
-Log.setup_from_env(sources: ENV.fetch("CRYSTAL_LOG_SOURCES", "*"))
-
 def show_help(io)
   io.puts "shards-toolbox worker"
   io.puts "commands:"

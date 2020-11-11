@@ -1,38 +1,38 @@
-version: 1.0
+version: 2.0
 shards:
   any_hash:
-    github: Sija/any_hash.cr
+    git: https://github.com/sija/any_hash.cr.git
     version: 0.2.3
 
   db:
-    github: crystal-lang/crystal-db
-    version: 0.8.0
+    git: https://github.com/crystal-lang/crystal-db.git
+    version: 0.10.0
 
   git:
-    github: smacker/libgit2.cr
-    commit: 1d42ffdcf6f885a49ece5b2baac00a5146d0a556
+    git: https://github.com/smacker/libgit2.cr.git
+    version: 0.1.0+git.commit.1d42ffdcf6f885a49ece5b2baac00a5146d0a556
 
   github-cr:
-    github: arnavb/github-cr
-    commit: 119df4c747a81260b37af0878b24eab9345a94f4
+    git: https://github.com/arnavb/github-cr.git
+    version: 0.1.0+git.commit.119df4c747a81260b37af0878b24eab9345a94f4
 
   molinillo:
-    github: crystal-lang/crystal-molinillo
+    git: https://github.com/crystal-lang/crystal-molinillo.git
     version: 0.1.0
 
   pg:
-    github: will/crystal-pg
-    commit: c6448b7577bd0db5e5a578f73cab93b63a48055a
+    git: https://github.com/will/crystal-pg.git
+    version: 0.22.1+git.commit.cafeaf6127d8d50cfc345ae987f63e8d39fd9041
 
   raven:
-    github: Sija/raven.cr
-    version: 1.6.0
+    git: https://github.com/Sija/raven.cr.git
+    version: 1.8.0
 
   shards:
-    github: crystal-lang/shards
-    commit: 5666481ea1b304944adcf9eabce0b24ff9badeb9
+    git: https://github.com/crystal-lang/shards.git
+    version: 0.10.0+git.commit.5666481ea1b304944adcf9eabce0b24ff9badeb9
 
   webmock:
-    github: manastech/webmock.cr
-    commit: 78bb0e3b5850c700da0e7fbdd2d6c180cc4a061b
+    git: https://github.com/manastech/webmock.cr.git
+    version: 0.13.0+git.commit.bb3eab30f6c7d1fdc0a7ff14cd136d68e860d1a7
 
