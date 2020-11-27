@@ -9,6 +9,12 @@ require "../shard"
 struct Service::ImportShard
   @resolver : Repo::Resolver
 
+  class Error < Exception
+    def initialize(@repo : Repo, cause = nil)
+      super("import_shard failed for #{repo.ref}", cause: cause)
+    end
+  end
+
   def initialize(@db : ShardsDB, @repo : Repo, resolver : Repo::Resolver? = nil, @entry : Catalog::Entry? = nil)
     @resolver = resolver || Repo::Resolver.new(@repo.ref)
   end
@@ -16,9 +22,11 @@ struct Service::ImportShard
   def perform
     import_shard
   rescue exc
-    SyncRepo.log_sync_failed(@db, @repo, "import_shard_failed", exc)
+    ShardsDB.transaction do |db|
+      db.repo_sync_failed(@repo)
+    end
 
-    raise exc
+    raise Error.new(@repo, cause: exc)
   end
 
   # Entry point for ImportCatalog
@@ -31,6 +39,7 @@ struct Service::ImportShard
     shard_name = spec.name
     unless Shard.valid_name?(shard_name)
       Log.notice &.emit("invalid shard name", repo: @repo.ref.to_s, shard_name: shard_name)
+      SyncRepo.sync_failed(@db, @repo, "invalid shard name")
       return
     end
 
@@ -46,6 +55,10 @@ struct Service::ImportShard
       spec_raw = @resolver.fetch_raw_spec(version)
     rescue exc : Repo::Resolver::RepoUnresolvableError
       SyncRepo.sync_failed(@db, @repo, "fetch_spec_failed", exc.cause)
+
+      return
+    rescue exc : Shards::Error
+      SyncRepo.sync_failed(@db, @repo, "shards_error", exc.cause)
 
       return
     end

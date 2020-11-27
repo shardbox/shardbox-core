@@ -1,3 +1,8 @@
+module Shardbox
+  Log         = ::Log.for(self)
+  ActivityLog = Log.for("activity")
+end
+
 class LogActivity
   DB.mapping(
     id: Int64,

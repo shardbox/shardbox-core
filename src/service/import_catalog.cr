@@ -8,6 +8,8 @@ struct Service::ImportCatalog
   @obsolete_repos = [] of Repo::Ref
   @unreferenced_shards : Array(Int64)? = nil
 
+  Log = Shardbox::Log.for("service.import_catalog")
+
   def initialize(@db : ShardsDB, @catalog : Catalog)
   end
 
@@ -26,12 +28,10 @@ struct Service::ImportCatalog
       # Log failure in a separate connection because the main transaction
       # has already failed and won't be committed.
       ShardsDB.transaction do |db|
-        db.log_activity "import_catalog:failed", metadata: {"exception" => exc.class.to_s}
+        db.log_activity "import_catalog:failed", exc: exc
       end
     rescue
     end
-
-    raise exc
   end
 
   def stats(elapsed)
@@ -169,14 +169,23 @@ struct Service::ImportCatalog
     end
 
     shard_id
+  rescue exc : Service::ImportShard::Error
+    Log.error(exception: exc) { "import_shard failed" }
+    nil
   end
 
   private def create_shard(entry, repo)
     Service::ImportShard.new(@db, repo, entry: entry).perform
+  rescue exc : Shards::Error
+    Log.error(exception: exc) { "create_shard failed" }
+    nil
   end
 
   private def update_shard(entry, shard_id : Int64)
     Service::UpdateShard.new(@db, shard_id, entry).perform
+  rescue exc : Shards::Error
+    Log.error(exception: exc) { "update_shard failed" }
+    nil
   end
 
   def set_role(repo_ref : Repo::Ref, role : Repo::Role)

@@ -5,6 +5,26 @@ require "./service/update_owner_metrics"
 require "./service/worker_loop"
 require "./raven"
 require "uri"
+require "log"
+
+Log.setup do |config|
+  stdout = Log::IOBackend.new
+  config.bind "*", :info, stdout
+  config.bind "service.*", :debug, stdout
+  config.bind "shardbox.activity", :info, stdout
+  config.bind "db.*", :info, stdout
+
+  raven = Raven::LogBackend.new(
+    capture_exceptions: true,
+    record_breadcrumbs: true,
+  )
+  config.bind "*", :warn, raven
+end
+
+unless ENV.has_key?("GITHUB_TOKEN")
+  puts "Missing environment variable GITHUB_TOKEN"
+  exit 1
+end
 
 # Disable git asking for credentials when cloning a repository. It's probably been deleted.
 # TODO: Remove this workaround (probably use libgit2 bindings instead)
@@ -19,6 +39,7 @@ def show_help(io)
 end
 
 def sync_all_pending_repos
+  Shardbox::Log.info { "Syncing pending repos" }
   ShardsDB.connect do |db|
     Service::SyncRepos.new(db).sync_all_pending_repos
   end
@@ -61,6 +82,11 @@ when "sync_repo"
   end
 
   sync_all_pending_repos
+when "sync_pending_repos"
+  limit = ARGV.shift?.try(&.to_i)
+  ShardsDB.connect do |db|
+    Service::SyncRepos.new(db).sync_all_pending_repos(limit)
+  end
 when "update_metrics"
   ShardsDB.transaction do |db|
     Service::UpdateShardMetrics.new(db).perform

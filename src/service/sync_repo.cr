@@ -10,10 +10,18 @@ struct Service::SyncRepo
   def initialize(@db : ShardsDB, @repo_ref : Repo::Ref)
   end
 
-  def perform
-    resolver = Repo::Resolver.new(@repo_ref)
+  Log = Shardbox::Log.for("service.sync_repo")
 
-    sync_repo(resolver)
+  def perform
+    Log.debug { "Sync repo #{@repo_ref}" }
+
+    duration = Time.measure do
+      resolver = Repo::Resolver.new(@repo_ref)
+
+      sync_repo(resolver)
+    end
+
+    Log.debug { "Done sync repo #{@repo_ref} in #{duration}" }
   end
 
   def sync_repo(resolver : Repo::Resolver)
@@ -144,23 +152,23 @@ struct Service::SyncRepo
     end
   end
 
+  def self.log_sync_failed(repo : Repo, event, exc = nil, metadata = nil)
+    # Log failure in a separate connection because the main transaction
+    # has already failed and won't be committed.
+    ShardsDB.transaction do |db|
+      log_sync_failed(db, repo, event, exc, metadata)
+    end
+  end
+
   def self.log_sync_failed(db, repo : Repo, event, exc = nil, metadata = nil)
-    db.connection.exec <<-SQL, repo.id
-      UPDATE
-        repos
-      SET
-        sync_failed_at = NOW()
-      WHERE
-        id = $1
-      SQL
+    db.repo_sync_failed(repo)
 
     metadata ||= {} of String => String
     metadata["repo_role"] ||= repo.role.to_s
-    if exc
-      metadata["exception"] ||= exc.class.to_s
-      metadata["error_message"] ||= exc.message.to_s
-    end
-    db.log_activity "sync_repo:#{event}", repo_id: repo.id, shard_id: repo.shard_id, metadata: metadata
+    db.log_activity "sync_repo:#{event}", repo_id: repo.id, shard_id: repo.shard_id, metadata: metadata, exc: exc
+  rescue exc : PQ::PQError
+    Shardbox::Log.trace(exception: exc) { "Secondary db error in log_sync_failed" }
+    # ignore secondary DB error
   end
 
   def self.sync_failed(db, repo : Repo, event, exc = nil, tags = nil)

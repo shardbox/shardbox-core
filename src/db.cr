@@ -265,6 +265,17 @@ class ShardsDB
     end
   end
 
+  def repo_sync_failed(repo)
+    connection.exec <<-SQL, repo.id
+      UPDATE
+        repos
+      SET
+        sync_failed_at = NOW()
+      WHERE
+        id = $1
+      SQL
+  end
+
   def get_owned_repos(owner_id : Int64)
     results = connection.query_all <<-SQL, owner_id, as: {Int64, String, String, Int64?, String, String, Time?, Time?}
       SELECT
@@ -589,9 +600,14 @@ class ShardsDB
   end
 
   # LOGGING
-  Log = ::Log.for(self)
+  def log_activity(event : String, repo_id : Int64? = nil, shard_id : Int64? = nil, metadata = nil, exc = nil)
+    if exc
+      metadata ||= Hash(String, String).new
+      metadata["exception"] ||= exc.class.to_s
+      metadata["error_message"] ||= exc.message.to_s
+    end
 
-  def log_activity(event : String, repo_id : Int64? = nil, shard_id : Int64? = nil, metadata = nil)
+    repo_ref = nil
     log_message = String.build do |io|
       io << event
       if repo_id
@@ -609,7 +625,7 @@ class ShardsDB
         end
       end
     end
-    Log.info { log_message }
+
     connection.exec <<-SQL, event, repo_id, shard_id, metadata.to_json
         INSERT INTO activity_log
         (
@@ -620,6 +636,12 @@ class ShardsDB
           $1, $2, $3, $4
         )
       SQL
+
+    if exc
+      Shardbox::ActivityLog.info exception: exc, &.emit(event, repo: repo_ref.to_s, shard_id: shard_id, metadata: metadata.to_json)
+    else
+      Shardbox::ActivityLog.info &.emit(event, repo: repo_ref.to_s, shard_id: shard_id, metadata: metadata.to_json)
+    end
   end
 
   def last_activities

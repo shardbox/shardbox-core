@@ -3,7 +3,7 @@ require "./sync_repo"
 
 # This service synchronizes the information about a repository in the database.
 struct Service::SyncRepos
-  Log = ::Log.for(self)
+  Log = Shardbox::Log.for("service.sync_repos")
 
   def initialize(@db : ShardsDB, @older_than : Time, @ratio : Float32)
     @repo_refs_count = 0
@@ -35,13 +35,23 @@ struct Service::SyncRepos
     }
   end
 
-  def sync_all_pending_repos
+  def sync_all_pending_repos(limit : Int32? = nil)
+    iteration = 0
     loop do
+      iteration += 1
       pending = @db.repos_pending_sync
       break if pending.empty?
+      if limit && pending.size > limit
+        pending = pending.first(limit)
+      end
+      Log.debug { "Syncing pending repos (#{iteration}): #{pending.size}" }
       pending.each do |repo|
         sync_repo(repo.ref)
         @pending_repos_count += 1
+      end
+      Log.debug { "Done syncing pending repos (#{iteration}): #{pending.size}" }
+      if limit
+        return
       end
     end
   end
@@ -67,22 +77,24 @@ struct Service::SyncRepos
       LIMIT (SELECT COUNT(*) FROM repos_update) * $2::real
       SQL
 
+    Log.debug { "Syncing #{repo_refs.size} repos" }
     repo_refs.each do |repo_ref|
       repo_ref = Repo::Ref.new(*repo_ref)
       sync_repo(repo_ref)
     end
+    Log.debug { "Done syncing repos" }
     @repo_refs_count = repo_refs.size
   end
 
   def sync_repo(repo_ref)
-    begin
-      ShardsDB.transaction do |db|
+    ShardsDB.transaction do |db|
+      begin
         Service::SyncRepo.new(db, repo_ref).perform
+      rescue exc
+        Raven.capture(exc)
+        Log.error(exception: exc) { "Failure while syncing repo #{repo_ref}" }
+        @failures_count += 1
       end
-    rescue exc
-      Raven.capture(exc)
-      Log.error(exception: exc) { "Failure while syncing repo #{repo_ref}" }
-      @failures_count += 1
     end
   end
 
