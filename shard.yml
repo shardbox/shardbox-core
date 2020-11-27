@@ -15,7 +15,7 @@ license: MIT
 dependencies:
   shards:
     github: crystal-lang/shards
-    commit: 5666481
+    branch: master
   pg:
     github: will/crystal-pg
     branch: master

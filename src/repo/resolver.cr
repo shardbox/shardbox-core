@@ -1,4 +1,5 @@
 require "shards/logger"
+require "shards/resolvers/resolver"
 require "shards/package"
 require "../ext/shards/resolvers/git"
 require "../release"

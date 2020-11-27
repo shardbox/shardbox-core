@@ -1,7 +1,7 @@
 version: 2.0
 shards:
   any_hash:
-    git: https://github.com/sija/any_hash.cr.git
+    git: https://github.com/Sija/any_hash.cr.git
     version: 0.2.3
 
   db:
@@ -30,7 +30,7 @@ shards:
 
   shards:
     git: https://github.com/crystal-lang/shards.git
-    version: 0.10.0+git.commit.5666481ea1b304944adcf9eabce0b24ff9badeb9
+    version: 0.12.0+git.commit.1ad3b68f472d3bfade8aaa1cf18a81efad683a86
 
   webmock:
     git: https://github.com/manastech/webmock.cr.git
