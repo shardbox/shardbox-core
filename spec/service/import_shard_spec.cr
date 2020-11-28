@@ -18,18 +18,18 @@ private def shard_categorizations(db)
 end
 
 describe Service::ImportShard do
-  mock_resolver = MockResolver.new
-  mock_resolver.register("0.1.0", Factory.build_revision_info, <<-SPEC)
-    name: test
-    description: test shard
-    version: 0.1.0
-    SPEC
-
   it "creates new shard" do
     repo_ref = Repo::Ref.new("git", "mock:test")
 
     transaction do |db|
       repo_id = Factory.create_repo(db, repo_ref, nil)
+
+      mock_resolver = MockResolver.new
+      mock_resolver.register("0.1.0", Factory.build_revision_info, <<-SPEC)
+        name: test
+        description: test shard
+        version: 0.1.0
+        SPEC
 
       shard_id = Service::ImportShard.new(db,
         db.get_repo(repo_id),
@@ -52,11 +52,39 @@ describe Service::ImportShard do
     end
   end
 
+  it "normalizes shard name" do
+    repo_ref = Repo::Ref.new("git", "mock:test")
+
+    transaction do |db|
+      repo_id = Factory.create_repo(db, repo_ref, nil)
+
+      mock_resolver = MockResolver.new
+      mock_resolver.register("0.1.0", Factory.build_revision_info, <<-SPEC)
+        name: foo bar
+        version: 0.1.0
+        SPEC
+
+      shard_id = Service::ImportShard.new(db,
+        db.get_repo(repo_id),
+        resolver: Repo::Resolver.new(mock_resolver, repo_ref),
+      ).perform
+
+      ShardsDBHelper.persisted_shards(db).empty?.should be_true
+    end
+  end
+
   it "uses existing repo" do
     repo_ref = Repo::Ref.new("git", "mock://example.com/git/test.git")
 
     transaction do |db|
       repo_id = Factory.create_repo(db, repo_ref, nil)
+
+      mock_resolver = MockResolver.new
+      mock_resolver.register("0.1.0", Factory.build_revision_info, <<-SPEC)
+        name: test
+        description: test shard
+        version: 0.1.0
+        SPEC
 
       shard_id = Service::ImportShard.new(db,
         db.get_repo(repo_id),

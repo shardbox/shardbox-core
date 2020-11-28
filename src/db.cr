@@ -283,13 +283,16 @@ class ShardsDB
   end
 
   def create_shard(shard : Shard)
-    shard_id = connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, shard.archived_at, as: Int64
+    connection.query_one <<-SQL, shard.name, shard.qualifier, shard.description, shard.archived_at, as: Int64
       INSERT INTO shards
         (name, qualifier, description, archived_at)
       VALUES
         ($1, $2, $3, $4)
       RETURNING id;
       SQL
+
+  rescue exc : PQ::PQError
+    raise Error.new("create_shard #{shard.inspect}", cause: exc)
   end
 
   def create_repo(repo : Repo)

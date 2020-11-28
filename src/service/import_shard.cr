@@ -28,7 +28,13 @@ struct Service::ImportShard
     spec = retrieve_spec
     return unless spec
 
-    CreateShard.new(@db, @repo, spec.name, @entry).perform
+    shard_name = spec.name
+    unless Shard.valid_name?(shard_name)
+      Log.notice &.emit("invalid shard name", repo: @repo.ref.to_s, shard_name: shard_name)
+      return
+    end
+
+    CreateShard.new(@db, @repo, shard_name, @entry).perform
   end
 
   private def retrieve_spec
