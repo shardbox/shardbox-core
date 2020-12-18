@@ -18,7 +18,6 @@ dependencies:
     branch: master
   pg:
     github: will/crystal-pg
-    branch: master
   raven:
     github: Sija/raven.cr
   git:
