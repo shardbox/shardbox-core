@@ -1,6 +1,5 @@
 require "db"
 require "pg"
-require "logger"
 require "./shard"
 require "./release"
 require "./category"

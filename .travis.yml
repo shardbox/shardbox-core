@@ -22,6 +22,7 @@ env:
     - PGPORT: 5433
     - TEST_DATABASE_URL: "postgres://postgres:@localhost:5433/shardbox"
     - DBMATE: "vendor/bin/dbmate"
+    - SHARDS_OPTS: "--ignore-crystal-version"
 
 jobs:
   include:
