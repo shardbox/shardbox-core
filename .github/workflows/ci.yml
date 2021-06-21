@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches:
+    - master
+    # Branches from forks have the form 'user:branch-name' so we only run
+    # this job on pull_request events for branches that look like fork
+    # branches. Without this we would end up running this job twice for non
+    # forked PRs, once for the push and then once for opening the PR.
+    - "**:**"
+  schedule:
+    - cron: '0 6 * * 1'  # Every monday 6 AM
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        crystal: [latest, nightly]
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      TEST_DATABASE_URL: "postgres://postgres:postgres@localhost:5432/shardbox"
+      PGHOST: localhost
+      PGUSER: postgres
+      DBMATE: "vendor/bin/dbmate"
+      SHARDS_OPTS: "--ignore-crystal-version"
+
+    steps:
+      - name: Download source
+        uses: actions/checkout@v2
+      - name: Install Crystal
+        uses: oprypin/install-crystal@v1
+        with:
+          crystal: ${{ matrix.crystal }}
+      - name: Install dependencies
+        run: |
+          make vendor/bin/dbmate
+          sudo apt-get install libgit2-dev
+      - name: Configure git user
+        run: |
+          git config --global user.email "ci@shardbox.org"
+          git config --global user.name "GitHub Actions"
+      - name: Run unit tests
+        run: make test
+      - name: Run migration tests
+        run: make test/migration TEST_DATABASE_URL=${TEST_DATABASE_URL}?sslmode=disable
+      - name: Build worker
+        run: make bin/worker
+      - name: Run integration test
+        run: bin/worker sync_repos && bin/worker update_metrics
+        env:
+          DATABASE_URL: "${{ env.TEST_DATABASE_URL }}?sslmode=disable"
+          GITHUB_TOKEN: "${{ secrets.GithubToken }}"
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download source
+        uses: actions/checkout@v2
+      - name: Install Crystal
+        uses: oprypin/install-crystal@v1
+        with:
+          crystal: latest
+      - name: Check formatting
+        run: crystal tool format; git diff --exit-code

@@ -105,6 +105,11 @@ db/migrate:
 db/rollback:
 	$(DBMATE) -e DATABASE_URL rollback
 
+vendor/bin/dbmate:
+	mkdir -p vendor/bin
+	wget -qO "$@" https://github.com/amacneil/dbmate/releases/download/v1.7.0/dbmate-linux-amd64
+	chmod +x "$@"
+
 .PHONY: clean
 clean: ## Remove application binary
 clean:
