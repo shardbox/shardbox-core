@@ -6,7 +6,7 @@ Shards database, collecting shard repositories, releases and dependencies.
 
 ### Prerequisites
 
-* Crystal (0.30.1 or later)
+* Crystal (1.0.0 or later)
 * PostgreSQL database (version 12)
 * [dbmate](https://github.com/amacneil/dbmate) for database migrations
 
