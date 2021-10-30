@@ -14,7 +14,7 @@ shards:
 
   git:
     git: https://github.com/smacker/libgit2.cr.git
-    version: 0.1.0+git.commit.1d42ffdcf6f885a49ece5b2baac00a5146d0a556
+    version: 0.1.0+git.commit.6267162e7d9e16edace62f942d08565518bc73d9
 
   github-cr:
     git: https://github.com/arnavb/github-cr.git
@@ -26,7 +26,7 @@ shards:
 
   pg:
     git: https://github.com/will/crystal-pg.git
-    version: 0.23.1+git.commit.cafe039cfd6340a271e81603943bb1975f5a91f5
+    version: 0.24.0
 
   raven:
     git: https://github.com/sija/raven.cr.git
@@ -34,7 +34,7 @@ shards:
 
   shards:
     git: https://github.com/crystal-lang/shards.git
-    version: 0.14.1+git.commit.addc26a3f22fee9fccb01cbb3e8878bef02d4295
+    version: 0.16.0
 
   webmock:
     git: https://github.com/manastech/webmock.cr.git
