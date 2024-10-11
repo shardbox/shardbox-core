@@ -56,7 +56,7 @@ struct Service::WorkerLoop
     end
   end
 
-  def scheduled(scheduled_time : Time)
+  def scheduled(scheduled_time : Time, &)
     @running = true
 
     while running?

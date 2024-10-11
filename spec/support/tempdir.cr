@@ -1,6 +1,6 @@
 require "file_utils"
 
-def with_tempdir(name)
+def with_tempdir(name, &)
   path = File.join(Dir.tempdir, name)
   FileUtils.mkdir_p(path)
 

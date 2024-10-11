@@ -10,7 +10,7 @@ class Category
     @name : String,
     @description : String? = nil,
     @entries_count : Int32 = 0,
-    @id : Int64? = nil
+    @id : Int64? = nil,
   )
   end
 end

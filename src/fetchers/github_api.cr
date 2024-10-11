@@ -46,7 +46,7 @@ struct Shardbox::GitHubAPI
     data
   end
 
-  def parse_github_graphql(content, expected_key)
+  def parse_github_graphql(content, expected_key, &)
     pull = JSON::PullParser.new(content)
 
     pull.read_object do |key|

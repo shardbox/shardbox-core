@@ -3,7 +3,7 @@ require "../../src/db"
 
 ShardsDB.database_url = ENV["TEST_DATABASE_URL"]
 
-def transaction
+def transaction(&)
   ShardsDB.transaction do |db, transaction|
     db.connection.on_notice do |notice|
       puts
