@@ -92,7 +92,7 @@ class Catalog
     end
   end
 
-  def each_category
+  def each_category(&)
     local_path = check_out
 
     each_category(local_path) do |category|
@@ -100,7 +100,7 @@ class Catalog
     end
   end
 
-  def each_category(path : Path)
+  def each_category(path : Path, &)
     unless File.directory?(path)
       raise Error.new "Can't read catalog at #{path}, directory does not exist."
     end

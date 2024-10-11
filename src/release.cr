@@ -31,7 +31,7 @@ class Release
     revision_info : RevisionInfo,
     spec : Hash(String, JSON::Any) = {} of String => JSON::Any,
     yanked_at : Time? = nil,
-    latest : Bool = false
+    latest : Bool = false,
   )
     new(
       version: version,
@@ -50,7 +50,7 @@ class Release
     @spec : Hash(String, JSON::Any) = {} of String => JSON::Any,
     @yanked_at : Time? = nil,
     @latest : Bool = false,
-    @id : Int64? = nil
+    @id : Int64? = nil,
   )
   end
 

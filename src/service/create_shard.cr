@@ -83,7 +83,7 @@ struct Service::CreateShard
   end
 
   # This method yields qualifiers for this shard in order of preference
-  private def possible_qualifiers
+  private def possible_qualifiers(&)
     # 1. No qualifier
     yield ""
 

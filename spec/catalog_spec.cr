@@ -2,7 +2,7 @@ require "spec"
 require "../src/catalog"
 require "file_utils"
 
-private def with_tempdir(name)
+private def with_tempdir(name, &)
   path = File.join(Dir.tempdir, name)
   FileUtils.mkdir_p(path)
 

@@ -37,13 +37,13 @@ class ShardsDB
     @@db
   end
 
-  def self.connect
+  def self.connect(&)
     db.using_connection do |connection|
       yield ShardsDB.new(connection)
     end
   end
 
-  def self.transaction
+  def self.transaction(&)
     db.transaction do |transaction|
       yield ShardsDB.new(transaction.connection), transaction
     end
