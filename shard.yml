@@ -22,7 +22,7 @@ dependencies:
   git:
     github: smacker/libgit2.cr
   github-cr:
-    github: arnavb/github-cr
+    github: straight-shoota/github-cr
 
 development_dependencies:
   webmock:
