@@ -17,7 +17,7 @@ shards:
     version: 0.1.0+git.commit.6267162e7d9e16edace62f942d08565518bc73d9
 
   github-cr:
-    git: https://github.com/arnavb/github-cr.git
+    git: https://github.com/straight-shoota/github-cr.git
     version: 0.1.0+git.commit.119df4c747a81260b37af0878b24eab9345a94f4
 
   molinillo:
